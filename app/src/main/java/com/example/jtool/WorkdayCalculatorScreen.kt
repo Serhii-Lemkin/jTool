@@ -3,6 +3,8 @@ package com.example.jtool
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,21 +15,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.jtool.ui.theme.JToolTheme
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
 fun WorkdayCalculatorScreen(
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    groupSyncManager: GroupSyncManager // Added
 ) {
-    val weeklyHours = remember { settingsManager.getAllWeeklyHours() }
+    var weeklyHours by remember { mutableStateOf(settingsManager.getAllWeeklyHours()) }
     var showForgetConfirm by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
     var isTimeSaved by remember { mutableStateOf(false) }
-
+    
+    val scope = rememberCoroutineScope()
     val today = remember { LocalDate.now() }
     val currentDay = today.dayOfWeek
     val requiredHours = weeklyHours[currentDay] ?: 0.0
@@ -48,8 +55,47 @@ fun WorkdayCalculatorScreen(
                 finishTime = parsed.plusMinutes(totalMinutes)
             }
         }
+        
+        // Show prompt if no hours set at all
+        if (weeklyHours.values.all { it == 0.0 }) {
+            showEditDialog = true
+        }
     }
-    
+
+    if (showEditDialog) {
+        var tempHours by remember { mutableStateOf(weeklyHours) }
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text(Loc.editWorkHours) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(Loc.setHoursManually, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    DayOfWeek.values().forEach { day ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(day.getDisplayName(TextStyle.SHORT, Locale.getDefault()), modifier = Modifier.width(40.dp))
+                            Slider(
+                                value = (tempHours[day] ?: 0.0).toFloat(),
+                                onValueChange = { tempHours = tempHours + (day to it.toDouble()) },
+                                valueRange = 0f..12f,
+                                steps = 23,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(String.format("%.1f", tempHours[day]), modifier = Modifier.width(40.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    tempHours.forEach { (day, h) -> settingsManager.saveDayHours(day, h) }
+                    weeklyHours = tempHours
+                    scope.launch { groupSyncManager.pushUserSettings() }
+                    showEditDialog = false
+                }) { Text(Loc.save) }
+            }
+        )
+    }
+
     val currentInvalidFormat = Loc.invalidFormat
 
     if (showForgetConfirm) {
@@ -85,13 +131,25 @@ fun WorkdayCalculatorScreen(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(48.dp))
+            Text(
+                text = Loc.today,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(onClick = { showEditDialog = true }) {
+                Icon(Icons.Default.Settings, contentDescription = "Edit Hours")
+            }
+        }
+        
         Text(
-            text = "${Loc.today}: ${currentDay.getDisplayName(java.time.format.TextStyle.FULL, currentLocale)}",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
+            text = currentDay.getDisplayName(java.time.format.TextStyle.FULL, currentLocale),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary
         )
+
         Text(
             text = "${Loc.requiredHours}: $requiredHours",
             fontSize = 16.sp,
@@ -209,7 +267,8 @@ fun WorkdayCalculatorPreview() {
     val context = LocalContext.current
     JToolTheme {
         WorkdayCalculatorScreen(
-            settingsManager = SettingsManager(context)
+            settingsManager = SettingsManager(context),
+            groupSyncManager = GroupSyncManager(context)
         )
     }
 }

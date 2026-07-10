@@ -20,13 +20,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun JLinksScreen(
     manager: JLinksManager,
     backupManager: BackupManager,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    groupSyncManager: GroupSyncManager // Added this
 ) {
     val context = LocalContext.current
     var links by remember { mutableStateOf(manager.loadLinks()) }
@@ -34,13 +36,15 @@ fun JLinksScreen(
     var newTitle by remember { mutableStateOf("") }
     var newUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    
+    val currentGroupId = remember { settingsManager.getCurrentGroupId() }
     val syncUri = settingsManager.getSyncUri()
+    val userNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap())
 
     fun triggerSync() {
-        if (syncUri != null) {
-            scope.launch {
-                backupManager.syncPushLinks(syncUri)
-            }
+        settingsManager.setSyncPending(true)
+        scope.launch {
+            groupSyncManager.pushGroupData()
         }
     }
 
@@ -50,10 +54,22 @@ fun JLinksScreen(
         triggerSync()
     }
 
-    LaunchedEffect(Unit) {
-        if (syncUri != null) {
-            if (backupManager.syncPullLinks(syncUri)) {
+    // Real-time Firebase Sync
+    LaunchedEffect(currentGroupId) {
+        if (currentGroupId != null) {
+            groupSyncManager.groupDataFlow(currentGroupId).collect {
                 links = manager.loadLinks()
+            }
+        }
+    }
+
+    // Legacy Support & Initial Load
+    LaunchedEffect(Unit) {
+        links = manager.loadLinks()
+        if (syncUri != null) {
+            while (true) {
+                links = manager.loadLinks()
+                delay(settingsManager.getSyncInterval() * 1000L)
             }
         }
     }
@@ -79,7 +95,7 @@ fun JLinksScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = Loc.jLinks,
+            text = Loc.links,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -133,7 +149,7 @@ fun JLinksScreen(
                             }
                         }
                         Text(
-                            text = "${Loc.by} ${link.lastUpdatedBy}",
+                            text = "${Loc.by} ${userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.align(Alignment.End)
@@ -173,7 +189,7 @@ fun JLinksScreen(
                                 id = System.currentTimeMillis(),
                                 title = newTitle.trim(),
                                 url = url,
-                                lastUpdatedBy = settingsManager.getUserName()
+                                lastUpdatedBy = settingsManager.getAppUserId() // Use ID
                             )
                             updateLinks(links + newLink)
                             newTitle = ""
@@ -189,5 +205,19 @@ fun JLinksScreen(
                 }
             }
         }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+fun LinksPreview() {
+    val context = LocalContext.current
+    MaterialTheme {
+        JLinksScreen(
+            manager = JLinksManager(context),
+            backupManager = BackupManager(context),
+            settingsManager = SettingsManager(context),
+            groupSyncManager = GroupSyncManager(context)
+        )
     }
 }

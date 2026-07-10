@@ -105,6 +105,15 @@ class SettingsManager(context: Context) {
         prefs.edit().putString("user_name", name).apply()
     }
 
+    fun getAppUserId(): String {
+        var id = prefs.getString("app_user_id", null)
+        if (id == null) {
+            id = java.util.UUID.randomUUID().toString().take(8)
+            prefs.edit().putString("app_user_id", id).apply()
+        }
+        return id
+    }
+
     fun getLanguage(): String {
         return prefs.getString("language", "en") ?: "en"
     }
@@ -119,5 +128,55 @@ class SettingsManager(context: Context) {
 
     fun setAppVisible(appId: String, visible: Boolean) {
         prefs.edit().putBoolean("visible_$appId", visible).apply()
+    }
+
+    fun isGridLayout(): Boolean {
+        return prefs.getBoolean("is_grid_layout", true)
+    }
+
+    fun setGridLayout(isGrid: Boolean) {
+        prefs.edit().putBoolean("is_grid_layout", isGrid).apply()
+    }
+
+    fun getCurrentGroupId(): String? {
+        return prefs.getString("current_group_id", null)
+    }
+
+    fun setCurrentGroupId(groupId: String?) {
+        prefs.edit().putString("current_group_id", groupId).apply()
+    }
+
+    fun getGroupIds(): List<String> {
+        return prefs.getString("group_ids", "")?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    }
+
+    fun addGroupId(groupId: String) {
+        val groups = getGroupIds().toMutableList()
+        if (!groups.contains(groupId)) {
+            groups.add(groupId)
+            prefs.edit().putString("group_ids", groups.joinToString(",")).apply()
+        }
+    }
+
+    fun removeGroupId(groupId: String) {
+        val groups = getGroupIds().toMutableList()
+        groups.remove(groupId)
+        prefs.edit().putString("group_ids", groups.joinToString(",")).apply()
+    }
+
+    fun getUpdateUrl(): String? {
+        return prefs.getString("update_url", null)
+    }
+
+    fun setUpdateUrl(url: String?) {
+        prefs.edit().putString("update_url", url).apply()
+    }
+
+    fun getSyncInterval(): Int {
+        return prefs.getInt("sync_interval", 10)
+    }
+
+    fun setSyncInterval(seconds: Int) {
+        prefs.edit().putInt("sync_interval", seconds.coerceAtLeast(5)).apply()
     }
 }

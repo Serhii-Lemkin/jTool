@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -24,21 +26,27 @@ import java.util.*
 fun JCleaningScreen(
     manager: JCleaningManager,
     backupManager: BackupManager,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    groupSyncManager: GroupSyncManager // Added this
 ) {
+    val context = LocalContext.current
     var tasks by remember { mutableStateOf(manager.loadTasks()) }
     var newTaskTitle by remember { mutableStateOf("") }
     var newTaskDays by remember { mutableStateOf("7") }
     var isRecurring by remember { mutableStateOf(true) }
+    var showDisabledView by remember { mutableStateOf(false) }
     
     val scope = rememberCoroutineScope()
+    val currentGroupId = remember { settingsManager.getCurrentGroupId() }
     val syncUri = settingsManager.getSyncUri()
+    val userNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap())
+
+    var editingTask by remember { mutableStateOf<CleaningTask?>(null) }
 
     fun triggerSync() {
-        if (syncUri != null) {
-            scope.launch {
-                backupManager.syncPushCleaning(syncUri)
-            }
+        settingsManager.setSyncPending(true)
+        scope.launch {
+            groupSyncManager.pushGroupData()
         }
     }
 
@@ -48,22 +56,34 @@ fun JCleaningScreen(
         triggerSync()
     }
 
+    // Real-time Firebase Sync
+    LaunchedEffect(currentGroupId) {
+        if (currentGroupId != null) {
+            groupSyncManager.groupDataFlow(currentGroupId).collect {
+                tasks = manager.loadTasks()
+            }
+        }
+    }
+
     // Auto-pull and Reset Logic
     LaunchedEffect(Unit) {
-        if (syncUri != null) {
-            backupManager.syncPullCleaning(syncUri)
-        }
-        val currentTasks = manager.loadTasks()
-        val now = System.currentTimeMillis()
-        val updated = currentTasks.map { task ->
-            if (task.isChecked && task.isRecurring && task.lastDoneTimestamp > 0) {
-                val diffDays = (now - task.lastDoneTimestamp) / (24 * 60 * 60 * 1000)
-                if (diffDays >= task.frequencyDays) {
-                    task.copy(isChecked = false)
+        tasks = manager.loadTasks()
+        while (true) {
+            val currentTasks = manager.loadTasks()
+            val now = System.currentTimeMillis()
+            val updated = currentTasks.map { task ->
+                // ONLY calculate reset for active (enabled) tasks
+                if (task.isEnabled && task.isChecked && task.isRecurring && task.lastDoneTimestamp > 0) {
+                    val diffDays = (now - task.lastDoneTimestamp) / (24 * 60 * 60 * 1000)
+                    if (diffDays >= task.frequencyDays) {
+                        task.copy(isChecked = false)
+                    } else task
                 } else task
-            } else task
+            }
+            tasks = updated
+            manager.saveTasks(updated)
+            delay(settingsManager.getSyncInterval() * 1000L)
         }
-        updateTasks(updated)
     }
 
     Column(
@@ -75,23 +95,47 @@ fun JCleaningScreen(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = Loc.jCleaning,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = if (showDisabledView) Loc.showDisabled else Loc.cleaning,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box(Modifier.align(Alignment.CenterEnd)) {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, null)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(if (showDisabledView) Loc.activeTasks else Loc.showDisabled) },
+                        onClick = { 
+                            showDisabledView = !showDisabledView
+                            menuExpanded = false 
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val sortedTasks = tasks.sortedWith(
-                compareBy<CleaningTask> { it.isChecked }
-                    .thenByDescending { it.isEnabled }
-                    .thenBy { it.title }
-            )
-            items(sortedTasks, key = { it.id }) { task ->
+            val displayTasks = if (showDisabledView) {
+                tasks.filter { !it.isEnabled }
+            } else {
+                tasks.filter { it.isEnabled }.sortedWith(
+                    compareBy<CleaningTask> { it.isChecked } // Undone (false) top, Done (true) middle
+                        .thenBy { it.title }
+                )
+            }
+
+            items(displayTasks, key = { it.id }) { task ->
                 CleaningTaskRow(
                     task = task,
                     onToggle = { checked ->
@@ -100,75 +144,113 @@ fun JCleaningScreen(
                                 it.copy(
                                     isChecked = checked,
                                     lastDoneTimestamp = if (checked) System.currentTimeMillis() else it.lastDoneTimestamp,
-                                    lastUpdatedBy = settingsManager.getUserName()
+                                    lastUpdatedBy = settingsManager.getAppUserId(),
+                                    timestamp = System.currentTimeMillis()
                                 )
                             } else it
                         }
                         updateTasks(updated)
                     },
-                    onDelete = {
-                        updateTasks(tasks.filter { it.id != task.id })
-                    },
-                    onEnabledToggle = { enabled ->
+                    onDelete = { updateTasks(tasks.filter { it.id != task.id }) },
+                    onDisable = { isEnabled ->
                         val updated = tasks.map {
-                            if (it.id == task.id) it.copy(isEnabled = enabled) else it
+                            if (it.id == task.id) it.copy(isEnabled = isEnabled, isChecked = false) else it
                         }
                         updateTasks(updated)
-                    }
+                    },
+                    onEdit = { editingTask = task },
+                    userName = userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = newTaskTitle,
-                    onValueChange = { newTaskTitle = it },
-                    label = { Text(Loc.taskTitle) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!showDisabledView) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
-                        value = newTaskDays,
-                        onValueChange = { if (it.all { c -> c.isDigit() }) newTaskDays = it },
-                        label = { Text(Loc.everyXDays) },
-                        modifier = Modifier.weight(1f),
+                        value = newTaskTitle,
+                        onValueChange = { newTaskTitle = it },
+                        label = { Text(Loc.taskTitle) },
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                    Spacer(Modifier.width(16.dp))
+                    
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Loc.recurring, fontSize = 12.sp)
-                        Checkbox(checked = isRecurring, onCheckedChange = { isRecurring = it })
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        if (newTaskTitle.isNotBlank()) {
-                            val newTask = CleaningTask(
-                                id = System.currentTimeMillis(),
-                                title = newTaskTitle.trim(),
-                                frequencyDays = newTaskDays.toIntOrNull() ?: 1,
-                                isRecurring = isRecurring,
-                                lastUpdatedBy = settingsManager.getUserName()
-                            )
-                            updateTasks(tasks + newTask)
-                            newTaskTitle = ""
+                        OutlinedTextField(
+                            value = newTaskDays,
+                            onValueChange = { if (it.all { c -> c.isDigit() }) newTaskDays = it },
+                            label = { Text(Loc.everyXDays) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(Loc.recurring, fontSize = 12.sp)
+                            Checkbox(checked = isRecurring, onCheckedChange = { isRecurring = it })
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = newTaskTitle.isNotBlank()
-                ) {
-                    Icon(Icons.Default.Add, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(Loc.addTask)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (newTaskTitle.isNotBlank()) {
+                                val newTask = CleaningTask(
+                                    id = System.currentTimeMillis(),
+                                    title = newTaskTitle.trim(),
+                                    frequencyDays = newTaskDays.toIntOrNull() ?: 1,
+                                    isRecurring = isRecurring,
+                                    lastUpdatedBy = settingsManager.getAppUserId()
+                                )
+                                updateTasks(tasks + newTask)
+                                newTaskTitle = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = newTaskTitle.isNotBlank()
+                    ) {
+                        Icon(Icons.Default.Add, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(Loc.addTask)
+                    }
                 }
             }
         }
+    }
+
+    // Edit Task Dialog
+    if (editingTask != null) {
+        var editTitle by remember { mutableStateOf(editingTask!!.title) }
+        var editDays by remember { mutableStateOf(editingTask!!.frequencyDays.toString()) }
+        var editRecurring by remember { mutableStateOf(editingTask!!.isRecurring) }
+
+        AlertDialog(
+            onDismissRequest = { editingTask = null },
+            title = { Text(Loc.editTask) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text(Loc.taskTitle) })
+                    OutlinedTextField(value = editDays, onValueChange = { editDays = it }, label = { Text(Loc.everyXDays) })
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(Loc.recurring)
+                        Checkbox(checked = editRecurring, onCheckedChange = { editRecurring = it })
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val updated = tasks.map {
+                        if (it.id == editingTask!!.id) it.copy(
+                            title = editTitle, 
+                            frequencyDays = editDays.toIntOrNull() ?: it.frequencyDays,
+                            isRecurring = editRecurring,
+                            timestamp = System.currentTimeMillis()
+                        ) else it
+                    }
+                    updateTasks(updated)
+                    editingTask = null
+                }) { Text(Loc.save) }
+            }
+        )
     }
 }
 
@@ -176,11 +258,14 @@ fun JCleaningScreen(
 fun CleaningTaskRow(
     task: CleaningTask,
     onToggle: (Boolean) -> Unit,
-    onEnabledToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDisable: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit,
+    userName: String
 ) {
     val currentLocale = remember(Loc.lang) { if (Loc.lang == "uk") Locale.forLanguageTag("uk") else Locale.ENGLISH }
     val dateFormat = remember(currentLocale) { SimpleDateFormat("MMM dd, HH:mm", currentLocale) }
+    var menuExpanded by remember { mutableStateOf(false) }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -191,11 +276,10 @@ fun CleaningTaskRow(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = task.isChecked,
-                    onCheckedChange = onToggle,
-                    enabled = task.isEnabled
-                )
+                if (task.isEnabled) {
+                    Checkbox(checked = task.isChecked, onCheckedChange = onToggle)
+                }
+                
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = task.title,
@@ -210,15 +294,21 @@ fun CleaningTaskRow(
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
-                
-                Switch(
-                    checked = task.isEnabled,
-                    onCheckedChange = onEnabledToggle,
-                    modifier = Modifier.scale(0.7f)
-                )
 
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, null)
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        if (task.isEnabled) {
+                            DropdownMenuItem(text = { Text(Loc.update) }, onClick = { onEdit(); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.disable) }, onClick = { onDisable(false); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                        } else {
+                            DropdownMenuItem(text = { Text(Loc.restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                        }
+                    }
                 }
             }
             
@@ -230,7 +320,7 @@ fun CleaningTaskRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                     Text(
-                        text = "${Loc.by} ${task.lastUpdatedBy}",
+                        text = "${Loc.by} $userName",
                         fontSize = 9.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
@@ -248,7 +338,8 @@ fun CleaningPreview() {
         JCleaningScreen(
             manager = JCleaningManager(context),
             backupManager = BackupManager(context),
-            settingsManager = SettingsManager(context)
+            settingsManager = SettingsManager(context),
+            groupSyncManager = GroupSyncManager(context)
         )
     }
 }

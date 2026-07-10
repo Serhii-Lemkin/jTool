@@ -21,12 +21,42 @@ class BackupManager(private val context: Context) {
     private val CLEANING_FILENAME = "jtool_cleaning_planner.json"
     private val VERSION_FILENAME = "version.txt"
     private val APK_FILENAME = "jtool_update.apk"
+    private val REQUESTS_FILENAME = "jtool_requests.txt"
 
-    private fun pushFile(folderUriString: String?, filename: String, content: String): Boolean {
-        if (folderUriString.isNullOrEmpty()) return false
-        return try {
+    suspend fun sendRequest(folderUriString: String?, requestText: String, userName: String): Boolean = withContext(Dispatchers.IO) {
+        if (folderUriString.isNullOrEmpty() || requestText.isBlank()) return@withContext false
+        return@withContext try {
             val folderUri = Uri.parse(folderUriString)
-            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return false
+            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext false
+            
+            var file = folder.findFile(REQUESTS_FILENAME)
+            val existingContent = if (file != null) {
+                context.contentResolver.openInputStream(file.uri)?.use { stream ->
+                    BufferedReader(InputStreamReader(stream)).readText()
+                } ?: ""
+            } else {
+                file = folder.createFile("text/plain", REQUESTS_FILENAME)
+                ""
+            }
+
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            val newEntry = "--- Request at $timestamp ---\nBy: $userName\n$requestText\n\n"
+            val finalContent = existingContent + newEntry
+
+            context.contentResolver.openOutputStream(file!!.uri, "wt")?.use { stream ->
+                stream.write(finalContent.toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private suspend fun pushFile(folderUriString: String?, filename: String, content: String): Boolean = withContext(Dispatchers.IO) {
+        if (folderUriString.isNullOrEmpty()) return@withContext false
+        return@withContext try {
+            val folderUri = Uri.parse(folderUriString)
+            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext false
             
             var file = folder.findFile(filename)
             if (file == null) {
@@ -42,12 +72,12 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    private fun pullFile(folderUriString: String?, filename: String): String? {
-        if (folderUriString.isNullOrEmpty()) return null
-        return try {
+    private suspend fun pullFile(folderUriString: String?, filename: String): String? = withContext(Dispatchers.IO) {
+        if (folderUriString.isNullOrEmpty()) return@withContext null
+        return@withContext try {
             val folderUri = Uri.parse(folderUriString)
-            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return null
-            val file = folder.findFile(filename) ?: return null
+            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext null
+            val file = folder.findFile(filename) ?: return@withContext null
             
             context.contentResolver.openInputStream(file.uri)?.use { stream ->
                 BufferedReader(InputStreamReader(stream)).readText()
@@ -57,109 +87,16 @@ class BackupManager(private val context: Context) {
         }
     }
 
-    // Shopping List Sync
-    fun syncPushShopList(folderUriString: String?): Boolean {
-        val json = JSONObject().apply {
-            val prefs = context.getSharedPreferences("jtool_shopping", Context.MODE_PRIVATE)
-            put("shopping_items", prefs.getString("items", ""))
-        }.toString(4)
-        return pushFile(folderUriString, SHOP_FILENAME, json)
-    }
-
-    fun syncPullShopList(folderUriString: String?): Boolean {
-        val content = pullFile(folderUriString, SHOP_FILENAME) ?: return false
-        return try {
-            val root = JSONObject(content)
-            if (root.has("shopping_items")) {
-                val shopItems = root.getString("shopping_items")
-                context.getSharedPreferences("jtool_shopping", Context.MODE_PRIVATE)
-                    .edit().putString("items", shopItems).apply()
-                true
-            } else false
-        } catch (_: Exception) { false }
-    }
-
-    // Notes Sync
-    fun syncPushNotes(folderUriString: String?): Boolean {
-        val json = JSONObject().apply {
-            val prefs = context.getSharedPreferences("jtool_notes", Context.MODE_PRIVATE)
-            put("notes_data", prefs.getString("notes", ""))
-        }.toString(4)
-        return pushFile(folderUriString, NOTES_FILENAME, json)
-    }
-
-    fun syncPullNotes(folderUriString: String?): Boolean {
-        val content = pullFile(folderUriString, NOTES_FILENAME) ?: return false
-        return try {
-            val root = JSONObject(content)
-            if (root.has("notes_data")) {
-                val notesData = root.getString("notes_data")
-                context.getSharedPreferences("jtool_notes", Context.MODE_PRIVATE)
-                    .edit().putString("notes", notesData).apply()
-                true
-            } else false
-        } catch (_: Exception) { false }
-    }
-
-    // Links Sync
-    fun syncPushLinks(folderUriString: String?): Boolean {
-        val json = JSONObject().apply {
-            val prefs = context.getSharedPreferences("jtool_links", Context.MODE_PRIVATE)
-            put("links_data", prefs.getString("links", ""))
-        }.toString(4)
-        return pushFile(folderUriString, LINKS_FILENAME, json)
-    }
-
-    fun syncPullLinks(folderUriString: String?): Boolean {
-        val content = pullFile(folderUriString, LINKS_FILENAME) ?: return false
-        return try {
-            val root = JSONObject(content)
-            if (root.has("links_data")) {
-                val linksData = root.getString("links_data")
-                context.getSharedPreferences("jtool_links", Context.MODE_PRIVATE)
-                    .edit().putString("links", linksData).apply()
-                true
-            } else false
-        } catch (_: Exception) { false }
-    }
-
-    // Cleaning Sync
-    fun syncPushCleaning(folderUriString: String?): Boolean {
-        val json = JSONObject().apply {
-            val prefs = context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE)
-            put("cleaning_tasks", prefs.getString("tasks", ""))
-        }.toString(4)
-        return pushFile(folderUriString, CLEANING_FILENAME, json)
-    }
-
-    fun syncPullCleaning(folderUriString: String?): Boolean {
-        val content = pullFile(folderUriString, CLEANING_FILENAME) ?: return false
-        return try {
-            val root = JSONObject(content)
-            if (root.has("cleaning_tasks")) {
-                val tasks = root.getString("cleaning_tasks")
-                context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE)
-                    .edit().putString("tasks", tasks).apply()
-                true
-            } else false
-        } catch (_: Exception) { false }
-    }
-
-    fun syncPush(folderUriString: String?): Boolean {
-        val s1 = syncPushShopList(folderUriString)
-        val s2 = syncPushNotes(folderUriString)
-        val s3 = syncPushLinks(folderUriString)
-        val s4 = syncPushCleaning(folderUriString)
-        return s1 && s2 && s3 && s4
-    }
-
-    fun syncPull(folderUriString: String?): Boolean {
-        syncPullShopList(folderUriString)
-        syncPullNotes(folderUriString)
-        syncPullLinks(folderUriString)
-        syncPullCleaning(folderUriString)
-        return true
-    }
+    suspend fun syncPushShopList(folderUriString: String?): Boolean = true
+    suspend fun syncPullShopList(folderUriString: String?): Boolean = true
+    suspend fun syncPushNotes(folderUriString: String?): Boolean = true
+    suspend fun syncPullNotes(folderUriString: String?): Boolean = true
+    suspend fun syncPushLinks(folderUriString: String?): Boolean = true
+    suspend fun syncPullLinks(folderUriString: String?): Boolean = true
+    suspend fun syncPushCleaning(folderUriString: String?): Boolean = true
+    suspend fun syncPullCleaning(folderUriString: String?): Boolean = true
+    suspend fun syncPush(folderUriString: String?): Boolean = true
+    suspend fun syncPull(folderUriString: String?): Boolean = true
 
     fun getCurrentVersionCode(): Int {
         return try {
@@ -176,13 +113,17 @@ class BackupManager(private val context: Context) {
         return@withContext try {
             val folderUri = Uri.parse(folderUriString)
             
-            // Aggressively force a refresh of the folder content listing
+            // Force a refresh by querying the folder itself with extra signals
             try {
+                context.contentResolver.refresh(folderUri, null, null)
                 val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
                     folderUri,
                     DocumentsContract.getTreeDocumentId(folderUri)
                 )
-                context.contentResolver.query(childrenUri, null, null, null, null)?.use { cursor ->
+                // Use a query that specifically tells the provider to fetch from network if possible
+                val bundle = android.os.Bundle()
+                bundle.putBoolean(DocumentsContract.QUERY_ARG_DISPLAY_NAME, true) 
+                context.contentResolver.query(childrenUri, null, bundle, null)?.use { cursor ->
                     while (cursor.moveToNext()) { }
                 }
             } catch (e: Exception) {
@@ -190,6 +131,10 @@ class BackupManager(private val context: Context) {
             }
 
             val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext null
+            
+            // Re-crawl the folder to bypass local listing cache
+            folder.listFiles() 
+
             val file = folder.findFile(VERSION_FILENAME) ?: return@withContext null
             
             val versionStr = context.contentResolver.openInputStream(file.uri)?.use { stream ->
@@ -210,12 +155,12 @@ class BackupManager(private val context: Context) {
         return if (onlineVersion > currentVersion) onlineVersion else null
     }
 
-    fun downloadAndInstallUpdate(folderUriString: String?) {
-        if (folderUriString.isNullOrEmpty()) return
-        try {
+    suspend fun downloadAndInstallUpdate(folderUriString: String?): Boolean = withContext(Dispatchers.IO) {
+        if (folderUriString.isNullOrEmpty()) return@withContext false
+        return@withContext try {
             val folderUri = Uri.parse(folderUriString)
-            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return
-            val apkFile = folder.findFile(APK_FILENAME) ?: return
+            val folder = DocumentFile.fromTreeUri(context, folderUri) ?: return@withContext false
+            val apkFile = folder.findFile(APK_FILENAME) ?: return@withContext false
 
             val localFile = File(context.externalCacheDir, APK_FILENAME)
             context.contentResolver.openInputStream(apkFile.uri)?.use { input ->
@@ -230,8 +175,10 @@ class BackupManager(private val context: Context) {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
             context.startActivity(intent)
+            true
         } catch (e: Exception) {
             e.printStackTrace()
+            false
         }
     }
     

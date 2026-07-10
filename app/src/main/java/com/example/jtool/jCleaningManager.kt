@@ -10,7 +10,8 @@ data class CleaningTask(
     val lastDoneTimestamp: Long = 0L,
     val isChecked: Boolean = false,
     val isEnabled: Boolean = true,
-    val lastUpdatedBy: String = "Unknown"
+    val lastUpdatedBy: String = "Unknown",
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 class JCleaningManager(context: Context) {
@@ -18,7 +19,7 @@ class JCleaningManager(context: Context) {
 
     fun saveTasks(tasks: List<CleaningTask>) {
         val encoded = tasks.joinToString(";") { 
-            "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.frequencyDays}|${it.isRecurring}|${it.lastDoneTimestamp}|${it.isChecked}|${it.isEnabled}|${it.lastUpdatedBy}" 
+            "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.frequencyDays}|${it.isRecurring}|${it.lastDoneTimestamp}|${it.isChecked}|${it.isEnabled}|${it.lastUpdatedBy}|${it.timestamp}" 
         }
         prefs.edit().putString("tasks", encoded).apply()
     }
@@ -38,7 +39,8 @@ class JCleaningManager(context: Context) {
                     lastDoneTimestamp = parts[4].toLongOrNull() ?: 0L,
                     isChecked = parts[5].toBoolean(),
                     isEnabled = parts[6].toBoolean(),
-                    lastUpdatedBy = parts[7]
+                    lastUpdatedBy = parts[7],
+                    timestamp = if (parts.size >= 9) parts[8].toLongOrNull() ?: 0L else 0L
                 )
             } else null
         }

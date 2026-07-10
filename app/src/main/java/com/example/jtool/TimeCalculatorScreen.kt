@@ -68,7 +68,7 @@ fun TimeCalculatorScreen() {
         }
 
         Text(
-            text = "jTimeCalc",
+            text = "TimeCalc",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)

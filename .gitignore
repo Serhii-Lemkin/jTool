@@ -16,6 +16,9 @@
 # Security and Signatures
 *.jks
 *.keystore
+local.properties
+/app/google-services.json
+google-services.json
 
 # Local data backups
 jtool_*.json

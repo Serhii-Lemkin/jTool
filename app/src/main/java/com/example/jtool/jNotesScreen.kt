@@ -1,9 +1,6 @@
 package com.example.jtool
 
-import android.database.ContentObserver
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,22 +25,23 @@ import kotlinx.coroutines.launch
 fun JNotesScreen(
     manager: JNotesManager,
     backupManager: BackupManager,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    groupSyncManager: GroupSyncManager // Added this
 ) {
     val context = LocalContext.current
     var notes by remember { mutableStateOf(manager.loadNotes()) }
     var newNoteText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val userNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap())
     
+    val currentGroupId = remember { settingsManager.getCurrentGroupId() }
     val syncUri = remember { settingsManager.getSyncUri()?.let { Uri.parse(it) } }
 
     fun triggerSync() {
-        if (syncUri != null) {
-            scope.launch {
-                val success = backupManager.syncPushNotes(syncUri.toString())
-                settingsManager.setSyncPending(!success)
-            }
+        settingsManager.setSyncPending(true)
+        scope.launch {
+            groupSyncManager.pushGroupData()
         }
     }
 
@@ -53,35 +51,23 @@ fun JNotesScreen(
         triggerSync()
     }
 
-    // Aggressive Sync: Observer + Polling
+    // Real-time Firebase Sync
+    LaunchedEffect(currentGroupId) {
+        if (currentGroupId != null) {
+            groupSyncManager.groupDataFlow(currentGroupId).collect {
+                notes = manager.loadNotes()
+            }
+        }
+    }
+
+    // Legacy Support & Initial Load
     LaunchedEffect(syncUri, lifecycleOwner) {
+        notes = manager.loadNotes()
         if (syncUri != null) {
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-                    override fun onChange(selfChange: Boolean) {
-                        scope.launch {
-                            if (backupManager.syncPullNotes(syncUri.toString())) {
-                                notes = manager.loadNotes()
-                            }
-                        }
-                    }
-                }
-                
-                try {
-                    context.contentResolver.registerContentObserver(syncUri, false, observer)
-                    while (true) {
-                        if (backupManager.syncPullNotes(syncUri.toString())) {
-                            notes = manager.loadNotes()
-                        }
-                        if (settingsManager.isSyncPending()) {
-                            val success = backupManager.syncPushNotes(syncUri.toString())
-                            settingsManager.setSyncPending(!success)
-                        }
-                        delay(10000)
-                    }
-                } catch (_: Exception) {
-                } finally {
-                    context.contentResolver.unregisterContentObserver(observer)
+                while (true) {
+                    notes = manager.loadNotes()
+                    delay(settingsManager.getSyncInterval() * 1000L)
                 }
             }
         }
@@ -97,7 +83,7 @@ fun JNotesScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = Loc.jNotes,
+            text = Loc.notes,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -130,7 +116,7 @@ fun JNotesScreen(
                             }
                         }
                         Text(
-                            text = "${Loc.by} ${note.lastUpdatedBy}",
+                            text = "${Loc.by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.align(Alignment.End)
@@ -159,7 +145,7 @@ fun JNotesScreen(
                         val newNote = NoteItem(
                             id = System.currentTimeMillis(),
                             content = newNoteText.trim(),
-                            lastUpdatedBy = settingsManager.getUserName()
+                            lastUpdatedBy = settingsManager.getAppUserId() // Use ID
                         )
                         updateNotes(notes + newNote)
                         newNoteText = ""
@@ -170,5 +156,19 @@ fun JNotesScreen(
                 Icon(Icons.Default.Add, contentDescription = "Add")
             }
         }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+fun NotesPreview() {
+    val context = LocalContext.current
+    MaterialTheme {
+        JNotesScreen(
+            manager = JNotesManager(context),
+            backupManager = BackupManager(context),
+            settingsManager = SettingsManager(context),
+            groupSyncManager = GroupSyncManager(context)
+        )
     }
 }

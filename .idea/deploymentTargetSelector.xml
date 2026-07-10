@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="jTool.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-07-07T06:54:51.143280202Z">
+        <DropdownSelection timestamp="2026-07-10T04:46:50.460918838Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=R5CY305GFHN" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=RF8R50PGKKH" />
             </handle>
           </Target>
         </DropdownSelection>

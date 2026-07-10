@@ -50,7 +50,8 @@ val AisleIcons = mapOf(
 fun ShoppingListScreen(
     manager: ShoppingListManager,
     backupManager: BackupManager,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    groupSyncManager: GroupSyncManager
 ) {
     val context = LocalContext.current
     var items by remember { mutableStateOf(manager.loadItems()) }
@@ -62,6 +63,7 @@ fun ShoppingListScreen(
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val currentGroupId = remember { settingsManager.getCurrentGroupId() }
     val syncUri = remember { settingsManager.getSyncUri()?.let { Uri.parse(it) } }
 
     val displayItems = if (sortByAisle) {
@@ -72,50 +74,23 @@ fun ShoppingListScreen(
 
     val checkedItems = items.filter { it.isChecked }.sortedByDescending { it.timestamp }.take(5)
     
+    // Remote suggestions from Firebase
+    val remoteSuggestions by groupSyncManager.suggestionsFlow().collectAsState(initial = emptyList())
+    val userNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap()) // Added this
+
     val suggestions = if (newItemText.isNotBlank()) {
-        items.filter { it.isChecked && it.text.startsWith(newItemText, ignoreCase = true) }
+        (items.filter { it.isChecked && it.text.startsWith(newItemText, ignoreCase = true) }.map { it.text } +
+         remoteSuggestions.filter { it.startsWith(newItemText, ignoreCase = true) })
+            .distinct()
+            .take(5)
     } else {
         emptyList()
     }
 
     fun triggerSync() {
-        if (syncUri != null) {
-            scope.launch {
-                val success = backupManager.syncPushShopList(syncUri.toString())
-                settingsManager.setSyncPending(!success)
-            }
-        }
-    }
-
-    LaunchedEffect(syncUri, lifecycleOwner) {
-        if (syncUri != null) {
-            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-                    override fun onChange(selfChange: Boolean) {
-                        scope.launch {
-                            if (backupManager.syncPullShopList(syncUri.toString())) {
-                                items = manager.loadItems()
-                            }
-                        }
-                    }
-                }
-                try {
-                    context.contentResolver.registerContentObserver(syncUri, false, observer)
-                    while (true) {
-                        if (backupManager.syncPullShopList(syncUri.toString())) {
-                            items = manager.loadItems()
-                        }
-                        if (settingsManager.isSyncPending()) {
-                            val success = backupManager.syncPushShopList(syncUri.toString())
-                            settingsManager.setSyncPending(!success)
-                        }
-                        delay(10000)
-                    }
-                } catch (_: Exception) {
-                } finally {
-                    context.contentResolver.unregisterContentObserver(observer)
-                }
-            }
+        settingsManager.setSyncPending(true)
+        scope.launch {
+            groupSyncManager.pushGroupData()
         }
     }
 
@@ -123,6 +98,20 @@ fun ShoppingListScreen(
         items = newList
         manager.saveItems(newList)
         triggerSync()
+    }
+
+    // Real-time Firebase Sync
+    LaunchedEffect(currentGroupId) {
+        if (currentGroupId != null) {
+            groupSyncManager.groupDataFlow(currentGroupId).collect {
+                items = manager.loadItems()
+            }
+        }
+    }
+
+    // Initial Load & Cleanup
+    LaunchedEffect(Unit) {
+        items = manager.loadItems()
     }
 
     if (showAislePicker) {
@@ -178,11 +167,11 @@ fun ShoppingListScreen(
 
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp) // Shrink vertical spacing
         ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
@@ -196,13 +185,18 @@ fun ShoppingListScreen(
                     item = item,
                     onToggle = { checked ->
                         val updated = items.map {
-                            if (it.id == item.id) it.copy(isChecked = checked, timestamp = System.currentTimeMillis()) else it
+                            if (it.id == item.id) it.copy(
+                                isChecked = checked, 
+                                timestamp = System.currentTimeMillis(),
+                                lastUpdatedBy = settingsManager.getAppUserId() // Use ID
+                            ) else it
                         }
                         updateItems(updated)
                     },
                     onDelete = {
                         updateItems(items.filter { it.id != item.id })
-                    }
+                    },
+                    userName = userNames[item.lastUpdatedBy] ?: item.lastUpdatedBy
                 )
             }
 
@@ -222,13 +216,18 @@ fun ShoppingListScreen(
                         item = item,
                         onToggle = { checked ->
                             val updated = items.map {
-                                if (it.id == item.id) it.copy(isChecked = checked, timestamp = System.currentTimeMillis()) else it
+                                if (it.id == item.id) it.copy(
+                                    isChecked = checked, 
+                                    timestamp = System.currentTimeMillis(),
+                                    lastUpdatedBy = settingsManager.getAppUserId() // Use ID
+                                ) else it
                             }
                             updateItems(updated)
                         },
                         onDelete = {
                             updateItems(items.filter { it.id != item.id })
-                        }
+                        },
+                        userName = userNames[item.lastUpdatedBy] ?: item.lastUpdatedBy
                     )
                 }
             }
@@ -244,11 +243,27 @@ fun ShoppingListScreen(
                 tonalElevation = 2.dp
             ) {
                 Column {
-                    suggestions.forEach { suggestion ->
+                    suggestions.forEach { suggestionText ->
                         TextButton(
                             onClick = {
-                                val updated = items.map {
-                                    if (it.id == suggestion.id) it.copy(isChecked = false, timestamp = System.currentTimeMillis()) else it
+                                val existing = items.find { it.text.equals(suggestionText, ignoreCase = true) }
+                                val updated = if (existing != null) {
+                                    items.map {
+                                        if (it.id == existing.id) it.copy(
+                                            isChecked = false, 
+                                            timestamp = System.currentTimeMillis(),
+                                            lastUpdatedBy = settingsManager.getAppUserId() // Use ID
+                                        ) else it
+                                    }
+                                } else {
+                                    val newItem = ShoppingItem(
+                                        id = System.currentTimeMillis(),
+                                        text = suggestionText,
+                                        isChecked = false,
+                                        lastUpdatedBy = settingsManager.getAppUserId(), // Use ID
+                                        aisle = selectedAisle
+                                    )
+                                    items + newItem
                                 }
                                 updateItems(updated)
                                 newItemText = ""
@@ -268,7 +283,7 @@ fun ShoppingListScreen(
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Text(
-                                    text = suggestion.text,
+                                    text = suggestionText,
                                     modifier = Modifier.weight(1f),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -326,10 +341,11 @@ fun ShoppingListScreen(
                                 id = System.currentTimeMillis(),
                                 text = trimmedText,
                                 isChecked = false,
-                                lastUpdatedBy = settingsManager.getUserName(),
+                                lastUpdatedBy = settingsManager.getAppUserId(), // Use ID
                                 aisle = selectedAisle
                             )
                             updateItems(items + newItem)
+                            scope.launch { groupSyncManager.pushSuggestion(trimmedText) }
                             newItemText = ""
                             selectedAisle = "Common"
                         }
@@ -347,7 +363,8 @@ fun ShoppingListScreen(
 fun ShoppingItemRow(
     item: ShoppingItem,
     onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    userName: String // Pass the resolved name
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -357,7 +374,7 @@ fun ShoppingItemRow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp),
+                    .padding(vertical = 0.dp), // Shrink padding
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(
@@ -392,7 +409,7 @@ fun ShoppingItemRow(
                 }
             }
             Text(
-                text = "${Loc.by} ${item.lastUpdatedBy}",
+                text = "${Loc.by} $userName", // Use passed name
                 fontSize = 9.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                 modifier = Modifier.align(Alignment.End).padding(end = 12.dp)
@@ -409,7 +426,8 @@ fun ShoppingListPreview() {
         ShoppingListScreen(
             manager = ShoppingListManager(context),
             backupManager = BackupManager(context),
-            settingsManager = SettingsManager(context)
+            settingsManager = SettingsManager(context),
+            groupSyncManager = GroupSyncManager(context)
         )
     }
 }
