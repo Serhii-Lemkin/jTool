@@ -13,10 +13,10 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
 import com.example.jtool.GroupSyncManager
 import com.example.jtool.Loc
 import com.example.jtool.SettingsManager
+import com.example.jtool.JGroupInfo
 import kotlinx.coroutines.launch
 
 @Composable
@@ -24,51 +24,44 @@ fun GroupsScreen(
     groupSyncManager: GroupSyncManager,
     settingsManager: SettingsManager,
     onBack: () -> Unit,
-    onGroupChanged: (String?) -> Unit // Added this
+    onGroupChanged: (String?) -> Unit,
+    onGroupsUpdated: (Map<String, JGroupInfo>) -> Unit,
+    currentGroupId: String?,
+    groups: Map<String, JGroupInfo>
 ) {
     var groupNameInput by remember { mutableStateOf("") }
     var joinGroupId by remember { mutableStateOf("") }
     var inviteEmail by remember { mutableStateOf("") }
-    var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
-    var allGroupIds by remember { mutableStateOf(settingsManager.getGroupIds()) }
-    val groupNames by remember(allGroupIds) { 
-        groupSyncManager.groupNamesFlow(allGroupIds) 
-    }.collectAsState(initial = emptyMap())
+    
+    val allGroupIds = groups.keys.toList()
+    val hasAnyGroups = allGroupIds.isNotEmpty() || currentGroupId != null
     
     var expanded by remember { mutableStateOf(false) }
     var isSyncing by remember { mutableStateOf(false) }
     var showUnlinkConfirm by remember { mutableStateOf<String?>(null) }
     var showInviteDialog by remember { mutableStateOf(false) }
+    var showEditGroupNameDialog by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
     
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
     fun refreshState() {
-        currentGroupId = settingsManager.getCurrentGroupId()
-        allGroupIds = settingsManager.getGroupIds()
-        if(allGroupIds.count() == 0) {
-            scope.launch {
-                allGroupIds = groupSyncManager.getUserGroups()
-            }
-        }
-
-        android.util.Log.d("GroupSync", "GroupsScreen state refreshed. Count: ${allGroupIds.size}, Current: $currentGroupId")
+        onGroupsUpdated(settingsManager.getGroups())
     }
 
-    // Automatically refresh groups when entering the screen
     LaunchedEffect(Unit) {
-        android.util.Log.d("GroupSync", "GroupsScreen Entered. Fetching settings...")
         groupSyncManager.fetchUserSettings()
         refreshState()
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(Loc.groups, fontSize = 24.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-        Spacer(Modifier.height(24.dp))
-
         // Manual Sync Merge Button
         if (currentGroupId != null) {
             Button(
@@ -94,7 +87,7 @@ fun GroupsScreen(
             }
         }
 
-        // Group Selection Dropdown
+        // Group Selection Card
         if (allGroupIds.isNotEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
                 OutlinedCard(
@@ -107,7 +100,22 @@ fun GroupsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(Loc.activeGroup, style = MaterialTheme.typography.labelSmall)
-                            Text(groupNames[currentGroupId] ?: currentGroupId ?: Loc.noneSelected, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                            val activeName = groups[currentGroupId]?.name ?: currentGroupId ?: Loc.noneSelected
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(activeName, style = MaterialTheme.typography.bodyLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                if (currentGroupId != null) {
+                                    IconButton(
+                                        onClick = { 
+                                            newGroupName = activeName
+                                            showEditGroupNameDialog = true 
+                                            expanded = false
+                                        },
+                                        modifier = Modifier.size(24.dp).padding(start = 8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
                         }
                         Icon(Icons.Default.ArrowDropDown, null)
                     }
@@ -119,13 +127,13 @@ fun GroupsScreen(
                 ) {
                     allGroupIds.forEach { id ->
                         DropdownMenuItem(
-                            text = { Text(groupNames[id] ?: id) },
+                            text = { Text(groups[id]?.name ?: id) },
                             onClick = {
                                 scope.launch {
                                     groupSyncManager.switchGroup(id)
-                                    onGroupChanged(id) // Notify main loop to restart listener
+                                    onGroupChanged(id)
+                                    onGroupsUpdated(settingsManager.getGroups())
                                     expanded = false
-                                    refreshState()
                                 }
                             },
                             trailingIcon = {
@@ -137,6 +145,19 @@ fun GroupsScreen(
                     }
                 }
             }
+        } else if (!hasAnyGroups) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f))
+            ) {
+                Text(
+                    text = Loc.noGroupsMsg,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
 
         val activeGroupId = currentGroupId
@@ -147,6 +168,7 @@ fun GroupsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = activeGroupId.take(8) + "...", 
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
@@ -158,8 +180,7 @@ fun GroupsScreen(
                         }
                     }
                     
-                    Spacer(Modifier.height(8.dp))
-                    Text(Loc.shareIdDesc, fontSize = 11.sp)
+                    Text(Loc.shareIdDesc, style = MaterialTheme.typography.bodySmall)
                     
                     Spacer(Modifier.height(16.dp))
                     Button(
@@ -187,7 +208,8 @@ fun GroupsScreen(
             value = groupNameInput,
             onValueChange = { groupNameInput = it },
             label = { Text(Loc.groupName) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Button(
             onClick = { 
@@ -195,9 +217,6 @@ fun GroupsScreen(
                     val result = groupSyncManager.createGroup(groupNameInput)
                     if (result != null) {
                         onGroupChanged(result)
-                        android.util.Log.d("GroupSync", "UI success: $result")
-                    } else {
-                        android.util.Log.e("GroupSync", "UI failure")
                     }
                     groupNameInput = ""
                     refreshState()
@@ -217,7 +236,8 @@ fun GroupsScreen(
             value = joinGroupId,
             onValueChange = { joinGroupId = it },
             label = { Text(Loc.groupIdToJoin) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Button(
             onClick = { 
@@ -246,11 +266,12 @@ fun GroupsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     val gid = showUnlinkConfirm!!
-                    settingsManager.setCurrentGroupId(null)
-                    settingsManager.removeGroupId(gid)
-                    onGroupChanged(null) // Notify main loop
-                    showUnlinkConfirm = null
-                    refreshState()
+                    scope.launch {
+                        groupSyncManager.leaveGroup(gid)
+                        onGroupChanged(settingsManager.getCurrentGroupId())
+                        showUnlinkConfirm = null
+                        refreshState()
+                    }
                 }) {
                     Text(Loc.delete, color = MaterialTheme.colorScheme.error)
                 }
@@ -269,7 +290,7 @@ fun GroupsScreen(
             title = { Text(Loc.groupInvite) },
             text = {
                 Column {
-                    Text(Loc.enterEmail, fontSize = 12.sp)
+                    Text(Loc.enterEmail, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = inviteEmail,
@@ -303,11 +324,42 @@ fun GroupsScreen(
             }
         )
     }
-}
 
-@Composable
-fun SelectionContainer(content: @Composable () -> Unit) {
-    androidx.compose.foundation.text.selection.SelectionContainer {
-        content()
+    if (showEditGroupNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditGroupNameDialog = false },
+            title = { Text(Loc.editGroupName) },
+            text = {
+                OutlinedTextField(
+                    value = newGroupName,
+                    onValueChange = { newGroupName = it },
+                    label = { Text(Loc.groupName) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val gid = currentGroupId
+                        if (gid != null && newGroupName.isNotBlank()) {
+                            scope.launch {
+                                groupSyncManager.updateGroupName(gid, newGroupName)
+                                showEditGroupNameDialog = false
+                                refreshState()
+                            }
+                        }
+                    },
+                    enabled = newGroupName.isNotBlank()
+                ) {
+                    Text(Loc.save)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditGroupNameDialog = false }) {
+                    Text(Loc.cancel)
+                }
+            }
+        )
     }
 }

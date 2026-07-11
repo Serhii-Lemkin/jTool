@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,7 +37,6 @@ fun JNotesScreen(
     val userNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap())
     
     val currentGroupId = remember { settingsManager.getCurrentGroupId() }
-    val syncUri = remember { settingsManager.getSyncUri()?.let { Uri.parse(it) } }
 
     fun triggerSync() {
         settingsManager.setSyncPending(true)
@@ -60,17 +60,9 @@ fun JNotesScreen(
         }
     }
 
-    // Legacy Support & Initial Load
-    LaunchedEffect(syncUri, lifecycleOwner) {
+    // Initial Load
+    LaunchedEffect(Unit) {
         notes = manager.loadNotes()
-        if (syncUri != null) {
-            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                while (true) {
-                    notes = manager.loadNotes()
-                    delay(settingsManager.getSyncInterval() * 1000L)
-                }
-            }
-        }
     }
 
     Column(
@@ -91,15 +83,18 @@ fun JNotesScreen(
 
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             items(notes.sortedByDescending { it.timestamp }, key = { it.id }) { note ->
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    color = Color.Transparent
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = note.content,
                                 modifier = Modifier.weight(1f),
@@ -111,15 +106,16 @@ fun JNotesScreen(
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
                         Text(
                             text = "${Loc.by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.align(Alignment.End)
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.align(Alignment.End).padding(end = 12.dp)
                         )
                     }
                 }

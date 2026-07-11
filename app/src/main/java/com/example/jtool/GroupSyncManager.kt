@@ -24,7 +24,6 @@ class GroupSyncManager(private val context: Context) {
     }
     private fun getAppInfoRef() = database.getReference("app_info")
     private fun getSuggestionsRef() = database.getReference("suggestions")
-    private fun getUserNamesRef() = database.getReference("user_names")
     private fun getInvitesRef() = database.getReference("invites")
 
     // --- App Update Logic ---
@@ -41,12 +40,24 @@ class GroupSyncManager(private val context: Context) {
         }
     }
 
-    // --- Suggestions Logic ---
-
-    suspend fun pushSuggestion(itemText: String) {
+    suspend fun pushSuggestion(text: String, userId: String) {
         try {
-            val sanitized = itemText.trim().lowercase()
-            getSuggestionsRef().child(sanitized).setValue(true).await()
+            val sanitizedText = text.trim()
+            if (sanitizedText.isBlank()) return
+            
+            val timestamp = System.currentTimeMillis()
+            val suggestionData = mapOf(
+                "text" to sanitizedText,
+                "userId" to userId,
+                "timestamp" to timestamp
+            )
+            
+            // For shopping list suggestions (legacy key-based for autocomplete)
+            val key = sanitizedText.lowercase().replace(".", "_").replace("$", "_").replace("#", "_").replace("[", "_").replace("]", "_")
+            getSuggestionsRef().child(key).setValue(true).await()
+            
+            // For general requests/suggestions (new structured format)
+            database.getReference("all_suggestions").push().setValue(suggestionData).await()
         } catch (e: Exception) {}
     }
 
@@ -65,79 +76,87 @@ class GroupSyncManager(private val context: Context) {
     // --- Group Management ---
 
     suspend fun getUserGroups(): List<String> {
-        val uid = auth.currentUser?.uid
-        if (uid == null) {
-            android.util.Log.e("GroupSync", "Cannot fetch groups: User is NULL")
-            return emptyList()
-        }
-
-        return try {
-            android.util.Log.d("GroupSync", "Fetching group IDs for user: $uid")
-
-            // Query the database for groups where this user is listed under members
-            val query = getGroupsRef()
-                .orderByChild("members/$uid")
-                .equalTo(true)
-
-            val snapshot = query.get().await()
-            val groupIdsList = mutableListOf<String>()
-
-            for (groupSnapshot in snapshot.children) {
-                val groupId = groupSnapshot.key ?: continue
-                groupIdsList.add(groupId)
-            }
-
-            android.util.Log.d("GroupSync", "Successfully fetched ${groupIdsList.size} group IDs")
-            groupIdsList
-        } catch (e: Exception) {
-            android.util.Log.e("GroupSync", "Failed to fetch user groups", e)
-            emptyList()
+        val snapshot = getUserSettingsRef()?.get()?.await() ?: return emptyList()
+        val groupIdsObj = snapshot.child("groupIds").value
+        return when (groupIdsObj) {
+            is List<*> -> groupIdsObj.filterIsInstance<String>()
+            is Map<*, *> -> groupIdsObj.values.filterIsInstance<String>()
+            else -> snapshot.child("groupIds").children.mapNotNull { it.getValue(String::class.java) }
         }
     }
 
     suspend fun createGroup(groupName: String): String? {
-        val uid = auth.currentUser?.uid
-        if (uid == null) {
-            android.util.Log.e("GroupSync", "Cannot create group: User is NULL")
-            return null
-        }
-        
+        val uid = auth.currentUser?.uid ?: return null
         val groupRef = getGroupsRef().push()
         val groupId = groupRef.key ?: return null
         
         val groupData = mapOf(
-            "info" to mapOf(
-                "name" to groupName,
-                "owner" to uid
-            ),
+            "info" to mapOf("name" to groupName, "owner" to uid),
             "members" to mapOf(uid to true),
-            "data" to mapOf(
-                "shopping" to "",
-                "notes" to "",
-                "links" to "",
-                "cleaning" to ""
-            )
+            "data" to mapOf("shopping" to "", "notes" to "", "links" to "", "cleaning" to "")
         )
         
         return try {
-            android.util.Log.d("GroupSync", "Attempting to create group: $groupId")
             groupRef.setValue(groupData).await()
-            settings.addGroupId(groupId)
+            
+            // Add to user's groupIds list - robust update
+            val userRef = getUserSettingsRef()
+            if (userRef != null) {
+                val currentGroups = try { getUserGroups().toMutableList() } catch (e: Exception) { mutableListOf() }
+                if (!currentGroups.contains(groupId)) {
+                    currentGroups.add(groupId)
+                    userRef.child("groupIds").setValue(currentGroups).await()
+                }
+            }
+            
+            settings.addGroup(JGroupInfo(id = groupId, name = groupName, owner = uid))
             settings.setCurrentGroupId(groupId)
             pushUserSettings()
-            android.util.Log.d("GroupSync", "Group created successfully: $groupId")
             groupId
         } catch (e: Exception) {
-            android.util.Log.e("GroupSync", "CRITICAL: Group creation failed!", e)
+            android.util.Log.e("GroupSync", "Failed to create group", e)
             null
+        }
+    }
+
+    suspend fun updateGroupName(groupId: String, newName: String): Boolean {
+        return try {
+            getGroupsRef().child(groupId).child("info").child("name").setValue(newName).await()
+            
+            // Update local info
+            val groups = settings.getGroups().toMutableMap()
+            groups[groupId]?.let {
+                groups[groupId] = it.copy(name = newName)
+                settings.saveGroups(groups)
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("GroupSync", "Failed to update group name", e)
+            false
         }
     }
 
     suspend fun joinGroup(groupId: String): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
+            val groupSnapshot = getGroupsRef().child(groupId).get().await()
+            val groupName = groupSnapshot.child("info").child("name").getValue(String::class.java) ?: "Unknown Group"
+            val owner = groupSnapshot.child("info").child("owner").getValue(String::class.java)
+            
+            // 1. Add to group members
             getGroupsRef().child(groupId).child("members").child(uid).setValue(true).await()
-            settings.addGroupId(groupId)
+            
+            // 2. Add to user's group list - robust update
+            val userRef = getUserSettingsRef()
+            if (userRef != null) {
+                val currentGroups = try { getUserGroups().toMutableList() } catch (e: Exception) { mutableListOf() }
+                if (!currentGroups.contains(groupId)) {
+                    currentGroups.add(groupId)
+                    userRef.child("groupIds").setValue(currentGroups).await()
+                }
+            }
+            
+            settings.addGroup(JGroupInfo(id = groupId, name = groupName, owner = owner))
             settings.setCurrentGroupId(groupId)
             pushUserSettings()
             pullGroupData()
@@ -145,6 +164,31 @@ class GroupSyncManager(private val context: Context) {
         } catch (e: Exception) {
             android.util.Log.e("GroupSync", "Failed to join group", e)
             false
+        }
+    }
+
+    suspend fun leaveGroup(groupId: String) {
+        val uid = auth.currentUser?.uid ?: return
+        try {
+            // 1. Remove from group members list
+            getGroupsRef().child(groupId).child("members").child(uid).removeValue().await()
+            
+            // 2. Remove from user's group list - robust update
+            val userRef = getUserSettingsRef()
+            if (userRef != null) {
+                val currentGroups = try { getUserGroups().toMutableList() } catch (e: Exception) { mutableListOf() }
+                if (currentGroups.remove(groupId)) {
+                    userRef.child("groupIds").setValue(currentGroups).await()
+                }
+            }
+            
+            settings.removeGroup(groupId)
+            if (settings.getCurrentGroupId() == groupId) {
+                settings.setCurrentGroupId(null)
+            }
+            pushUserSettings()
+        } catch (e: Exception) {
+            android.util.Log.e("GroupSync", "Failed to leave group", e)
         }
     }
 
@@ -162,11 +206,15 @@ class GroupSyncManager(private val context: Context) {
     }
 
     suspend fun pullGroupData(): Boolean {
-        val groupId = settings.getCurrentGroupId() ?: return false
+        SyncStatusManager.startSync()
+        val groupId = settings.getCurrentGroupId() ?: run { SyncStatusManager.endSync(false); return false }
         val dataRef = getGroupsRef().child(groupId).child("data")
         return try {
             val snapshot = dataRef.get().await()
-            if (!snapshot.exists()) return true
+            if (!snapshot.exists()) {
+                SyncStatusManager.endSync(true)
+                return true
+            }
 
             snapshot.child("shopping").getValue(String::class.java)?.let {
                 context.getSharedPreferences("jtool_shopping", Context.MODE_PRIVATE).edit().putString("items", it).apply()
@@ -180,8 +228,10 @@ class GroupSyncManager(private val context: Context) {
             snapshot.child("cleaning").getValue(String::class.java)?.let {
                 context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE).edit().putString("tasks", it).apply()
             }
+            SyncStatusManager.endSync(true)
             true
         } catch (e: Exception) {
+            SyncStatusManager.endSync(false)
             false
         }
     }
@@ -241,7 +291,8 @@ class GroupSyncManager(private val context: Context) {
     // --- Data Sync ---
 
     suspend fun pushGroupData(): Boolean {
-        val groupId = settings.getCurrentGroupId() ?: return false
+        SyncStatusManager.startSync()
+        val groupId = settings.getCurrentGroupId() ?: run { SyncStatusManager.endSync(false); return false }
         val dataRef = getGroupsRef().child(groupId).child("data")
         
         return try {
@@ -252,9 +303,11 @@ class GroupSyncManager(private val context: Context) {
                 "cleaning" to context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE).getString("tasks", "")
             )
             dataRef.setValue(data).await()
+            SyncStatusManager.endSync(true)
             true
         } catch (e: Exception) {
             android.util.Log.e("GroupSync", "Failed to push group data", e)
+            SyncStatusManager.endSync(false)
             false
         }
     }
@@ -265,14 +318,28 @@ class GroupSyncManager(private val context: Context) {
         val userName = settings.getUserName()
         
         return try {
+            val snapshot = ref.get().await()
+            val isAdmin = snapshot.child("isAdmin").getValue(Boolean::class.java) ?: false
+            
+            // Preserve groupIds from server if local is empty (e.g. after re-login)
+            val localGroupIds = settings.getGroupIds()
+            val serverGroupIdsObj = snapshot.child("groupIds").value
+            val serverGroupIds = when (serverGroupIdsObj) {
+                is List<*> -> serverGroupIdsObj.filterIsInstance<String>()
+                is Map<*, *> -> serverGroupIdsObj.values.filterIsInstance<String>()
+                else -> emptyList()
+            }
+            val mergedGroupIds = (localGroupIds + serverGroupIds).distinct()
+
             // Push private settings
             val data = mutableMapOf<String, Any?>(
-                "currentGroupId" to settings.getCurrentGroupId(),
-                "groupIds" to settings.getGroupIds(),
+                "currentGroupId" to (settings.getCurrentGroupId() ?: snapshot.child("currentGroupId").getValue(String::class.java)),
+                "groupIds" to mergedGroupIds,
                 "appUserId" to appUserId,
                 "userName" to userName,
                 "isDarkMode" to settings.isDarkMode(),
-                "language" to settings.getLanguage()
+                "language" to settings.getLanguage(),
+                "isAdmin" to isAdmin
             )
             
             // Add workday hours to private settings
@@ -282,9 +349,6 @@ class GroupSyncManager(private val context: Context) {
 
             ref.setValue(data).await()
             
-            // Push public ID -> Name mapping
-            getUserNamesRef().child(appUserId).setValue(userName).await()
-            
             true
         } catch (e: Exception) {
             android.util.Log.e("GroupSync", "Failed to push user settings", e)
@@ -293,7 +357,8 @@ class GroupSyncManager(private val context: Context) {
     }
 
     suspend fun manualSyncMerge(): Boolean {
-        val groupId = settings.getCurrentGroupId() ?: return false
+        SyncStatusManager.startSync()
+        val groupId = settings.getCurrentGroupId() ?: run { SyncStatusManager.endSync(false); return false }
         val dataRef = database.getReference("groups").child(groupId).child("data")
         
         return try {
@@ -335,9 +400,11 @@ class GroupSyncManager(private val context: Context) {
                 "cleaning" to mergedCleaning
             )
             dataRef.setValue(finalData).await()
+            SyncStatusManager.endSync(true)
             true
         } catch (e: Exception) {
             android.util.Log.e("GroupSync", "Manual merge failed", e)
+            SyncStatusManager.endSync(false)
             false
         }
     }
@@ -375,26 +442,49 @@ class GroupSyncManager(private val context: Context) {
 
     suspend fun fetchUserSettings(): Boolean {
         val ref = getUserSettingsRef() ?: return false
+        val uid = auth.currentUser?.uid ?: return false
+        
         return try {
-            android.util.Log.d("GroupSync", "Fetching user settings for UID: ${auth.currentUser?.uid}")
+            android.util.Log.d("GroupSync", "Fetching user settings for UID: $uid")
             val snapshot = ref.get().await()
-            if (!snapshot.exists()) {
-                android.util.Log.w("GroupSync", "User settings NOT FOUND in Firebase")
-                return true
-            }
-
-            // Robust group list extraction
-            val groupIdsObj = snapshot.child("groupIds").value
-            android.util.Log.d("GroupSync", "Raw groupIds from DB: $groupIdsObj")
             
-            when (groupIdsObj) {
-                is List<*> -> groupIdsObj.filterIsInstance<String>().forEach { settings.addGroupId(it) }
-                is Map<*, *> -> groupIdsObj.values.filterIsInstance<String>().forEach { settings.addGroupId(it) }
+            // 1. Get the list of group IDs
+            val groupIdsObj = snapshot.child("groupIds").value
+            val groupIds = when (groupIdsObj) {
+                is List<*> -> groupIdsObj.filterIsInstance<String>()
+                is Map<*, *> -> groupIdsObj.values.filterIsInstance<String>()
+                else -> {
+                    // Try to get children if it's a DataSnapshot representation
+                    snapshot.child("groupIds").children.mapNotNull { it.getValue(String::class.java) }
+                }
             }
 
-            snapshot.child("currentGroupId").getValue(String::class.java)?.let {
-                android.util.Log.d("GroupSync", "Setting current group to: $it")
-                settings.setCurrentGroupId(it)
+            // 2. Fetch info for each group
+            val finalGroupsMap = mutableMapOf<String, JGroupInfo>()
+            groupIds.forEach { gid ->
+                try {
+                    val infoSnapshot = getGroupsRef().child(gid).child("info").get().await()
+                    val name = infoSnapshot.child("name").getValue(String::class.java) ?: "Unknown Group"
+                    val owner = infoSnapshot.child("owner").getValue(String::class.java)
+                    finalGroupsMap[gid] = JGroupInfo(id = gid, name = name, owner = owner)
+                } catch (e: Exception) {
+                    finalGroupsMap[gid] = JGroupInfo(id = gid, name = gid)
+                }
+            }
+            
+            // 3. Persist locally
+            settings.saveGroups(finalGroupsMap)
+            
+            val localCurrentGroupId = settings.getCurrentGroupId()
+            
+            if (localCurrentGroupId == null && groupIds.isNotEmpty()) {
+                val firstGroup = groupIds.first()
+                settings.setCurrentGroupId(firstGroup)
+                pullGroupData()
+            } else if (localCurrentGroupId != null && !groupIds.contains(localCurrentGroupId)) {
+                val fallback = groupIds.firstOrNull()
+                settings.setCurrentGroupId(fallback)
+                if (fallback != null) pullGroupData()
             }
             
             snapshot.child("userName").getValue(String::class.java)?.let {
@@ -469,35 +559,119 @@ class GroupSyncManager(private val context: Context) {
         }
     }
 
-    fun groupNamesFlow(groupIds: List<String>): Flow<Map<String, String>> = callbackFlow {
-        android.util.Log.d("GroupSync", "Starting groupNamesFlow for IDs: $groupIds")
+    fun groupInfoFlow(groupIds: List<String>): Flow<Map<String, JGroupInfo>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val map = mutableMapOf<String, String>()
+                val map = mutableMapOf<String, JGroupInfo>()
                 groupIds.forEach { id ->
-                    val name = snapshot.child(id).child("info").child("name").getValue(String::class.java)
-                    if (name != null) map[id] = name
+                    val infoNode = snapshot.child(id).child("info")
+                    if (infoNode.exists()) {
+                        val name = infoNode.child("name").getValue(String::class.java) ?: "Unknown"
+                        val owner = infoNode.child("owner").getValue(String::class.java)
+                        map[id] = JGroupInfo(id = id, name = name, owner = owner)
+                    }
                 }
-                android.util.Log.d("GroupSync", "groupNamesFlow updated: $map")
                 trySend(map)
             }
-            override fun onCancelled(error: DatabaseError) {
-                android.util.Log.e("GroupSync", "groupNamesFlow cancelled", error.toException())
-            }
+            override fun onCancelled(error: DatabaseError) {}
         }
         getGroupsRef().addValueEventListener(listener)
         awaitClose { getGroupsRef().removeEventListener(listener) }
     }
 
     fun userNamesFlow(): Flow<Map<String, String>> = callbackFlow {
+        val ref = database.getReference("user_settings")
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val map = snapshot.children.associate { it.key!! to (it.value as? String ?: "Unknown") }
+                val map = mutableMapOf<String, String>()
+                snapshot.children.forEach { child ->
+                    val appUserId = child.child("appUserId").getValue(String::class.java)
+                    val userName = child.child("userName").getValue(String::class.java)
+                    if (appUserId != null && userName != null) {
+                        map[appUserId] = userName
+                    }
+                }
                 trySend(map)
             }
             override fun onCancelled(error: DatabaseError) {}
         }
-        getUserNamesRef().addValueEventListener(listener)
-        awaitClose { getUserNamesRef().removeEventListener(listener) }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    // --- Admin Features ---
+
+    fun isAdminFlow(): Flow<Boolean> = callbackFlow {
+        val ref = getUserSettingsRef() ?: run { trySend(false); close(); return@callbackFlow }
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                trySend(snapshot.child("isAdmin").getValue(Boolean::class.java) ?: false)
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    fun allUsersFlow(): Flow<List<Map<String, Any>>> = callbackFlow {
+        val ref = database.getReference("user_settings")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val list = snapshot.children.mapNotNull { child ->
+                    val data = child.value as? Map<String, Any> ?: return@mapNotNull null
+                    data + ("uid" to child.key!!)
+                }
+                trySend(list)
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) {
+        database.getReference("user_settings").child(uid).child("isAdmin").setValue(isAdmin).await()
+    }
+
+    fun allSuggestionsFlow(): Flow<List<Map<String, String>>> = callbackFlow {
+        val ref = database.getReference("all_suggestions")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val list = snapshot.children.mapNotNull { child ->
+                    val map = mutableMapOf<String, String>()
+                    map["id"] = child.key ?: ""
+                    child.children.forEach { subChild ->
+                        map[subChild.key!!] = subChild.value?.toString() ?: ""
+                    }
+                    map
+                }
+                trySend(list)
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    suspend fun deleteSuggestion(id: String) {
+        database.getReference("all_suggestions").child(id).removeValue().await()
+    }
+
+    suspend fun updateAppInfo(versionCode: Int, downloadUrl: String) {
+        val data = mapOf(
+            "versionCode" to versionCode,
+            "downloadUrl" to downloadUrl,
+            "timestamp" to System.currentTimeMillis()
+        )
+        getAppInfoRef().setValue(data).await()
+    }
+
+    suspend fun deleteEmptyGroups() {
+        val snapshot = getGroupsRef().get().await()
+        snapshot.children.forEach { group ->
+            if (!group.child("members").exists() || group.child("members").childrenCount == 0L) {
+                group.ref.removeValue().await()
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.jtool.settingsSections.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     backupManager: BackupManager,
@@ -27,67 +29,107 @@ fun SettingsScreen(
     onLangToggle: () -> Unit,
     hasUpdate: Boolean = false,
     startOnUpdates: Boolean = false,
-    onGroupChanged: (String?) -> Unit // Added this
+    startOnGroups: Boolean = false,
+    startOnAccount: Boolean = false,
+    onGroupChanged: (String?) -> Unit,
+    groups: Map<String, JGroupInfo>,
+    onGroupsUpdated: (Map<String, JGroupInfo>) -> Unit,
+    currentGroupId: String?,
+    onBack: () -> Unit
 ) {
     var currentSubScreen by remember { 
-        mutableStateOf(if (startOnUpdates) "app_updates" else "main") 
+        mutableStateOf(
+            if (startOnUpdates) "app_updates" 
+            else if (startOnGroups) "groups"
+            else if (startOnAccount) "account"
+            else "main"
+        )
     }
-    var linkedUriString by remember { mutableStateOf(settingsManager.getSyncUri()) }
-    var availableUpdateVersion by remember { mutableStateOf<Int?>(null) }
     val currentUser = authManager.getCurrentUser()
 
-    LaunchedEffect(linkedUriString) {
-        availableUpdateVersion = backupManager.checkForUpdate(linkedUriString)
-    }
-
     if (currentSubScreen != "main") {
-        BackHandler { 
-            currentSubScreen = "main" 
+        BackHandler { currentSubScreen = "main" }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        when(currentSubScreen) {
+                            "account" -> Loc.account
+                            "groups" -> Loc.groups
+                            "general" -> Loc.generalSettings
+                            "app_updates" -> Loc.appUpdates
+                            "visibility" -> Loc.visibilityTitle
+                            "requests" -> Loc.requestsTitle
+                            else -> Loc.settings
+                        }
+                    ) 
+                },
+                navigationIcon = {
+                    IconButton(onClick = { 
+                        if (currentSubScreen == "main") onBack() else currentSubScreen = "main" 
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Loc.back)
+                    }
+                }
+            )
         }
-    }
-
-    // Reset the redirect flag when leaving Settings to ensure normal entry next time
-    LaunchedEffect(currentSubScreen) {
-        // No easy way to reset the flag in MainActivity from here without a callback, 
-        // but the current implementation in MainActivity resets on recompose or screen change
-    }
-
-    when (currentSubScreen) {
-        "main" -> SettingsMainScreen(
-            onNavigate = { currentSubScreen = it },
-            hasUpdate = hasUpdate,
-            isSyncMissing = linkedUriString.isNullOrEmpty() && currentUser == null,
-            settingsManager = settingsManager,
-            isDarkMode = isDarkMode,
-            onThemeToggle = onThemeToggle,
-            currentLang = currentLang,
-            onLangToggle = onLangToggle,
-            currentUser = currentUser,
-            onSignIn = onSignIn,
-            onSignOut = { authManager.signOut() }
-        )
-        "sync" -> GroupsScreen(
-            groupSyncManager = groupSyncManager,
-            settingsManager = settingsManager,
-            onBack = { currentSubScreen = "main" },
-            onGroupChanged = onGroupChanged // Pass it down
-        )
-        "app_updates" -> AppUpdatesScreen(
-            backupManager = backupManager,
-            groupSyncManager = groupSyncManager,
-            settingsManager = settingsManager,
-            onBack = { currentSubScreen = "main" }
-        )
-        "visibility" -> AppVisibilityScreen(
-            settingsManager = settingsManager,
-            onBack = { currentSubScreen = "main" }
-        )
-        "requests" -> RequestsScreen(
-            backupManager = backupManager,
-            settingsManager = settingsManager,
-            linkedUri = linkedUriString,
-            onBack = { currentSubScreen = "main" }
-        )
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            when (currentSubScreen) {
+                "main" -> SettingsMainScreen(
+                    onNavigate = { currentSubScreen = it },
+                    hasUpdate = hasUpdate,
+                    isSyncMissing = currentUser == null || currentGroupId == null,
+                    currentUser = currentUser
+                )
+                "account" -> AccountScreen(
+                    settingsManager = settingsManager,
+                    currentUser = currentUser,
+                    onSignIn = onSignIn,
+                    onSignOut = { 
+                        authManager.signOut()
+                        onGroupChanged(null)
+                        onGroupsUpdated(emptyMap())
+                        currentSubScreen = "main"
+                    }
+                )
+                "groups" -> GroupsScreen(
+                    groupSyncManager = groupSyncManager,
+                    settingsManager = settingsManager,
+                    onBack = { currentSubScreen = "main" },
+                    onGroupChanged = onGroupChanged,
+                    onGroupsUpdated = onGroupsUpdated,
+                    currentGroupId = currentGroupId,
+                    groups = groups
+                )
+                "general" -> GeneralSettingsScreen(
+                    settingsManager = settingsManager,
+                    isDarkMode = isDarkMode,
+                    onThemeToggle = onThemeToggle,
+                    currentLang = currentLang,
+                    onLangToggle = onLangToggle
+                )
+                "app_updates" -> AppUpdatesScreen(
+                    backupManager = backupManager,
+                    groupSyncManager = groupSyncManager,
+                    settingsManager = settingsManager,
+                    onBack = { currentSubScreen = "main" }
+                )
+                "visibility" -> AppVisibilityScreen(
+                    settingsManager = settingsManager,
+                    onBack = { currentSubScreen = "main" }
+                )
+                "requests" -> RequestsScreen(
+                    groupSyncManager = groupSyncManager,
+                    settingsManager = settingsManager,
+                    onBack = { currentSubScreen = "main" }
+                )
+            }
+        }
     }
 }
 

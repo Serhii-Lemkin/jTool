@@ -45,7 +45,13 @@ class AuthManager(private val context: Context) {
         // Let's clear everything related to the previous user session
         val settings = SettingsManager(context)
         settings.setCurrentGroupId(null)
-        context.getSharedPreferences("jtool_settings", Context.MODE_PRIVATE).edit().remove("group_ids").apply()
+        settings.clearAllGroups()
+        context.getSharedPreferences("jtool_settings", Context.MODE_PRIVATE).edit()
+            .remove("group_ids")
+            .remove("remembered_groups")
+            .remove("user_name")
+            .remove("current_group_id")
+            .apply()
 
         auth.signOut()
         getSignInClient().signOut()

@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.jtool.ui.theme.JToolTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import com.example.jtool.settingsSections.*
 
 class MainActivity : ComponentActivity() {
     private lateinit var settingsManager: SettingsManager
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch {
                     val success = authManager.signInWithGoogle(account)
                     if (success) {
+                        groupSyncManager.fetchUserSettings()
                         groupSyncManager.pushUserSettings()
                     } else {
                         android.widget.Toast.makeText(this@MainActivity, "Firebase Auth Failed", android.widget.Toast.LENGTH_SHORT).show()
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         settingsManager = SettingsManager(this)
         shoppingListManager = ShoppingListManager(this)
         notesManager = JNotesManager(this)
@@ -93,7 +96,8 @@ class MainActivity : ComponentActivity() {
             var isDark by remember { mutableStateOf(settingsManager.isDarkMode()) }
             var currentLang by remember { mutableStateOf(settingsManager.getLanguage()) }
             var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
-            
+            var groups by remember { mutableStateOf(settingsManager.getGroups()) }
+
             Loc.lang = currentLang
 
             JToolTheme(darkTheme = isDark) {
@@ -114,7 +118,10 @@ class MainActivity : ComponentActivity() {
                             isDarkMode = isDark,
                             currentUser = currentUserState,
                             currentGroupId = currentGroupId,
-                            onGroupChanged = { currentGroupId = it },
+                            onGroupChanged = { 
+                                currentGroupId = it
+                                groups = settingsManager.getGroups()
+                            },
                             onThemeToggle = {
                                 isDark = !isDark
                                 settingsManager.setDarkMode(isDark)
@@ -126,37 +133,12 @@ class MainActivity : ComponentActivity() {
                                 settingsManager.setLanguage(currentLang)
                                 Loc.lang = currentLang
                                 lifecycleScope.launch { groupSyncManager.pushUserSettings() }
-                            }
+                            },
+                            groups = groups,
+                            onGroupsUpdated = { groups = it }
                         )
                         
                         SyncStatusOverlay()
-                        
-                        // Invite Listener & Popup
-                        val invites by groupSyncManager.invitesFlow().collectAsState(initial = emptyList())
-                        if (invites.isNotEmpty()) {
-                            val invite = invites.first()
-                            AlertDialog(
-                                onDismissRequest = { },
-                                title = { Text(Loc.invitePopupTitle) },
-                                text = { Text(Loc.invitePopupMsg.format(invite["groupName"] ?: "")) },
-                                confirmButton = {
-                                    Button(onClick = {
-                                        lifecycleScope.launch {
-                                            val gid = invite["groupId"]!!
-                                            groupSyncManager.respondToInvite(invite["inviteId"]!!, gid, true)
-                                            currentGroupId = gid // Update state to trigger listener
-                                        }
-                                    }) { Text(Loc.accept) }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = {
-                                        lifecycleScope.launch {
-                                            groupSyncManager.respondToInvite(invite["inviteId"]!!, invite["groupId"]!!, false)
-                                        }
-                                    }) { Text(Loc.decline) }
-                                }
-                            )
-                        }
                     }
                 }
             }
@@ -170,12 +152,9 @@ class MainActivity : ComponentActivity() {
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     if (settingsManager.isSyncPending()) {
-                        val uri = settingsManager.getSyncUri()
-                        if (uri != null) {
-                            lifecycleScope.launch {
-                                val success = backupManager.syncPush(uri)
-                                settingsManager.setSyncPending(!success)
-                            }
+                        lifecycleScope.launch {
+                            val success = groupSyncManager.pushGroupData()
+                            settingsManager.setSyncPending(!success)
                         }
                     }
                 }
@@ -262,8 +241,10 @@ fun AppNavigation(
     onSignIn: () -> Unit,
     isDarkMode: Boolean,
     currentUser: com.google.firebase.auth.FirebaseUser?,
-    currentGroupId: String?, // Added this
-    onGroupChanged: (String?) -> Unit, // Added this
+    currentGroupId: String?,
+    onGroupChanged: (String?) -> Unit,
+    groups: Map<String, JGroupInfo>,
+    onGroupsUpdated: (Map<String, JGroupInfo>) -> Unit,
     onThemeToggle: () -> Unit,
     currentLang: String,
     onLangToggle: () -> Unit
@@ -271,10 +252,26 @@ fun AppNavigation(
     val context = LocalContext.current
     var currentScreen by remember { mutableStateOf("launcher") }
     var navigateToUpdates by remember { mutableStateOf(false) }
+    var navigateToGroups by remember { mutableStateOf(false) }
     var updateVersion by remember { mutableStateOf<Int?>(null) }
     var hasShownUpdateDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    // Remove local currentUser and use the passed one
+
+    val isAdmin by groupSyncManager.isAdminFlow().collectAsState(initial = false)
+
+    // Real-time group info listener (Updates names if they change on server)
+    val allGroupIds = groups.keys.toList()
+    val liveGroups by remember(allGroupIds) { 
+        groupSyncManager.groupInfoFlow(allGroupIds) 
+    }.collectAsState(initial = groups)
+    
+    // Sync live updates back to parent state and local storage
+    LaunchedEffect(liveGroups) {
+        if (liveGroups.isNotEmpty() && liveGroups != groups) {
+            onGroupsUpdated(liveGroups)
+            settingsManager.saveGroups(liveGroups)
+        }
+    }
 
     if (currentScreen != "launcher" && currentScreen != "settings" && currentUser == null) {
         AlertDialog(
@@ -317,65 +314,111 @@ fun AppNavigation(
         )
     }
 
+    // Invite Listener & Popup
+    val invites by groupSyncManager.invitesFlow().collectAsState(initial = emptyList())
+    if (invites.isNotEmpty()) {
+        val invite = invites.first()
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text(Loc.invitePopupTitle) },
+            text = { Text(Loc.invitePopupMsg.format(invite["groupName"] ?: "")) },
+            confirmButton = {
+                Button(onClick = {
+                    scope.launch {
+                        val gid = invite["groupId"]!!
+                        groupSyncManager.respondToInvite(invite["inviteId"]!!, gid, true)
+                        onGroupChanged(gid) // Update state to trigger listener
+                        currentScreen = "settings" // Take them to settings as requested
+                    }
+                }) { Text(Loc.accept) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        groupSyncManager.respondToInvite(invite["inviteId"]!!, invite["groupId"]!!, false)
+                    }
+                }) { Text(Loc.decline) }
+            }
+        )
+    }
+
     // Global sync logic
-    LaunchedEffect(currentUser, currentGroupId) {
+    var isInitialized by remember { mutableStateOf(false) }
+    var lastProcessedGroupId by remember { mutableStateOf<String?>(null) }
+    
+    LaunchedEffect(currentUser) {
         if (currentUser != null) {
-            // "Clean on Start" policy: Refresh all data from server immediately
+            android.util.Log.d("jTool", "User detected: ${currentUser.email}. Starting initial sync.")
+            
+            // 1. Clean local data if it's a fresh start (no active group)
+            if (settingsManager.getCurrentGroupId() == null) {
+                context.getSharedPreferences("jtool_shopping", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+                context.getSharedPreferences("jtool_notes", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+                context.getSharedPreferences("jtool_links", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+                context.getSharedPreferences("jtool_cleaning", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+            }
+
+            // 2. Fetch all settings and memberships from server
             groupSyncManager.fetchUserSettings()
-            val newGroupId = settingsManager.getCurrentGroupId()
-            onGroupChanged(newGroupId)
             
-            if (newGroupId != null) {
+            // 3. Update the UI state with whatever we found
+            val freshGroups = settingsManager.getGroups()
+            onGroupsUpdated(freshGroups)
+            
+            val savedGroupId = settingsManager.getCurrentGroupId()
+            if (savedGroupId != null) {
+                onGroupChanged(savedGroupId)
                 groupSyncManager.pullGroupData()
+                lastProcessedGroupId = savedGroupId
+            } else {
+                navigateToGroups = true
+                currentScreen = "settings"
             }
             
-            // Watch for app updates (Periodic check is fine for this)
-            launch {
-                while(true) {
-                    val appInfo = groupSyncManager.getLatestAppInfo()
-                    
-                    val latestVersion = when (val v = appInfo?.get("versionCode")) {
-                        is Long -> v.toInt()
-                        is Int -> v
-                        is Number -> v.toInt()
-                        is String -> v.toIntOrNull() ?: 0
-                        else -> 0
-                    }
-                    
-                    val currentVersion = backupManager.getCurrentVersionCode()
-                    
-                    if (latestVersion > currentVersion) {
-                        updateVersion = latestVersion
-                        settingsManager.setUpdateUrl(appInfo?.get("downloadUrl") as? String)
-                    }
-                    kotlinx.coroutines.delay(3600000) // Check every hour
-                }
-            }
+            isInitialized = true
         }
     }
 
-    // Removed legacy background cycle loop - Everything is now event-driven or manual merge
+    // Secondary effect: watch for group changes (switching)
+    LaunchedEffect(currentGroupId) {
+        if (currentUser != null && isInitialized && currentGroupId != lastProcessedGroupId) {
+            android.util.Log.d("jTool", "Group switch detected: $currentGroupId")
+            
+            // Clear cache for the old group
+            context.getSharedPreferences("jtool_shopping", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+            context.getSharedPreferences("jtool_notes", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+            context.getSharedPreferences("jtool_links", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+            context.getSharedPreferences("jtool_cleaning", ComponentActivity.MODE_PRIVATE).edit().clear().apply()
+            
+            groupSyncManager.pullGroupData()
+            lastProcessedGroupId = currentGroupId
+        }
+    }
 
+    // Real-time group data listener
+    LaunchedEffect(currentGroupId) {
+        if (currentGroupId != null) {
+            groupSyncManager.groupDataFlow(currentGroupId).collect { }
+        }
+    }
 
-    if (updateVersion != null && !hasShownUpdateDialog) {
-        AlertDialog(
-            onDismissRequest = { hasShownUpdateDialog = true },
-            title = { Text(Loc.updateAvailableTitle) },
-            text = { Text(Loc.updateAvailableMsg.format(backupManager.getCurrentVersionCode(), updateVersion)) },
-            confirmButton = {
-                Button(onClick = { 
-                    currentScreen = "settings"
-                    hasShownUpdateDialog = true
-                }) {
-                    Text(Loc.install)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { hasShownUpdateDialog = true }) {
-                    Text(Loc.later)
-                }
+    // App Updates check
+    LaunchedEffect(Unit) {
+        while(true) {
+            val appInfo = groupSyncManager.getLatestAppInfo()
+            val latestVersion = when (val v = appInfo?.get("versionCode")) {
+                is Long -> v.toInt()
+                is Int -> v
+                is Number -> v.toInt()
+                is String -> v.toIntOrNull() ?: 0
+                else -> 0
             }
-        )
+            if (latestVersion > backupManager.getCurrentVersionCode()) {
+                updateVersion = latestVersion
+                settingsManager.setUpdateUrl(appInfo?.get("downloadUrl") as? String)
+            }
+            kotlinx.coroutines.delay(3600000)
+        }
     }
 
     if (currentScreen != "launcher") {
@@ -386,8 +429,8 @@ fun AppNavigation(
 
     when (currentScreen) {
         "launcher" -> {
-            // Reset redirect flag when returning to launcher
             navigateToUpdates = false
+            navigateToGroups = false
             LauncherScreen(
                 onWorkTimeClick = { currentScreen = "WorkTime" },
                 onTimeCalcClick = { currentScreen = "TimeCalc" },
@@ -395,11 +438,56 @@ fun AppNavigation(
                 onNotesClick = { currentScreen = "Notes" },
                 onLinksClick = { currentScreen = "Links" },
                 onCleaningClick = { currentScreen = "Cleaning" },
-                onSettingsClick = { currentScreen = "settings" },
-                showBadge = updateVersion != null || currentUser == null || currentGroupId == null,
-                settingsManager = settingsManager
+                onSettingsClick = { 
+                    navigateToUpdates = false
+                    navigateToGroups = false
+                    currentScreen = "settings" 
+                },
+                onAccountClick = {
+                    navigateToUpdates = false
+                    navigateToGroups = false
+                    // Start SettingsScreen but directly on the Account sub-page
+                    // I will add startOnAccount parameter to SettingsScreen
+                    currentScreen = "settings_account"
+                },
+                showBadge = updateVersion != null || (currentUser != null && currentGroupId == null),
+                settingsManager = settingsManager,
+                currentGroupId = currentGroupId,
+                groups = groups, // Pass the groups map
+                onJoinGroupClick = { 
+                    navigateToGroups = true
+                    currentScreen = "settings" 
+                },
+                isAdmin = isAdmin,
+                onAdminClick = { currentScreen = "AdminPanel" },
+                currentUser = currentUser
             )
         }
+        "settings_account" -> SettingsScreen(
+            backupManager = backupManager,
+            settingsManager = settingsManager,
+            authManager = authManager,
+            groupSyncManager = groupSyncManager,
+            onSignIn = onSignIn,
+            isDarkMode = isDarkMode,
+            onThemeToggle = onThemeToggle,
+            currentLang = currentLang,
+            onLangToggle = onLangToggle,
+            hasUpdate = updateVersion != null,
+            startOnUpdates = false,
+            startOnGroups = false,
+            startOnAccount = true,
+            onGroupChanged = onGroupChanged,
+            groups = groups,
+            onGroupsUpdated = onGroupsUpdated,
+            currentGroupId = currentGroupId,
+            onBack = { currentScreen = "launcher" }
+        )
+        "AdminPanel" -> AdminPanelScreen(
+            groupSyncManager = groupSyncManager,
+            settingsManager = settingsManager,
+            onBack = { currentScreen = "launcher" }
+        )
         "WorkTime" -> WorkdayCalculatorScreen(
             settingsManager = settingsManager,
             groupSyncManager = groupSyncManager
@@ -441,7 +529,12 @@ fun AppNavigation(
             onLangToggle = onLangToggle,
             hasUpdate = updateVersion != null,
             startOnUpdates = navigateToUpdates,
-            onGroupChanged = onGroupChanged // Pass this down
+            startOnGroups = navigateToGroups,
+            onGroupChanged = onGroupChanged,
+            groups = groups,
+            onGroupsUpdated = onGroupsUpdated,
+            currentGroupId = currentGroupId,
+            onBack = { currentScreen = "launcher" }
         )
     }
 }
@@ -456,8 +549,19 @@ fun LauncherScreen(
     onCleaningClick: () -> Unit,
     onSettingsClick: () -> Unit,
     showBadge: Boolean,
-    settingsManager: SettingsManager
+    settingsManager: SettingsManager,
+    currentGroupId: String?,
+    groups: Map<String, JGroupInfo>, // Added this
+    onJoinGroupClick: () -> Unit,
+    isAdmin: Boolean,
+    onAdminClick: () -> Unit,
+    onAccountClick: () -> Unit,
+    currentUser: com.google.firebase.auth.FirebaseUser?
 ) {
+    val groupName = remember(currentGroupId, groups) {
+        currentGroupId?.let { groups[it]?.name ?: it }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -467,12 +571,49 @@ fun LauncherScreen(
         verticalArrangement = Arrangement.Top
     ) {
         Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "${Loc.hello}, ${settingsManager.getUserName()}!",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary
-        )
+        
+        if (currentUser != null) {
+            Text(
+                text = "${Loc.hello}, ${settingsManager.getUserName()}!",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            if (groupName != null) {
+                Text(
+                    text = Loc.activeGroupLabel.format(groupName),
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            } else {
+                TextButton(onClick = onJoinGroupClick) {
+                    Text(
+                        text = Loc.noActiveGroup,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = "${Loc.hello}!",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(Loc.notSignedIn, fontSize = 14.sp)
+                TextButton(onClick = onAccountClick) {
+                    Text(
+                        text = Loc.pleaseSignInLink,
+                        fontSize = 14.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                    )
+                }
+            }
+        }
         
         Spacer(modifier = Modifier.height(48.dp))
         
@@ -484,60 +625,72 @@ fun LauncherScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (settingsManager.isAppVisible("WorkTime")) {
-                    item {
-                        AppIcon(
-                            name = Loc.t("WorkTime", "Робота"),
-                            icon = Icons.Default.Schedule,
-                            onClick = onWorkTimeClick
-                        )
+                if (currentUser != null) {
+                    if (settingsManager.isAppVisible("WorkTime")) {
+                        item {
+                            AppIcon(
+                                name = Loc.workTime,
+                                icon = Icons.Default.Schedule,
+                                onClick = onWorkTimeClick
+                            )
+                        }
+                    }
+                    if (settingsManager.isAppVisible("TimeCalc")) {
+                        item {
+                            AppIcon(
+                                name = Loc.timeCalc,
+                                icon = Icons.Default.Calculate,
+                                onClick = onTimeCalcClick
+                            )
+                        }
+                    }
+                    if (settingsManager.isAppVisible("ShopList")) {
+                        item {
+                            AppIcon(
+                                name = Loc.shoppingList,
+                                icon = Icons.Default.ShoppingCart,
+                                onClick = onShopListClick
+                            )
+                        }
+                    }
+                    if (settingsManager.isAppVisible("Notes")) {
+                        item {
+                            AppIcon(
+                                name = Loc.notes,
+                                icon = Icons.Default.Description,
+                                onClick = onNotesClick
+                            )
+                        }
+                    }
+                    if (settingsManager.isAppVisible("Links")) {
+                        item {
+                            AppIcon(
+                                name = Loc.links,
+                                icon = Icons.Default.Link,
+                                onClick = onLinksClick
+                            )
+                        }
+                    }
+                    if (settingsManager.isAppVisible("Cleaning")) {
+                        item {
+                            AppIcon(
+                                name = Loc.cleaning,
+                                icon = Icons.Default.Brush,
+                                onClick = onCleaningClick
+                            )
+                        }
+                    }
+                    if (isAdmin) {
+                        item {
+                            AppIcon(
+                                name = Loc.adminPanel,
+                                icon = Icons.Default.AdminPanelSettings,
+                                onClick = onAdminClick
+                            )
+                        }
                     }
                 }
-                if (settingsManager.isAppVisible("TimeCalc")) {
-                    item {
-                        AppIcon(
-                            name = Loc.t("TimeCalc", "Час"),
-                            icon = Icons.Default.Calculate,
-                            onClick = onTimeCalcClick
-                        )
-                    }
-                }
-                if (settingsManager.isAppVisible("ShopList")) {
-                    item {
-                        AppIcon(
-                            name = Loc.t("ShopList", "Покупки"),
-                            icon = Icons.Default.ShoppingCart,
-                            onClick = onShopListClick
-                        )
-                    }
-                }
-                if (settingsManager.isAppVisible("Notes")) {
-                    item {
-                        AppIcon(
-                            name = Loc.t("Notes", "Нотатки"),
-                            icon = Icons.Default.Description,
-                            onClick = onNotesClick
-                        )
-                    }
-                }
-                if (settingsManager.isAppVisible("Links")) {
-                    item {
-                        AppIcon(
-                            name = Loc.t("Links", "Посилання"),
-                            icon = Icons.Default.Link,
-                            onClick = onLinksClick
-                        )
-                    }
-                }
-                if (settingsManager.isAppVisible("Cleaning")) {
-                    item {
-                        AppIcon(
-                            name = Loc.t("Cleaning", "Прибирання"),
-                            icon = Icons.Default.Brush,
-                            onClick = onCleaningClick
-                        )
-                    }
-                }
+                
                 item {
                     AppIcon(
                         name = Loc.settings,
@@ -552,36 +705,44 @@ fun LauncherScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (settingsManager.isAppVisible("WorkTime")) {
-                    item {
-                        AppListRow(name = Loc.t("WorkTime", "Робота"), icon = Icons.Default.Schedule, onClick = onWorkTimeClick)
+                if (currentUser != null) {
+                    if (settingsManager.isAppVisible("WorkTime")) {
+                        item {
+                            AppListRow(name = Loc.workTime, icon = Icons.Default.Schedule, onClick = onWorkTimeClick)
+                        }
+                    }
+                    if (settingsManager.isAppVisible("TimeCalc")) {
+                        item {
+                            AppListRow(name = Loc.timeCalc, icon = Icons.Default.Calculate, onClick = onTimeCalcClick)
+                        }
+                    }
+                    if (settingsManager.isAppVisible("ShopList")) {
+                        item {
+                            AppListRow(name = Loc.shoppingList, icon = Icons.Default.ShoppingCart, onClick = onShopListClick)
+                        }
+                    }
+                    if (settingsManager.isAppVisible("Notes")) {
+                        item {
+                            AppListRow(name = Loc.notes, icon = Icons.Default.Description, onClick = onNotesClick)
+                        }
+                    }
+                    if (settingsManager.isAppVisible("Links")) {
+                        item {
+                            AppListRow(name = Loc.links, icon = Icons.Default.Link, onClick = onLinksClick)
+                        }
+                    }
+                    if (settingsManager.isAppVisible("Cleaning")) {
+                        item {
+                            AppListRow(name = Loc.cleaning, icon = Icons.Default.Brush, onClick = onCleaningClick)
+                        }
+                    }
+                    if (isAdmin) {
+                        item {
+                            AppListRow(name = Loc.adminPanel, icon = Icons.Default.AdminPanelSettings, onClick = onAdminClick)
+                        }
                     }
                 }
-                if (settingsManager.isAppVisible("TimeCalc")) {
-                    item {
-                        AppListRow(name = Loc.t("TimeCalc", "Час"), icon = Icons.Default.Calculate, onClick = onTimeCalcClick)
-                    }
-                }
-                if (settingsManager.isAppVisible("ShopList")) {
-                    item {
-                        AppListRow(name = Loc.t("ShopList", "Покупки"), icon = Icons.Default.ShoppingCart, onClick = onShopListClick)
-                    }
-                }
-                if (settingsManager.isAppVisible("Notes")) {
-                    item {
-                        AppListRow(name = Loc.t("Notes", "Нотатки"), icon = Icons.Default.Description, onClick = onNotesClick)
-                    }
-                }
-                if (settingsManager.isAppVisible("Links")) {
-                    item {
-                        AppListRow(name = Loc.t("Links", "Посилання"), icon = Icons.Default.Link, onClick = onLinksClick)
-                    }
-                }
-                if (settingsManager.isAppVisible("Cleaning")) {
-                    item {
-                        AppListRow(name = Loc.t("Cleaning", "Прибирання"), icon = Icons.Default.Brush, onClick = onCleaningClick)
-                    }
-                }
+
                 item {
                     AppListRow(name = Loc.settings, icon = Icons.Default.Settings, onClick = onSettingsClick, hasBadge = showBadge)
                 }
@@ -682,7 +843,14 @@ fun LauncherPreview() {
             onCleaningClick = {},
             onSettingsClick = {}, 
             showBadge = false,
-            settingsManager = SettingsManager(context)
+            settingsManager = SettingsManager(context),
+            currentGroupId = "Preview ID",
+            groups = emptyMap(),
+            onJoinGroupClick = {},
+            isAdmin = false,
+            onAdminClick = {},
+            onAccountClick = {},
+            currentUser = null
         )
     }
 }

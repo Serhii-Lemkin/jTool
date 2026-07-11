@@ -44,6 +44,7 @@ fun WorkdayCalculatorScreen(
     var errorText by remember { mutableStateOf("") }
 
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    val currentLocale = remember(Loc.lang) { if (Loc.lang == "uk") Locale.forLanguageTag("uk") else Locale.ENGLISH }
 
     LaunchedEffect(Unit) {
         settingsManager.getRememberedStart(today.toString())?.let { remembered ->
@@ -72,7 +73,7 @@ fun WorkdayCalculatorScreen(
                     Text(Loc.setHoursManually, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
                     DayOfWeek.values().forEach { day ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(day.getDisplayName(TextStyle.SHORT, Locale.getDefault()), modifier = Modifier.width(40.dp))
+                            Text(day.getDisplayName(TextStyle.SHORT, currentLocale), modifier = Modifier.width(40.dp))
                             Slider(
                                 value = (tempHours[day] ?: 0.0).toFloat(),
                                 onValueChange = { tempHours = tempHours + (day to it.toDouble()) },
@@ -80,7 +81,7 @@ fun WorkdayCalculatorScreen(
                                 steps = 23,
                                 modifier = Modifier.weight(1f)
                             )
-                            Text(String.format("%.1f", tempHours[day]), modifier = Modifier.width(40.dp))
+                            Text(String.format(currentLocale, "%.1f", tempHours[day]), modifier = Modifier.width(40.dp))
                         }
                     }
                 }
@@ -120,12 +121,12 @@ fun WorkdayCalculatorScreen(
         )
     }
 
-    val currentLocale = remember(Loc.lang) { if (Loc.lang == "uk") Locale.forLanguageTag("uk") else Locale.ENGLISH }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
+            .imePadding()
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Top,
@@ -139,7 +140,7 @@ fun WorkdayCalculatorScreen(
                 fontWeight = FontWeight.Bold
             )
             IconButton(onClick = { showEditDialog = true }) {
-                Icon(Icons.Default.Settings, contentDescription = "Edit Hours")
+                Icon(Icons.Default.Settings, contentDescription = Loc.editHours)
             }
         }
         
@@ -238,8 +239,8 @@ fun WorkdayCalculatorScreen(
             
             val timeLeftText = when {
                 duration.isNegative || duration.isZero -> Loc.workFinished
-                hoursLeft > 0 -> "${Loc.timeLeft}: ${hoursLeft}h ${minutesLeft}m"
-                else -> "${Loc.timeLeft}: ${minutesLeft}m"
+                hoursLeft > 0 -> "${Loc.timeLeft}: ${hoursLeft}${Loc.hourSymbol} ${minutesLeft}${Loc.minuteSymbol}"
+                else -> "${Loc.timeLeft}: ${minutesLeft}${Loc.minuteSymbol}"
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

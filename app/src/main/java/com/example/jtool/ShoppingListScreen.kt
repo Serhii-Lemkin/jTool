@@ -58,21 +58,32 @@ fun ShoppingListScreen(
     var newItemText by remember { mutableStateOf("") }
     var selectedAisle by remember { mutableStateOf("Common") }
     var showAislePicker by remember { mutableStateOf(false) }
-    var sortByAisle by remember { mutableStateOf(false) }
+    var filterType by remember { mutableStateOf("All") }
+    var dropdownExpanded by remember { mutableStateOf(false) }
     
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val currentGroupId = remember { settingsManager.getCurrentGroupId() }
-    val syncUri = remember { settingsManager.getSyncUri()?.let { Uri.parse(it) } }
 
-    val displayItems = if (sortByAisle) {
-        items.filter { !it.isChecked }.sortedWith(compareBy({ it.aisle }, { it.text }))
-    } else {
-        items.filter { !it.isChecked }.sortedByDescending { it.id }
+    val activeAisles = remember(items) {
+        items.filter { !it.isChecked }.map { it.aisle }.distinct().sorted()
     }
 
-    val checkedItems = items.filter { it.isChecked }.sortedByDescending { it.timestamp }.take(5)
+    val displayItems = when {
+        filterType == "Unactive" -> items.filter { it.isChecked }.sortedByDescending { it.timestamp }
+        filterType.startsWith("Aisle:") -> {
+            val aisleName = filterType.removePrefix("Aisle:")
+            items.filter { !it.isChecked && it.aisle == aisleName }.sortedByDescending { it.id }
+        }
+        else -> items.filter { !it.isChecked }.sortedByDescending { it.id }
+    }
+
+    val checkedItems = if (filterType == "All") {
+        items.filter { it.isChecked }.sortedByDescending { it.timestamp }.take(5)
+    } else {
+        emptyList()
+    }
     
     // Remote suggestions from Firebase
     val remoteSuggestions by groupSyncManager.suggestionsFlow().collectAsState(initial = emptyList())
@@ -175,8 +186,35 @@ fun ShoppingListScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
-                    Text(Loc.sortByAisle, fontSize = 12.sp)
-                    Checkbox(checked = sortByAisle, onCheckedChange = { sortByAisle = it })
+                    Box {
+                        IconButton(onClick = { dropdownExpanded = true }) {
+                            val icon = when {
+                                filterType == "Unactive" -> Icons.Default.CheckBox
+                                filterType.startsWith("Aisle:") -> AisleIcons[filterType.removePrefix("Aisle:")] ?: Icons.AutoMirrored.Filled.Label
+                                else -> Icons.Default.FilterList
+                            }
+                            Icon(icon, contentDescription = "Filter", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        DropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Icon(Icons.Default.FilterList, contentDescription = Loc.all, tint = MaterialTheme.colorScheme.primary) },
+                                onClick = { filterType = "All"; dropdownExpanded = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Icon(Icons.Default.CheckBox, contentDescription = Loc.unactive, tint = MaterialTheme.colorScheme.primary) },
+                                onClick = { filterType = "Unactive"; dropdownExpanded = false }
+                            )
+                            activeAisles.forEach { aisle ->
+                                DropdownMenuItem(
+                                    text = { Icon(AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label, contentDescription = aisle, tint = MaterialTheme.colorScheme.primary) },
+                                    onClick = { filterType = "Aisle:$aisle"; dropdownExpanded = false }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -345,7 +383,6 @@ fun ShoppingListScreen(
                                 aisle = selectedAisle
                             )
                             updateItems(items + newItem)
-                            scope.launch { groupSyncManager.pushSuggestion(trimmedText) }
                             newItemText = ""
                             selectedAisle = "Common"
                         }
@@ -388,15 +425,19 @@ fun ShoppingItemRow(
                         textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
                         color = if (item.isChecked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
                     )
-                    if (item.aisle != "Common" && !item.isChecked) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                AisleIcons[item.aisle] ?: Icons.Default.Label,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            AisleIcons[item.aisle] ?: Icons.AutoMirrored.Filled.Label,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "${Loc.by} $userName",
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
                     }
                 }
                 IconButton(onClick = onDelete) {
@@ -404,16 +445,10 @@ fun ShoppingItemRow(
                         Icons.Default.Delete,
                         contentDescription = "Delete",
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
-            Text(
-                text = "${Loc.by} $userName", // Use passed name
-                fontSize = 9.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.align(Alignment.End).padding(end = 12.dp)
-            )
         }
     }
 }

@@ -21,8 +21,8 @@ android {
         applicationId = "com.example.jtool"
         minSdk = 26
         targetSdk = 36
-        versionCode = 28
-        versionName = "2.1"
+        versionCode = 30
+        versionName = "2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

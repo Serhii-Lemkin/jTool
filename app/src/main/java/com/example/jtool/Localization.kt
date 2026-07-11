@@ -32,6 +32,14 @@ object Loc {
     val cancel get() = t("Cancel", "Скасувати")
     val invalidFormat get() = t("Invalid format. Try 6.13, 613, or 06:13", "Невірний формат. Спробуйте 6.13, 613 або 06:13")
     val noWorkScheduled get() = t("No work hours scheduled for today!", "На сьогодні робочих годин не заплановано!")
+    val editHours get() = t("Edit Hours", "Редагувати години")
+    val hourSymbol get() = t("h", "год")
+    val minuteSymbol get() = t("m", "хв")
+    val yearShort get() = t("y", "р")
+    val monthShort get() = t("mo", "міс")
+    val dayShort get() = t("d", "д")
+    val zeroUnits get() = t("0 units", "0 одиниць")
+    val resetToNow get() = t("Reset to Now", "Скинути до поточного")
 
     // Time Calc
     val baseDateTime get() = t("Base Date/Time", "Базовий Час/Дата")
@@ -51,6 +59,8 @@ object Loc {
     val restore get() = t("Restore", "Відновити")
     val itemAlreadyInList get() = t("Item already in list", "Товар вже у списку")
     val restoredExisting get() = t("Restored existing item", "Відновлено існуючий товар")
+    val all get() = t("All", "Усі")
+    val unactive get() = t("Unactive", "Неактивні")
 
     // Notes
     val notes get() = t("Notes", "Нотатки")
@@ -71,14 +81,21 @@ object Loc {
     val addTask get() = t("Add Task", "Додати завдання")
     val lastDone get() = t("Last done", "Востаннє")
     val oneTime get() = t("One-time", "Один раз")
-    val everyDays get() = t("Every %d days", "Кожні %d днів")
+    val everyDays get() = t("Every %d days", "Кожні %d дні")
+    val everyDay get() = t("Every day", "Щодня")
+    val everyDaySingle get() = t("Every day", "День")
     val moreOptions get() = t("More", "Більше")
-    val update get() = t("Update", "Оновити")
+    val update get() = t("Edit", "Редагувати")
     val disable get() = t("Disable", "Вимкнути")
     val restoreTask get() = t("Restore", "Відновити")
     val showDisabled get() = t("Show Disabled Tasks", "Показати вимкнені")
     val activeTasks get() = t("Active Tasks", "Активні завдання")
     val editTask get() = t("Edit Task", "Редагувати завдання")
+    val editGroupName get() = t("Edit Group Name", "Змінити назву групи")
+
+    fun getCleaningFrequency(days: Int): String {
+        return RecurrenceFormatter.formatEveryXDays(days, lang)
+    }
 
     // Settings
     val displayName get() = t("Display Name", "Ім'я користувача")
@@ -111,7 +128,7 @@ object Loc {
     val import get() = t("Import", "Імпорт")
     val versionInfo get() = t("Version Info", "Інформація про версію")
     val checkForUpdates get() = t("Check for Updates", "Перевірити оновлення")
-    val updateNow get() = t("Update Now", "Оновити зараз")
+    val updateNow get() = t("Update Now", "Редагувати")
     val updateAvailableTitle get() = t("Update Available", "Доступне оновлення")
     val later get() = t("Later", "Пізніше")
     val install get() = t("Install", "Встановити")
@@ -127,18 +144,28 @@ object Loc {
     val setHoursManually get() = t("Set your work hours manually to start.", "Встановіть робочі години вручну для початку.")
     val save get() = t("Save", "Зберегти")
 
+    val workTime get() = t("Work", "Робота")
+    val timeCalc get() = t("Time", "Час")
+
     // General
     val by get() = t("By", "Від")
     val login get() = t("Login", "Увійти")
     val logout get() = t("Logout", "Вийти")
+    val confirmLogoutTitle get() = t("Logout?", "Вийти?")
+    val confirmLogoutMsg get() = t("Are you sure you want to log out?", "Ви впевнені, що хочете вийти?")
     val signInRequired get() = t("Sign In Required", "Необхідно увійти")
     val signInRequiredMsg get() = t("Please sign in with Google to access this shared feature.", "Будь ласка, увійдіть через Google, щоб отримати доступ до цієї спільної функції.")
     val goToSettings get() = t("Go to Settings", "Перейти до налаштувань")
     val signInWithGoogle get() = t("Sign in with Google", "Увійти через Google")
-    val cloudSyncFirebase get() = t("Cloud Sync (Firebase)", "Хмарна синхронізація")
+    val notSignedIn get() = t("You are not signed in.", "Ви не виконали вхід у свій обліковий запис.")
+    val pleaseSignInLink get() = t("Please sign in here", "Увійти тут")
+    val cloudSyncFirebase get() = t("Google Account (Firebase)", "Обліковий запис Google (Firebase)")
     val appearanceLanguage get() = t("Appearance & Language", "Вигляд та Мова")
     val darkMode get() = t("Dark Mode", "Темний режим")
+    val lightMode get() = t("Light Mode", "Світлий режим")
     val language get() = t("Language", "Мова")
+    val generalSettings get() = t("General Settings", "Загальні налаштування")
+    val account get() = t("Account", "Обліковий запис")
 
     // Groups
     val linkedGroupId get() = t("Linked Group ID:", "ID прив'язаної групи:")
@@ -152,6 +179,10 @@ object Loc {
     val groupIdToJoin get() = t("Group ID to Join", "ID групи для вступу")
     val joinGroup get() = t("Join Group", "Приєднатися до групи")
     val or get() = t("OR", "АБО")
+    val noGroupsMsg get() = t("You are not a member in any group, please create one yourself or ask a friend to invite you in.", "Ви не є учасником жодної групи, будь ласка, створіть свою або попросіть друга запросити вас.")
+    val selectGroup get() = t("Select Group", "Виберіть групу")
+    val activeGroupLabel get() = t("Group: %s", "Група: %s")
+    val noActiveGroup get() = t("No group selected. Click here to join one!", "Групу не обрано. Натисніть тут, щоб приєднатися!")
     val manualSync get() = t("Manual Sync (Merge)", "Синхронізувати (Об'єднати)")
     val syncing get() = t("Syncing...", "Синхронізація...")
     val groups get() = t("Groups", "Групи")
@@ -166,4 +197,22 @@ object Loc {
     val invitePopupMsg get() = t("You have been invited to join group: %s", "Вас запросили приєднатися до групи: %s")
     val accept get() = t("Accept", "Прийняти")
     val decline get() = t("Decline", "Відхилити")
+
+    // Admin
+    val adminPanel get() = t("Admin Panel", "Панель адміністратора")
+    val appInfo get() = t("App Info", "Інфо додатка")
+    val appInfoSubtitle get() = t("Version and download settings", "Налаштування версії та завантаження")
+    val requestsSubtitleAdmin get() = t("User feedback and suggestions", "Відгуки та пропозиції користувачів")
+    val users get() = t("Users", "Користувачі")
+    val usersSubtitle get() = t("Manage user permissions", "Керування правами користувачів")
+    val versionCode get() = t("Version Code", "Код версії")
+    val downloadUrl get() = t("Download URL", "Посилання на завантаження")
+    val updateAppInfo get() = t("Update App Info", "Редагувати інфо")
+    val requestDetails get() = t("Request Details", "Деталі запиту")
+    val closeRequest get() = t("Close Request", "Закрити запит")
+    val closeWindow get() = t("Close Window", "Закрити вікно")
+    val searchUsers get() = t("Search Users", "Пошук користувачів")
+    val groupMaintenance get() = t("Group Maintenance", "Обслуговування груп")
+    val groupsSubtitle get() = t("Maintenance and cleanup", "Обслуговування та очищення")
+    val deleteEmptyGroups get() = t("Delete Empty Groups", "Видалити порожні групи")
 }

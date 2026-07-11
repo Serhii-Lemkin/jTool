@@ -53,6 +53,7 @@ fun TimeCalculatorScreen() {
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
+            .imePadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -63,12 +64,12 @@ fun TimeCalculatorScreen() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { currentDateTime = LocalDateTime.now() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reset to Now")
+                Icon(Icons.Default.Refresh, contentDescription = Loc.resetToNow)
             }
         }
 
         Text(
-            text = "TimeCalc",
+            text = Loc.timeCalc,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -106,11 +107,11 @@ fun TimeCalculatorScreen() {
         // Section: Operations
         Text(Loc.addSub, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TimeInputField("Y", yearsInput, Modifier.weight(1f)) { yearsInput = it }
-            TimeInputField("M", monthsInput, Modifier.weight(1f)) { monthsInput = it }
-            TimeInputField("D", daysInput, Modifier.weight(1f)) { daysInput = it }
-            TimeInputField("H", hoursInput, Modifier.weight(1f)) { hoursInput = it }
-            TimeInputField("M", minutesInput, Modifier.weight(1f)) { minutesInput = it }
+            TimeInputField(Loc.yearShort.uppercase(), yearsInput, Modifier.weight(1f)) { yearsInput = it }
+            TimeInputField(Loc.monthShort.uppercase(), monthsInput, Modifier.weight(1f)) { monthsInput = it }
+            TimeInputField(Loc.dayShort.uppercase(), daysInput, Modifier.weight(1f)) { daysInput = it }
+            TimeInputField(Loc.hourSymbol.uppercase(), hoursInput, Modifier.weight(1f)) { hoursInput = it }
+            TimeInputField(Loc.minuteSymbol.uppercase(), minutesInput, Modifier.weight(1f)) { minutesInput = it }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -202,12 +203,12 @@ data class HistoryItem(
 ) {
     val summary: String get() {
         val parts = mutableListOf<String>()
-        if (y.isNotEmpty()) parts.add("${y}y")
-        if (mo.isNotEmpty()) parts.add("${mo}mo")
-        if (d.isNotEmpty()) parts.add("${d}d")
-        if (h.isNotEmpty()) parts.add("${h}h")
-        if (mi.isNotEmpty()) parts.add("${mi}m")
-        return if (parts.isEmpty()) "0 units" else parts.joinToString(" ")
+        if (y.isNotEmpty()) parts.add("${y}${Loc.yearShort}")
+        if (mo.isNotEmpty()) parts.add("${mo}${Loc.monthShort}")
+        if (d.isNotEmpty()) parts.add("${d}${Loc.dayShort}")
+        if (h.isNotEmpty()) parts.add("${h}${Loc.hourSymbol}")
+        if (mi.isNotEmpty()) parts.add("${mi}${Loc.minuteSymbol}")
+        return if (parts.isEmpty()) Loc.zeroUnits else parts.joinToString(" ")
     }
 }
 

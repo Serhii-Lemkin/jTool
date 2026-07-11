@@ -3,6 +3,12 @@ package com.example.jtool
 import android.content.Context
 import java.time.DayOfWeek
 
+data class JGroupInfo(
+    val id: String,
+    val name: String,
+    val owner: String? = null
+)
+
 class SettingsManager(context: Context) {
     private val prefs = context.getSharedPreferences("jtool_settings", Context.MODE_PRIVATE)
 
@@ -22,7 +28,7 @@ class SettingsManager(context: Context) {
             is Float -> value.toDouble()
             is Int -> value.toDouble()
             is Long -> value.toDouble()
-            is Double -> value
+            is Double -> value.toDouble()
             is String -> value.toDoubleOrNull() ?: default
             else -> default
         }
@@ -55,18 +61,6 @@ class SettingsManager(context: Context) {
         } else {
             null
         }
-    }
-
-    fun saveSyncUri(uri: String?) {
-        if (uri.isNullOrEmpty()) {
-            prefs.edit().remove("sync_uri").apply()
-        } else {
-            prefs.edit().putString("sync_uri", uri).apply()
-        }
-    }
-
-    fun getSyncUri(): String? {
-        return prefs.getString("sync_uri", null)
     }
 
     fun setSyncPending(pending: Boolean) {
@@ -146,23 +140,55 @@ class SettingsManager(context: Context) {
         prefs.edit().putString("current_group_id", groupId).apply()
     }
 
-    fun getGroupIds(): List<String> {
-        return prefs.getString("group_ids", "")?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
-    }
-
-    fun addGroupId(groupId: String) {
-        val groups = getGroupIds().toMutableList()
-        if (!groups.contains(groupId)) {
-            groups.add(groupId)
-            prefs.edit().putString("group_ids", groups.joinToString(",")).apply()
+    fun getGroups(): Map<String, JGroupInfo> {
+        val json = prefs.getString("remembered_groups", "{}") ?: "{}"
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, JGroupInfo>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val id = keys.next()
+                val groupJson = obj.getJSONObject(id)
+                map[id] = JGroupInfo(
+                    id = id,
+                    name = groupJson.getString("name"),
+                    owner = if (groupJson.has("owner")) groupJson.getString("owner") else null
+                )
+            }
+            map
+        } catch (_: Exception) {
+            emptyMap()
         }
     }
 
-    fun removeGroupId(groupId: String) {
-        val groups = getGroupIds().toMutableList()
-        groups.remove(groupId)
-        prefs.edit().putString("group_ids", groups.joinToString(",")).apply()
+    fun saveGroups(groups: Map<String, JGroupInfo>) {
+        val obj = org.json.JSONObject()
+        groups.forEach { (id, info) -> 
+            val groupJson = org.json.JSONObject()
+            groupJson.put("name", info.name)
+            groupJson.put("owner", info.owner)
+            obj.put(id, groupJson)
+        }
+        prefs.edit().putString("remembered_groups", obj.toString()).apply()
     }
+
+    fun addGroup(info: JGroupInfo) {
+        val groups = getGroups().toMutableMap()
+        groups[info.id] = info
+        saveGroups(groups)
+    }
+
+    fun removeGroup(id: String) {
+        val groups = getGroups().toMutableMap()
+        groups.remove(id)
+        saveGroups(groups)
+    }
+
+    fun clearAllGroups() {
+        prefs.edit().remove("remembered_groups").apply()
+    }
+
+    fun getGroupIds(): List<String> = getGroups().keys.toList()
 
     fun getUpdateUrl(): String? {
         return prefs.getString("update_url", null)
@@ -170,13 +196,5 @@ class SettingsManager(context: Context) {
 
     fun setUpdateUrl(url: String?) {
         prefs.edit().putString("update_url", url).apply()
-    }
-
-    fun getSyncInterval(): Int {
-        return prefs.getInt("sync_interval", 10)
-    }
-
-    fun setSyncInterval(seconds: Int) {
-        prefs.edit().putInt("sync_interval", seconds.coerceAtLeast(5)).apply()
     }
 }

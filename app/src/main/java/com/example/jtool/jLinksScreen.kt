@@ -7,16 +7,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,9 +35,9 @@ fun JLinksScreen(
     var newTitle by remember { mutableStateOf("") }
     var newUrl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
     
     val currentGroupId = remember { settingsManager.getCurrentGroupId() }
-    val syncUri = settingsManager.getSyncUri()
     val userNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap())
 
     fun triggerSync() {
@@ -63,15 +62,9 @@ fun JLinksScreen(
         }
     }
 
-    // Legacy Support & Initial Load
+    // Initial Load
     LaunchedEffect(Unit) {
         links = manager.loadLinks()
-        if (syncUri != null) {
-            while (true) {
-                links = manager.loadLinks()
-                delay(settingsManager.getSyncInterval() * 1000L)
-            }
-        }
     }
 
     val filteredLinks = remember(links, searchQuery) {
@@ -119,18 +112,27 @@ fun JLinksScreen(
 
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             items(filteredLinks, key = { it.id }) { link ->
-                Card(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    color = Color.Transparent
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = link.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Text(text = link.url, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, maxLines = 1)
+                            }
+                            IconButton(onClick = {
+                                clipboardManager.setText(AnnotatedString(link.url))
+                                Toast.makeText(context, Loc.t("Copied!", "Скопійовано!"), Toast.LENGTH_SHORT).show()
+                            }) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(20.dp))
                             }
                             IconButton(onClick = {
                                 try {
@@ -140,19 +142,19 @@ fun JLinksScreen(
                                     Toast.makeText(context, Loc.t("Invalid URL", "Невірна адреса"), Toast.LENGTH_SHORT).show()
                                 }
                             }) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = "Open")
+                                Icon(Icons.Default.OpenInNew, contentDescription = "Open", modifier = Modifier.size(20.dp))
                             }
                             IconButton(onClick = {
                                 updateLinks(links.filter { it.id != link.id })
                             }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                             }
                         }
                         Text(
                             text = "${Loc.by} ${userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.align(Alignment.End)
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.align(Alignment.End).padding(end = 12.dp)
                         )
                     }
                 }
