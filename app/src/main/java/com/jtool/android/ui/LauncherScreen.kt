@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.JGroupInfo
+import com.jtool.android.core.models.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.ui.navigation.AppNames
 import com.jtool.android.ui.navigation.AppProperties
@@ -33,7 +33,7 @@ fun LauncherScreen(
     showBadge: Boolean,
     settingsManager: SettingsManager,
     currentGroupId: String?,
-    groups: Map<String, JGroupInfo>,
+    groups: Map<String, GroupInfo>,
     onJoinGroupClick: () -> Unit,
     isAdmin: Boolean,
     onAdminClick: () -> Unit,
@@ -128,15 +128,6 @@ fun LauncherScreen(
                             }
                         }
                     }
-                    if (isAdmin) {
-                        item {
-                            AppIcon(
-                                name = Loc.adminPanel,
-                                icon = Icons.Default.AdminPanelSettings,
-                                onClick = onAdminClick
-                            )
-                        }
-                    }
                 }
                 
                 item {
@@ -146,6 +137,16 @@ fun LauncherScreen(
                         onClick = onSettingsClick,
                         hasBadge = showBadge
                     )
+                }
+
+                if (currentUser != null && isAdmin) {
+                    item {
+                        AppIcon(
+                            name = Loc.adminPanel,
+                            icon = Icons.Default.AdminPanelSettings,
+                            onClick = onAdminClick
+                        )
+                    }
                 }
             }
         } else {
@@ -165,15 +166,16 @@ fun LauncherScreen(
                             }
                         }
                     }
-                    if (isAdmin) {
-                        item {
-                            AppListRow(name = Loc.adminPanel, icon = Icons.Default.AdminPanelSettings, onClick = onAdminClick)
-                        }
-                    }
                 }
 
                 item {
                     AppListRow(name = Loc.settings, icon = Icons.Default.Settings, onClick = onSettingsClick, hasBadge = showBadge)
+                }
+
+                if (currentUser != null && isAdmin) {
+                    item {
+                        AppListRow(name = Loc.adminPanel, icon = Icons.Default.AdminPanelSettings, onClick = onAdminClick)
+                    }
                 }
             }
         }

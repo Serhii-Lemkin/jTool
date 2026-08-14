@@ -100,6 +100,7 @@ fun AdminPanelScreen(
                 }
                 "users" -> UsersTab(viewModel, uiState)
                 "groups" -> GroupsTab(viewModel, uiState)
+                "migration" -> MigrationTab(viewModel, uiState)
             }
         }
     }
@@ -132,6 +133,15 @@ fun AdminMainScreen(onNavigate: (String) -> Unit) {
                 subtitle = Loc.groupsSubtitle,
                 icon = Icons.Default.GroupWork,
                 onClick = { onNavigate("groups") }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        }
+        item {
+            AdminMenuItem(
+                title = Loc.migrateFromRTDB,
+                subtitle = Loc.migrationSubtitle,
+                icon = Icons.Default.Storage,
+                onClick = { onNavigate("migration") }
             )
         }
     }
@@ -244,12 +254,11 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
 
             items(filtered) { user ->
                 val uid = user["uid"] as? String ?: ""
-                val isAdmin = user["isAdmin"] as? Boolean ?: false
                 var menuExpanded by remember { mutableStateOf(false) }
 
                 ListItem(
                     headlineContent = { 
-                        Text(uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.t("Unknown", "Невідомо")) 
+                        Text(uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.unknown) 
                     },
                     supportingContent = { 
                         Column {
@@ -258,30 +267,22 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                         }
                     },
                     trailingContent = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(
-                                checked = isAdmin,
-                                onCheckedChange = { 
-                                    viewModel.onEvent(AdminEvent.SetUserAdminStatus(uid, it))
-                                }
-                            )
-                            Box {
-                                IconButton(onClick = { menuExpanded = true }) {
-                                    Icon(Icons.Default.MoreVert, null)
-                                }
-                                DropdownMenu(
-                                    expanded = menuExpanded,
-                                    onDismissRequest = { menuExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) },
-                                        onClick = {
-                                            menuExpanded = false
-                                            viewModel.onEvent(AdminEvent.RequestDeleteUser(uid, 1))
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
-                                    )
-                                }
+                        Box {
+                            IconButton(onClick = { menuExpanded = true }) {
+                                Icon(Icons.Default.MoreVert, null)
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.onEvent(AdminEvent.RequestDeleteUser(uid, 1))
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+                                )
                             }
                         }
                     }
@@ -429,5 +430,45 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                 }
             }
         )
+    }
+}
+
+@Composable
+fun MigrationTab(viewModel: AdminViewModel, uiState: AdminUiState) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (uiState.isMigrating) {
+            CircularProgressIndicator()
+            Spacer(Modifier.height(16.dp))
+        }
+        
+        Text(
+            text = uiState.migrationStatus ?: Loc.migrationReady,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        
+        Spacer(Modifier.height(32.dp))
+        
+        Button(
+            onClick = { viewModel.onEvent(AdminEvent.StartRTDBMigration) },
+            enabled = !uiState.isMigrating,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(Loc.startMigration)
+        }
+        
+        if (!uiState.isMigrating && uiState.migrationStatus != null) {
+            Spacer(Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = { viewModel.onEvent(AdminEvent.Navigate("main")) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(Loc.back)
+            }
+        }
     }
 }

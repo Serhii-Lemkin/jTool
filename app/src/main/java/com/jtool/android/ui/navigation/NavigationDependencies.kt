@@ -3,20 +3,20 @@ package com.jtool.android.ui.navigation
 import com.google.firebase.auth.FirebaseUser
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
-import com.jtool.android.core.models.JGroupInfo
+import com.jtool.android.core.models.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
-import com.jtool.android.features.cleaning.JCleaningManager
-import com.jtool.android.features.links.JLinksManager
-import com.jtool.android.features.notes.JNotesManager
+import com.jtool.android.features.cleaning.CleaningManager
+import com.jtool.android.features.links.LinksManager
+import com.jtool.android.features.notes.NotesManager
 import com.jtool.android.features.shopping.ShoppingListManager
 
 data class NavigationDependencies(
     val settingsManager: SettingsManager,
     val shoppingListManager: ShoppingListManager,
-    val notesManager: JNotesManager,
-    val cleaningManager: JCleaningManager,
-    val linksManager: JLinksManager,
+    val notesManager: NotesManager,
+    val cleaningManager: CleaningManager,
+    val linksManager: LinksManager,
     val backupManager: BackupManager,
     val authManager: AuthManager,
     val groupSyncManager: GroupSyncManager,
@@ -25,8 +25,8 @@ data class NavigationDependencies(
     val currentUser: FirebaseUser?,
     val currentGroupId: String?,
     val onGroupChanged: (String?) -> Unit,
-    val groups: Map<String, JGroupInfo>,
-    val onGroupsUpdated: (Map<String, JGroupInfo>) -> Unit,
+    val groups: Map<String, GroupInfo>,
+    val onGroupsUpdated: (Map<String, GroupInfo>) -> Unit,
     val onThemeToggle: () -> Unit,
     val currentLang: String,
     val onLangToggle: () -> Unit,

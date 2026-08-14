@@ -3,6 +3,7 @@ package com.jtool.android
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -10,6 +11,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.connectivity.ConnectivityObserver
@@ -19,8 +25,8 @@ import com.jtool.android.core.sync.GroupSyncManager
 import com.jtool.android.core.sync.SyncStatusOverlay
 import com.jtool.android.core.utils.AppUtils
 import com.jtool.android.features.auth.SignInHandler
-import com.jtool.android.features.cleaning.JCleaningManager
-import com.jtool.android.features.notes.JNotesManager
+import com.jtool.android.features.cleaning.CleaningManager
+import com.jtool.android.features.notes.NotesManager
 import com.jtool.android.features.shopping.ShoppingListManager
 import com.jtool.android.ui.AppNavigation
 import com.jtool.android.ui.theme.JToolTheme
@@ -29,14 +35,23 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private lateinit var settingsManager: SettingsManager
     private lateinit var shoppingListManager: ShoppingListManager
-    private lateinit var notesManager: JNotesManager
-    private lateinit var cleaningManager: JCleaningManager
+    private lateinit var notesManager: NotesManager
+    private lateinit var cleaningManager: CleaningManager
     private lateinit var backupManager: BackupManager
     private lateinit var authManager: AuthManager
     private lateinit var groupSyncManager: GroupSyncManager
     
     private lateinit var connectivityObserver: ConnectivityObserver
     private lateinit var signInHandler: SignInHandler
+    private lateinit var appUpdateManager: AppUpdateManager
+
+    private val updateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) {
+            android.util.Log.e("AppUpdate", "Update flow failed! Result code: ${result.resultCode}")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,8 +59,8 @@ class MainActivity : ComponentActivity() {
         
         settingsManager = SettingsManager(this)
         shoppingListManager = ShoppingListManager(this)
-        notesManager = JNotesManager(this)
-        cleaningManager = JCleaningManager(this)
+        notesManager = NotesManager(this)
+        cleaningManager = CleaningManager(this)
         backupManager = BackupManager(this)
         authManager = AuthManager(this)
         groupSyncManager = GroupSyncManager(this)
@@ -57,13 +72,13 @@ class MainActivity : ComponentActivity() {
         AppUtils.requestNotificationPermission(this)
         connectivityObserver.start()
 
+        appUpdateManager = AppUpdateManagerFactory.create(this)
+        checkForUpdates()
+
         lifecycle.addObserver(androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 lifecycleScope.launch {
                     groupSyncManager.fetchUserSettings()
-                    if (authManager.getCurrentUser() != null) {
-                        groupSyncManager.pullGroupData()
-                    }
                 }
             }
         })
@@ -116,10 +131,8 @@ class MainActivity : ComponentActivity() {
                             },
                             currentLang = currentLang,
                             onLangToggle = {
-                                currentLang = if (currentLang == "en") "uk" else "en"
-                                settingsManager.setLanguage(currentLang)
+                                currentLang = settingsManager.getLanguage()
                                 Loc.lang = currentLang
-                                lifecycleScope.launch { groupSyncManager.pushUserSettings() }
                             },
                             groups = groups,
                             onGroupsUpdated = { groups = it }
@@ -127,6 +140,42 @@ class MainActivity : ComponentActivity() {
                         
                         SyncStatusOverlay()
                     }
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        updateLauncher,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("AppUpdate", "Failed to resume update", e)
+                }
+            }
+        }
+    }
+
+    private fun checkForUpdates() {
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+            if ((appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE)
+                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+            ) {
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        updateLauncher,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("AppUpdate", "Failed to start update flow", e)
                 }
             }
         }

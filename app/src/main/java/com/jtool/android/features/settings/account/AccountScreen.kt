@@ -109,7 +109,7 @@ fun AccountScreen(
                 IconButton(
                     onClick = { 
                         viewModel.onEvent(AccountEvent.UpdateUserName(userNameInput))
-                        android.widget.Toast.makeText(context, Loc.t("Name saved!", "Ім'я збережено!"), android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, Loc.nameSaved, android.widget.Toast.LENGTH_SHORT).show()
                     },
                     enabled = userNameInput.isNotBlank()
                 ) {
@@ -122,7 +122,7 @@ fun AccountScreen(
             Spacer(Modifier.height(24.dp))
             
             Text(
-                text = Loc.t("Danger Zone", "Небезпечна зона"), 
+                text = Loc.dangerZone, 
                 style = MaterialTheme.typography.titleSmall, 
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.align(Alignment.Start)
@@ -139,7 +139,7 @@ fun AccountScreen(
             ) {
                 Icon(Icons.Default.DeleteForever, null)
                 Spacer(Modifier.width(8.dp))
-                Text(Loc.t("Delete Account & Data", "Видалити акаунт та дані"))
+                Text(Loc.deleteAccountData)
             }
         }
         
@@ -175,16 +175,15 @@ fun AccountScreen(
     if (showDeleteStep1) {
         AlertDialog(
             onDismissRequest = { showDeleteStep1 = false },
-            title = { Text(Loc.t("Confirm Email", "Підтвердіть Email")) },
+            title = { Text(Loc.confirmEmailTitle) },
             text = {
                 Column {
-                    Text(Loc.t("To proceed, please enter your email address: ${uiState.currentUserEmail}", 
-                               "Щоб продовжити, введіть вашу адресу електронної пошти: ${uiState.currentUserEmail}"))
+                    Text(Loc.confirmEmailMsg.format(uiState.currentUserEmail))
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = emailConfirmationInput,
                         onValueChange = { emailConfirmationInput = it },
-                        label = { Text(Loc.t("Email", "Електронна пошта")) },
+                        label = { Text(Loc.email) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -199,7 +198,7 @@ fun AccountScreen(
                     enabled = emailConfirmationInput.equals(uiState.currentUserEmail, ignoreCase = true),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.t("Verify", "Підтвердити"))
+                    Text(Loc.verify)
                 }
             },
             dismissButton = {
@@ -215,8 +214,7 @@ fun AccountScreen(
         AlertDialog(
             onDismissRequest = { showDeleteStep2 = false },
             title = { Text(Loc.areYouSure) },
-            text = { Text(Loc.t("THIS ACTION IS PERMANENT. All your personal settings, group memberships, and public profile will be deleted forever. Do you wish to proceed?", 
-                               "ЦЯ ДІЯ Є ОСТАТОЧНОЮ. Всі ваші особисті налаштування, членство в групах та публічний профіль будуть видалені назавжди. Бажаєте продовжити?")) },
+            text = { Text(Loc.deleteAccountPermanentMsg) },
             confirmButton = {
                 Button(
                     onClick = {

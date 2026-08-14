@@ -23,7 +23,7 @@ class ConnectivityObserver(
                 override fun onAvailable(network: Network) {
                     if (settingsManager.isSyncPending()) {
                         scope.launch {
-                            val success = groupSyncManager.pushGroupData()
+                            val success = groupSyncManager.pushUserSettings()
                             settingsManager.setSyncPending(!success)
                         }
                     }

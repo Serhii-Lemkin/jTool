@@ -13,4 +13,6 @@ sealed interface AdminEvent {
     object ApplyGroupSearch : AdminEvent
     data class RequestDeleteGroup(val gid: String?, val step: Int) : AdminEvent
     data class ConfirmDeleteGroup(val gid: String) : AdminEvent
+    
+    object StartRTDBMigration : AdminEvent
 }

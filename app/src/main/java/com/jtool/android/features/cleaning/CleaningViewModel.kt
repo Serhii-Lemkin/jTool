@@ -2,79 +2,83 @@ package com.jtool.android.features.cleaning
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.jtool.android.core.models.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
 class CleaningViewModel(
-    private val manager: JCleaningManager,
+    private val manager: CleaningManager,
     private val settingsManager: SettingsManager,
     private val groupSyncManager: GroupSyncManager
 ) : ViewModel() {
 
+    private val firestore = FirebaseFirestore.getInstance()
     private val _uiState = MutableStateFlow(CleaningUiState())
     val uiState: StateFlow<CleaningUiState> = _uiState.asStateFlow()
 
+    private var tasksListener: ListenerRegistration? = null
+
     init {
-        loadInitialData()
+        observeGroupId()
         observeSyncData()
         startAutoResetTimer()
     }
 
-    private fun loadInitialData() {
-        val initialTasks = manager.loadTasks()
-        val (updated, changed) = checkTasksForResets(initialTasks)
-        if (changed) {
-            updateTasks(updated)
-        } else {
-            _uiState.update { it.copy(tasks = updated) }
+    private fun observeGroupId() {
+        groupSyncManager.currentGroupIdFlow()
+            .onEach { gid ->
+                _uiState.update { it.copy(tasks = emptyList()) }
+                tasksListener?.remove()
+                val localTasks = manager.loadTasks()
+                _uiState.update { it.copy(tasks = localTasks) }
+                if (gid != null) {
+                    observeFirestoreTasks(gid)
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun getCleaningColl(gid: String) = firestore.collection("groups").document(gid).collection("cleaning")
+
+    private fun observeFirestoreTasks(gid: String) {
+        tasksListener = getCleaningColl(gid).addSnapshotListener { snapshot, _ ->
+            if (snapshot != null) {
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(CleaningTask::class.java)?.copy(id = doc.id)
+                }
+                val (updated, changed) = checkTasksForResets(list)
+                if (changed) {
+                    updated.forEach { task -> saveTaskToFirestore(task) }
+                }
+                _uiState.update { it.copy(tasks = updated) }
+                manager.saveTasks(updated)
+            }
         }
     }
 
     private fun observeSyncData() {
-        val currentGroupId = settingsManager.getCurrentGroupId()
-        if (currentGroupId != null) {
-            viewModelScope.launch {
-                groupSyncManager.fetchUserSettings()
-            }
-            
-            groupSyncManager.groupDataFlow(currentGroupId)
-                .onEach { 
-                    val syncedTasks = manager.loadTasks()
-                    val (updated, changed) = checkTasksForResets(syncedTasks)
-                    if (changed) {
-                        updateTasks(updated)
-                    } else {
-                        _uiState.update { it.copy(tasks = updated) }
-                    }
-                }
-                .launchIn(viewModelScope)
-
-            groupSyncManager.userNamesFlow()
-                .onEach { names ->
-                    _uiState.update { it.copy(userNames = names) }
-                }
-                .launchIn(viewModelScope)
-        }
+        groupSyncManager.userNamesFlow()
+            .onEach { names -> _uiState.update { it.copy(userNames = names) } }
+            .launchIn(viewModelScope)
     }
 
     private fun startAutoResetTimer() {
         viewModelScope.launch {
             while (true) {
-                delay(10000L)
-                val currentTasks = manager.loadTasks()
-                val (updated, changed) = checkTasksForResets(currentTasks)
+                delay(60000L) // Check every minute
+                val (updated, changed) = checkTasksForResets(_uiState.value.tasks)
                 if (changed) {
-                    updateTasks(updated)
-                } else {
-                    _uiState.update { it.copy(tasks = updated) }
+                    updated.forEach { task -> saveTaskToFirestore(task) }
                 }
             }
         }
@@ -101,84 +105,78 @@ class CleaningViewModel(
 
     fun onEvent(event: CleaningEvent) {
         when (event) {
-            is CleaningEvent.ToggleDisabledView -> {
-                _uiState.update { it.copy(showDisabledView = event.show) }
-            }
-            is CleaningEvent.ToggleAddDialog -> {
-                _uiState.update { it.copy(showAddDialog = event.show) }
-            }
-            is CleaningEvent.RequestDelete -> {
-                _uiState.update { it.copy(taskToDelete = event.task) }
-            }
-            CleaningEvent.ConfirmDelete -> {
-                val task = _uiState.value.taskToDelete
-                if (task != null) {
-                    val newList = _uiState.value.tasks.filter { it.id != task.id }
-                    updateTasks(newList)
-                    _uiState.update { it.copy(taskToDelete = null) }
-                }
-            }
-            is CleaningEvent.ToggleItem -> {
-                val updated = _uiState.value.tasks.map {
-                    if (it.id == event.task.id) {
-                        it.copy(
-                            isChecked = event.isChecked,
-                            lastDoneTimestamp = if (event.isChecked) System.currentTimeMillis() else it.lastDoneTimestamp,
-                            lastUpdatedBy = settingsManager.getAppUserId(),
-                            timestamp = System.currentTimeMillis()
-                        )
-                    } else it
-                }
-                updateTasks(updated)
-            }
-            is CleaningEvent.UpdateTaskStatus -> {
-                val updated = _uiState.value.tasks.map {
-                    if (it.id == event.task.id) it.copy(isEnabled = event.isEnabled, isChecked = false) else it
-                }
-                updateTasks(updated)
-            }
-            is CleaningEvent.RequestEdit -> {
-                _uiState.update { it.copy(editingTask = event.task) }
-            }
-            is CleaningEvent.SaveTask -> {
-                val editing = _uiState.value.editingTask
-                if (editing != null) {
-                    val updated = _uiState.value.tasks.map {
-                        if (it.id == editing.id) it.copy(
-                            title = event.title,
-                            frequencyDays = event.days,
-                            isRecurring = event.isRecurring,
-                            timestamp = System.currentTimeMillis()
-                        ) else it
-                    }
-                    updateTasks(updated)
-                    _uiState.update { it.copy(editingTask = null) }
-                }
-            }
-            is CleaningEvent.AddTask -> {
-                val newTask = CleaningTask(
-                    id = System.currentTimeMillis(),
-                    title = event.title.trim(),
-                    frequencyDays = event.days,
-                    isRecurring = event.isRecurring,
-                    lastUpdatedBy = settingsManager.getAppUserId()
-                )
-                updateTasks(_uiState.value.tasks + newTask)
-                _uiState.update { it.copy(showAddDialog = false) }
-            }
+            is CleaningEvent.ToggleDisabledView -> _uiState.update { it.copy(showDisabledView = event.show) }
+            is CleaningEvent.ToggleAddDialog -> _uiState.update { it.copy(showAddDialog = event.show) }
+            is CleaningEvent.RequestDelete -> _uiState.update { it.copy(taskToDelete = event.task) }
+            CleaningEvent.ConfirmDelete -> confirmDelete()
+            is CleaningEvent.ToggleItem -> toggleItem(event.task, event.isChecked)
+            is CleaningEvent.UpdateTaskStatus -> updateTaskStatus(event.task, event.isEnabled)
+            is CleaningEvent.RequestEdit -> _uiState.update { it.copy(editingTask = event.task) }
+            is CleaningEvent.SaveTask -> saveEditedTask(event.title, event.days, event.isRecurring)
+            is CleaningEvent.AddTask -> addTask(event.title, event.days, event.isRecurring)
         }
     }
 
-    private fun updateTasks(newList: List<CleaningTask>) {
-        _uiState.update { it.copy(tasks = newList) }
-        manager.saveTasks(newList)
-        triggerSync()
-    }
-
-    private fun triggerSync() {
-        settingsManager.setSyncPending(true)
+    private fun confirmDelete() {
+        val task = _uiState.value.taskToDelete ?: return
+        val gid = settingsManager.getCurrentGroupId() ?: return
         viewModelScope.launch {
-            groupSyncManager.pushGroupData()
+            getCleaningColl(gid).document(task.id).delete().await()
+            _uiState.update { it.copy(taskToDelete = null) }
         }
+    }
+
+    private fun toggleItem(task: CleaningTask, isChecked: Boolean) {
+        val updated = task.copy(
+            isChecked = isChecked,
+            lastDoneTimestamp = if (isChecked) System.currentTimeMillis() else task.lastDoneTimestamp,
+            lastUpdatedBy = settingsManager.getAppUserId(),
+            timestamp = System.currentTimeMillis()
+        )
+        saveTaskToFirestore(updated)
+    }
+
+    private fun updateTaskStatus(task: CleaningTask, isEnabled: Boolean) {
+        val updated = task.copy(isEnabled = isEnabled, isChecked = false, timestamp = System.currentTimeMillis())
+        saveTaskToFirestore(updated)
+    }
+
+    private fun saveEditedTask(title: String, days: Int, isRecurring: Boolean) {
+        val editing = _uiState.value.editingTask ?: return
+        val updated = editing.copy(
+            title = title,
+            frequencyDays = days,
+            isRecurring = isRecurring,
+            timestamp = System.currentTimeMillis(),
+            lastUpdatedBy = settingsManager.getAppUserId()
+        )
+        saveTaskToFirestore(updated)
+        _uiState.update { it.copy(editingTask = null) }
+    }
+
+    private fun addTask(title: String, days: Int, isRecurring: Boolean) {
+        val id = System.currentTimeMillis().toString()
+        val newTask = CleaningTask(
+            id = id,
+            title = title.trim(),
+            frequencyDays = days,
+            isRecurring = isRecurring,
+            lastUpdatedBy = settingsManager.getAppUserId(),
+            timestamp = System.currentTimeMillis()
+        )
+        saveTaskToFirestore(newTask)
+        _uiState.update { it.copy(showAddDialog = false) }
+    }
+
+    private fun saveTaskToFirestore(task: CleaningTask) {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        viewModelScope.launch {
+            getCleaningColl(gid).document(task.id).set(task).await()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        tasksListener?.remove()
     }
 }

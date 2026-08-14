@@ -2,5 +2,5 @@ package com.jtool.android.features.settings.general
 
 sealed interface GeneralSettingsEvent {
     object ToggleTheme : GeneralSettingsEvent
-    object ToggleLanguage : GeneralSettingsEvent
+    data class SetLanguage(val lang: String) : GeneralSettingsEvent
 }

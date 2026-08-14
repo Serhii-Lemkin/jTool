@@ -34,6 +34,12 @@ fun GeneralSettingsScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var langMenuExpanded by remember { mutableStateOf(false) }
+
+    val languages = listOf(
+        "en" to "English",
+        "uk" to "Українська"
+    )
 
     Column(
         modifier = Modifier
@@ -83,11 +89,29 @@ fun GeneralSettingsScreen(
                 Spacer(Modifier.width(12.dp))
                 Text(Loc.language, style = MaterialTheme.typography.bodyLarge)
             }
-            TextButton(onClick = {
-                viewModel.onEvent(GeneralSettingsEvent.ToggleLanguage)
-                onLangToggle()
-            }) {
-                Text(if (uiState.language == "en") "English" else "Українська", style = MaterialTheme.typography.labelLarge)
+            
+            Box {
+                TextButton(onClick = { langMenuExpanded = true }) {
+                    Text(
+                        text = languages.find { it.first == uiState.language }?.second ?: uiState.language,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+                DropdownMenu(
+                    expanded = langMenuExpanded,
+                    onDismissRequest = { langMenuExpanded = false }
+                ) {
+                    languages.forEach { (code, name) ->
+                        DropdownMenuItem(
+                            text = { Text(name) },
+                            onClick = {
+                                viewModel.onEvent(GeneralSettingsEvent.SetLanguage(code))
+                                onLangToggle()
+                                langMenuExpanded = false
+                            }
+                        )
+                    }
+                }
             }
         }
     }

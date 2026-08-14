@@ -2,11 +2,14 @@ package com.jtool.android.features.shopping
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.jtool.android.core.models.ShoppingItem
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ShoppingViewModel(
     private val manager: ShoppingListManager,
@@ -14,147 +17,146 @@ class ShoppingViewModel(
     private val groupSyncManager: GroupSyncManager
 ) : ViewModel() {
 
+    private val firestore = FirebaseFirestore.getInstance()
     private val _uiState = MutableStateFlow(ShoppingUiState())
     val uiState: StateFlow<ShoppingUiState> = _uiState.asStateFlow()
 
+    private var itemsListener: ListenerRegistration? = null
+
     init {
-        loadInitialData()
+        observeGroupId()
         observeSyncData()
     }
 
-    private fun loadInitialData() {
-        val items = manager.loadItems()
-        _uiState.update { it.copy(items = items) }
+    private fun observeGroupId() {
+        groupSyncManager.currentGroupIdFlow()
+            .onEach { gid ->
+                // Clear current state to avoid data persisting from previous group
+                _uiState.update { it.copy(items = emptyList()) }
+                itemsListener?.remove()
+                
+                // Load from local (which may be empty if clearLocalCache was called)
+                val localItems = manager.loadItems()
+                _uiState.update { it.copy(items = localItems) }
+                
+                if (gid != null) {
+                    observeFirestoreItems(gid)
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun getShoppingColl(gid: String) = firestore.collection("groups").document(gid).collection("shopping")
+
+    private fun observeFirestoreItems(gid: String) {
+        itemsListener = getShoppingColl(gid).addSnapshotListener { snapshot, _ ->
+            if (snapshot != null) {
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(ShoppingItem::class.java)?.copy(id = doc.id)
+                }
+                _uiState.update { it.copy(items = list) }
+                manager.saveItems(list)
+            }
+        }
     }
 
     private fun observeSyncData() {
-        val currentGroupId = settingsManager.getCurrentGroupId()
-        if (currentGroupId != null) {
-            viewModelScope.launch {
-                groupSyncManager.fetchUserSettings()
-            }
+        groupSyncManager.userNamesFlow()
+            .onEach { names -> _uiState.update { it.copy(userNames = names) } }
+            .launchIn(viewModelScope)
             
-            groupSyncManager.groupDataFlow(currentGroupId)
-                .onEach { 
-                    val items = manager.loadItems()
-                    _uiState.update { it.copy(items = items) }
-                }
-                .launchIn(viewModelScope)
-
-            groupSyncManager.suggestionsFlow()
-                .onEach { suggestions ->
-                    _uiState.update { it.copy(remoteSuggestions = suggestions) }
-                }
-                .launchIn(viewModelScope)
-
-            groupSyncManager.userNamesFlow()
-                .onEach { names ->
-                    _uiState.update { it.copy(userNames = names) }
-                }
-                .launchIn(viewModelScope)
-        }
+        groupSyncManager.suggestionsFlow()
+            .onEach { suggestions: List<String> -> 
+                _uiState.update { it.copy(remoteSuggestions = suggestions) } 
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onEvent(event: ShoppingEvent) {
         when (event) {
-            is ShoppingEvent.UpdateNewItemText -> {
-                _uiState.update { it.copy(newItemText = event.text) }
-            }
-            is ShoppingEvent.ToggleAislePicker -> {
-                _uiState.update { it.copy(showAislePicker = event.show) }
-            }
-            is ShoppingEvent.SelectAisle -> {
-                _uiState.update { it.copy(selectedAisle = event.aisle, showAislePicker = false) }
-            }
-            is ShoppingEvent.UpdateFilter -> {
-                _uiState.update { it.copy(filterType = event.filter, dropdownExpanded = false) }
-            }
-            is ShoppingEvent.ToggleFilterDropdown -> {
-                _uiState.update { it.copy(dropdownExpanded = event.expanded) }
-            }
-            is ShoppingEvent.RequestDelete -> {
-                _uiState.update { it.copy(itemToDelete = event.item) }
-            }
-            ShoppingEvent.ConfirmDelete -> {
-                val item = _uiState.value.itemToDelete
-                if (item != null) {
-                    val newList = _uiState.value.items.filter { it.id != item.id }
-                    updateItems(newList)
-                    _uiState.update { it.copy(itemToDelete = null) }
-                }
-            }
-            ShoppingEvent.AddItem -> {
-                val text = _uiState.value.newItemText
-                if (text.isNotBlank()) {
-                    val trimmed = text.trim()
-                    val existing = _uiState.value.items.find { it.text.equals(trimmed, ignoreCase = true) }
-                    if (existing != null) {
-                        if (existing.isChecked) {
-                            val updated = _uiState.value.items.map {
-                                if (it.id == existing.id) it.copy(isChecked = false, timestamp = System.currentTimeMillis()) else it
-                            }
-                            updateItems(updated)
-                            _uiState.update { it.copy(newItemText = "") }
-                        }
-                    } else {
-                        val newItem = ShoppingItem(
-                            id = System.currentTimeMillis(),
-                            text = trimmed,
-                            isChecked = false,
-                            lastUpdatedBy = settingsManager.getAppUserId(),
-                            aisle = _uiState.value.selectedAisle
-                        )
-                        updateItems(_uiState.value.items + newItem)
-                        _uiState.update { it.copy(newItemText = "", selectedAisle = "Common") }
-                    }
-                }
-            }
-            is ShoppingEvent.ToggleItem -> {
-                val updated = _uiState.value.items.map {
-                    if (it.id == event.item.id) it.copy(
-                        isChecked = event.isChecked,
-                        timestamp = System.currentTimeMillis(),
-                        lastUpdatedBy = settingsManager.getAppUserId()
-                    ) else it
-                }
-                updateItems(updated)
-            }
-            is ShoppingEvent.RestoreItem -> {
-                val existing = _uiState.value.items.find { it.text.equals(event.text, ignoreCase = true) }
-                val updated = if (existing != null) {
-                    _uiState.value.items.map {
-                        if (it.id == existing.id) it.copy(
-                            isChecked = false,
-                            timestamp = System.currentTimeMillis(),
-                            lastUpdatedBy = settingsManager.getAppUserId()
-                        ) else it
-                    }
-                } else {
-                    val newItem = ShoppingItem(
-                        id = System.currentTimeMillis(),
-                        text = event.text,
-                        isChecked = false,
-                        lastUpdatedBy = settingsManager.getAppUserId(),
-                        aisle = _uiState.value.selectedAisle
-                    )
-                    _uiState.value.items + newItem
-                }
-                updateItems(updated)
-                _uiState.update { it.copy(newItemText = "") }
-            }
+            is ShoppingEvent.UpdateNewItemText -> _uiState.update { it.copy(newItemText = event.text) }
+            is ShoppingEvent.ToggleAislePicker -> _uiState.update { it.copy(showAislePicker = event.show) }
+            is ShoppingEvent.SelectAisle -> _uiState.update { it.copy(selectedAisle = event.aisle, showAislePicker = false) }
+            is ShoppingEvent.UpdateFilter -> _uiState.update { it.copy(filterType = event.filter, dropdownExpanded = false) }
+            is ShoppingEvent.ToggleFilterDropdown -> _uiState.update { it.copy(dropdownExpanded = event.expanded) }
+            is ShoppingEvent.RequestDelete -> _uiState.update { it.copy(itemToDelete = event.item) }
+            ShoppingEvent.ConfirmDelete -> confirmDelete()
+            ShoppingEvent.AddItem -> addItem()
+            is ShoppingEvent.ToggleItem -> toggleItem(event.item, event.isChecked)
+            is ShoppingEvent.RestoreItem -> restoreItem(event.text)
         }
     }
 
-    private fun updateItems(newList: List<ShoppingItem>) {
-        _uiState.update { it.copy(items = newList) }
-        manager.saveItems(newList)
-        triggerSync()
-    }
-
-    private fun triggerSync() {
-        settingsManager.setSyncPending(true)
+    private fun confirmDelete() {
+        val item = _uiState.value.itemToDelete ?: return
+        val gid = settingsManager.getCurrentGroupId() ?: return
         viewModelScope.launch {
-            groupSyncManager.pushGroupData()
+            getShoppingColl(gid).document(item.id).delete().await()
+            _uiState.update { it.copy(itemToDelete = null) }
         }
+    }
+
+    private fun addItem() {
+        val text = _uiState.value.newItemText.trim()
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        if (text.isNotBlank()) {
+            val existing = _uiState.value.items.find { it.text.equals(text, ignoreCase = true) }
+            if (existing != null) {
+                if (existing.isChecked) toggleItem(existing, false)
+                _uiState.update { it.copy(newItemText = "") }
+            } else {
+                val id = System.currentTimeMillis().toString()
+                val newItem = ShoppingItem(
+                    id = id,
+                    text = text,
+                    isChecked = false,
+                    lastUpdatedBy = settingsManager.getAppUserId(),
+                    aisle = _uiState.value.selectedAisle,
+                    timestamp = System.currentTimeMillis()
+                )
+                viewModelScope.launch {
+                    getShoppingColl(gid).document(id).set(newItem).await()
+                    _uiState.update { it.copy(newItemText = "", selectedAisle = "Common") }
+                }
+            }
+        }
+    }
+
+    private fun toggleItem(item: ShoppingItem, isChecked: Boolean) {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        viewModelScope.launch {
+            getShoppingColl(gid).document(item.id).update(
+                "isChecked", isChecked,
+                "timestamp", System.currentTimeMillis(),
+                "lastUpdatedBy", settingsManager.getAppUserId()
+            ).await()
+        }
+    }
+
+    private fun restoreItem(text: String) {
+        val existing = _uiState.value.items.find { it.text.equals(text, ignoreCase = true) }
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        if (existing != null) {
+            toggleItem(existing, false)
+        } else {
+            val id = System.currentTimeMillis().toString()
+            val newItem = ShoppingItem(
+                id = id,
+                text = text,
+                isChecked = false,
+                lastUpdatedBy = settingsManager.getAppUserId(),
+                aisle = _uiState.value.selectedAisle,
+                timestamp = System.currentTimeMillis()
+            )
+            viewModelScope.launch {
+                getShoppingColl(gid).document(id).set(newItem).await()
+            }
+        }
+        _uiState.update { it.copy(newItemText = "") }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        itemsListener?.remove()
     }
 }

@@ -3,8 +3,8 @@ package com.jtool.android.core.sync
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -53,11 +53,7 @@ fun SyncStatusOverlay() {
                         )
                     }
                     SyncStatus.SUCCESS -> {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Success",
-                            tint = Color(0xFF4CAF50)
-                        )
+                        // Success state icon removed as per user request
                     }
                     SyncStatus.ERROR -> {
                         Icon(

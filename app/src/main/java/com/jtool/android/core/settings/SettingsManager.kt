@@ -1,7 +1,7 @@
 package com.jtool.android.core.settings
 
 import android.content.Context
-import com.jtool.android.core.models.JGroupInfo
+import com.jtool.android.core.models.GroupInfo
 import java.time.DayOfWeek
 
 class SettingsManager(context: Context) {
@@ -139,16 +139,16 @@ class SettingsManager(context: Context) {
         prefs.edit().putString("current_group_id", groupId).apply()
     }
 
-    fun getGroups(): Map<String, JGroupInfo> {
+    fun getGroups(): Map<String, GroupInfo> {
         val json = prefs.getString("remembered_groups", "{}") ?: "{}"
         return try {
             val obj = org.json.JSONObject(json)
-            val map = mutableMapOf<String, JGroupInfo>()
+            val map = mutableMapOf<String, GroupInfo>()
             val keys = obj.keys()
             while (keys.hasNext()) {
                 val id = keys.next()
                 val groupJson = obj.getJSONObject(id)
-                map[id] = JGroupInfo(
+                map[id] = GroupInfo(
                     id = id,
                     name = groupJson.getString("name"),
                     owner = if (groupJson.has("owner")) groupJson.getString("owner") else null
@@ -160,7 +160,7 @@ class SettingsManager(context: Context) {
         }
     }
 
-    fun saveGroups(groups: Map<String, JGroupInfo>) {
+    fun saveGroups(groups: Map<String, GroupInfo>) {
         val obj = org.json.JSONObject()
         groups.forEach { (id, info) -> 
             val groupJson = org.json.JSONObject()
@@ -171,7 +171,7 @@ class SettingsManager(context: Context) {
         prefs.edit().putString("remembered_groups", obj.toString()).apply()
     }
 
-    fun addGroup(info: JGroupInfo) {
+    fun addGroup(info: GroupInfo) {
         val groups = getGroups().toMutableMap()
         groups[info.id] = info
         saveGroups(groups)

@@ -50,6 +50,11 @@ object Loc {
     val added get() = t("Added", "Додано")
     val subtracted get() = t("Subtracted", "Віднято")
     val resultedIn get() = t("Resulted in", "Результат")
+    val year get() = t("Year", "Рік")
+    val month get() = t("Mo", "Міс")
+    val day get() = t("Day", "День")
+    val hour get() = t("Hr", "Год")
+    val minute get() = t("Min", "Хв")
 
     // ShopList
     val shoppingList get() = t("ShopList", "Покупки")
@@ -61,10 +66,29 @@ object Loc {
     val restoredExisting get() = t("Restored existing item", "Відновлено існуючий товар")
     val all get() = t("All", "Усі")
     val unactive get() = t("Unactive", "Неактивні")
+    val selectAisle get() = t("Select Aisle", "Виберіть відділ")
 
     // Notes
     val notes get() = t("Notes", "Нотатки")
     val newNote get() = t("New Note", "Нова нотатка")
+    val untitled get() = t("Untitled", "Без назви")
+    val textNote get() = t("Text Note", "Текстова нотатка")
+    val checklistNote get() = t("Checklist", "Список")
+    val checklist get() = t("Checklist", "Список")
+    val noteContentHint get() = t("Note content...", "Текст нотатки...")
+    val noteSaved get() = t("Note saved!", "Нотатку збережено!")
+    val deleteNoteTitle get() = t("Delete Note?", "Видалити нотатку?")
+    val noteTitlePlaceholder get() = t("Title", "Назва")
+    val untitledNote get() = t("Untitled", "Без назви")
+
+    // Comments
+    val comments get() = t("Comments", "Коментарі")
+    val addComment get() = t("Add a comment...", "Додати коментар...")
+    val reply get() = t("Reply", "Відповісти")
+    val edit get() = t("Edit", "Редагувати")
+    val edited get() = t("edited", "змінено")
+    val send get() = t("Send", "Надіслати")
+    val replying get() = t("Replying...", "Відповідь...")
 
     // Links
     val links get() = t("Links", "Посилання")
@@ -72,6 +96,11 @@ object Loc {
     val linkTitle get() = t("Title", "Назва")
     val linkUrl get() = t("URL", "Посилання")
     val addLink get() = t("Add Link", "Додати посилання")
+    val deleteLink get() = t("Delete Link", "Видалити посилання")
+    val invalidUrl get() = t("Invalid URL", "Невірна адреса")
+    val copy get() = t("Copy", "Копіювати")
+    val copied get() = t("Copied!", "Скопійовано!")
+    val urlHint get() = t("https://...", "https://...")
 
     // Cleaning
     val cleaning get() = t("Cleaning", "Прибирання")
@@ -91,7 +120,6 @@ object Loc {
     val showDisabled get() = t("Show Disabled Tasks", "Показати вимкнені")
     val activeTasks get() = t("Active Tasks", "Активні завдання")
     val editTask get() = t("Edit Task", "Редагувати завдання")
-    val editGroupName get() = t("Edit Group Name", "Змінити назву групи")
 
     fun getCleaningFrequency(days: Int): String {
         return RecurrenceFormatter.formatEveryXDays(days, lang)
@@ -138,12 +166,28 @@ object Loc {
     val linkFolderToUpdate get() = t("You must link a shared folder in 'Sync' first to check for updates.", "Спочатку прив'яжіть папку в меню 'Синхронізація'.")
     val openSecuritySettings get() = t("Open Security Settings", "Відкрити налаштування безпеки")
     val autoBlockerNote get() = t("Note: Google Play handles updates automatically.", "Примітка: Google Play керує оновленнями автоматично.")
+    val checkingUpdates get() = t("Checking for updates...", "Перевірка оновлень...")
+    val currentVersionLabel get() = t("Current version: %s", "Поточна версія: %s")
+    val checking get() = t("Checking...", "Перевірка...")
+    val latestVersionMsg get() = t("You are on the latest version!", "У вас остання версія!")
+    val playStoreUpdates get() = t("Play Store Updates", "Оновлення з Play Store")
+    val playStoreUpdatesDesc get() = t("Updates are managed automatically by Google Play. If you encounter issues, you can check the store listing manually.", "Оновлення керуються автоматично Google Play. Якщо у вас виникли проблеми, ви можете перевірити сторінку додатка вручну.")
+    val viewInPlayStore get() = t("View in Play Store", "Переглянути в Play Store")
+    val nameSaved get() = t("Name saved!", "Ім'я збережено!")
+    val dangerZone get() = t("Danger Zone", "Небезпечна зона")
+    val deleteAccountData get() = t("Delete Account & Data", "Видалити акаунт та дані")
+    val confirmEmailTitle get() = t("Confirm Email", "Підтвердіть Email")
+    val confirmEmailMsg get() = t("To proceed, please enter your email address: %s", "Щоб продовжити, введіть вашу адресу електронної пошти: %s")
+    val email get() = t("Email", "Електронна пошта")
+    val verify get() = t("Verify", "Підтвердити")
+    val deleteAccountPermanentMsg get() = t("THIS ACTION IS PERMANENT. All your personal settings, group memberships, and public profile will be deleted forever. Do you wish to proceed?", "ЦЯ ДІЯ Є ОСТАТОЧНОЮ. Всі ваші особисті налаштування, членство в групах та публічний профіль будуть видалені назавжди. Бажаєте продовжити?")
+    val close get() = t("Close", "Закрити")
+    val troubleshooting get() = t("Troubleshooting", "Вирішення проблем")
 
     // Workday Edits
     val editWorkHours get() = t("Edit Work Hours", "Редагувати робочі години")
     val setHoursManually get() = t("Set your work hours manually to start.", "Встановіть робочі години вручну для початку.")
     val save get() = t("Save", "Зберегти")
-
     val workTime get() = t("Work", "Робота")
     val timeCalc get() = t("Time", "Час")
 
@@ -154,7 +198,9 @@ object Loc {
     val confirmLogoutTitle get() = t("Logout?", "Вийти?")
     val confirmLogoutMsg get() = t("Are you sure you want to log out?", "Ви впевнені, що хочете вийти?")
     val confirmDeleteTitle get() = t("Delete Item?", "Видалити?")
+    val confirmDeleteLinkTitle get() = t("Delete Link?", "Видалити посилання?")
     val confirmDeleteMsg get() = t("Are you sure you want to delete this item?", "Ви впевнені, що хочете видалити цей елемент?")
+    val confirmDeleteLinkMsg get() = t("Are you sure you want to delete this link?", "Ви впевнені, що хочете видалити це посилання?")
     val signInRequired get() = t("Sign In Required", "Необхідно увійти")
     val signInRequiredMsg get() = t("Please sign in with Google to access this shared feature.", "Будь ласка, увійдіть через Google, щоб отримати доступ до цієї спільної функції.")
     val goToSettings get() = t("Go to Settings", "Перейти до налаштувань")
@@ -194,14 +240,20 @@ object Loc {
     val groupInvite get() = t("Invite to Group", "Запросити до групи")
     val enterEmail get() = t("Enter user email...", "Введіть email користувача...")
     val inviteSent get() = t("Invite sent!", "Запрошення надіслано!")
-    val confirmUnlinkTitle get() = t("Unlink Group?", "Відв'язати групу?")
-    val confirmUnlinkMsg get() = t("Are you sure you want to leave this group?", "Ви впевнені, что хочете залишити цю групу?")
+    val confirmUnlinkTitle get() = t("Leave Group?", "Вийти з групи?")
+    val confirmUnlinkMsg get() = t("Are you sure you want to leave this group?", "Ви впевнені, що хочете залишити цю групу?")
     val copyId get() = t("Copy ID", "Копіювати ID")
     val invitePopupTitle get() = t("Group Invitation", "Запрошення до групи")
     val invitePopupMsg get() = t("You have been invited to join group: %s", "Вас запросили приєднатися до групи: %s")
     val accept get() = t("Accept", "Прийняти")
     val decline get() = t("Decline", "Відхилити")
     val ownerLabel get() = t("Owner", "Власник")
+    val groupMembers get() = t("Group Members", "Учасники групи")
+    val deleteGroupTitle get() = t("Delete Group?", "Видалити групу?")
+    val lastMemberLeaveMsg get() = t("Because you are the last person to leave the group, on leave the group will be permanently deleted. Are you sure?", "Оскільки ви остання людина, яка залишає групу, після вашого виходу вона буде остаточно видалена. Ви впевнені?")
+    val groupCreated get() = t("Group Created!", "Групу створено!")
+    val groupIdLabel get() = t("Group ID: %s", "ID групи: %s")
+    val editGroupName get() = t("Edit Group Name", "Змінити назву групи")
 
     // Admin
     val adminPanel get() = t("Admin Panel", "Панель адміністратора")
@@ -226,4 +278,9 @@ object Loc {
     val deleteGroup get() = t("Delete Group", "Видалити групу")
     val searchGroups get() = t("Search Groups", "Пошук груп")
     val search get() = t("Search", "Пошук")
+    val migrateFromRTDB get() = t("Migrate from RTDB", "Міграція з RTDB")
+    val migrationSubtitle get() = t("Move all data from Realtime Database to Firestore", "Перенести всі дані з Realtime Database до Firestore")
+    val unknown get() = t("Unknown", "Невідомо")
+    val migrationReady get() = t("Ready to start migration.", "Готово до початку міграції.")
+    val startMigration get() = t("Start Migration", "Почати міграцію")
 }

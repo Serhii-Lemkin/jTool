@@ -3,7 +3,7 @@ package com.jtool.android.features.links
 import android.content.Context
 import com.jtool.android.core.models.LinkItem
 
-class JLinksManager(context: Context) {
+class LinksManager(context: Context) {
     private val prefs = context.getSharedPreferences("jtool_links", Context.MODE_PRIVATE)
 
     fun saveLinks(links: List<LinkItem>) {
@@ -19,7 +19,7 @@ class JLinksManager(context: Context) {
             val parts = it.split("|")
             if (parts.size >= 5) {
                 LinkItem(
-                    id = parts[0].toLongOrNull() ?: 0L,
+                    id = parts[0],
                     title = parts[1].replace("\\|", "|").replace("\\;", ";"),
                     url = parts[2].replace("\\|", "|").replace("\\;", ";"),
                     timestamp = parts[3].toLongOrNull() ?: 0L,

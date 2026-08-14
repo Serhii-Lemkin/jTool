@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.features.links.JLinksScreen
+import com.jtool.android.features.links.LinksScreen
 
 object Links : AppProperties(
     AppNames.LINKS,
@@ -13,7 +13,7 @@ object Links : AppProperties(
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
-        JLinksScreen(
+        LinksScreen(
             manager = deps.linksManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,

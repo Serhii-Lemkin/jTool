@@ -58,11 +58,11 @@ fun TimeCalculatorScreen(
         // Section: Set Base Time
         Text(Loc.baseDateTime, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TimeInputField(Loc.t("Year", "Рік"), uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
-            TimeInputField(Loc.t("Mo", "Міс"), uiState.bMo, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mo = it)) }
-            TimeInputField(Loc.t("Day", "День"), uiState.bD, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(d = it)) }
-            TimeInputField(Loc.t("Hr", "Год"), uiState.bH, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(h = it)) }
-            TimeInputField(Loc.t("Min", "Хв"), uiState.bMi, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mi = it)) }
+            TimeInputField(Loc.year, uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
+            TimeInputField(Loc.month, uiState.bMo, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mo = it)) }
+            TimeInputField(Loc.day, uiState.bD, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(d = it)) }
+            TimeInputField(Loc.hour, uiState.bH, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(h = it)) }
+            TimeInputField(Loc.minute, uiState.bMi, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mi = it)) }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

@@ -17,7 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.JGroupInfo
+import com.jtool.android.core.models.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
 
@@ -46,8 +46,8 @@ fun SettingsScreen(
     startOnGroups: Boolean = false,
     startOnAccount: Boolean = false,
     onGroupChanged: (String?) -> Unit,
-    groups: Map<String, JGroupInfo>,
-    onGroupsUpdated: (Map<String, JGroupInfo>) -> Unit,
+    groups: Map<String, GroupInfo>,
+    onGroupsUpdated: (Map<String, GroupInfo>) -> Unit,
     currentGroupId: String?,
     onBack: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
@@ -112,7 +112,6 @@ fun SettingsScreen(
                 "groups" -> GroupsScreen(
                     groupSyncManager = groupSyncManager,
                     settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) },
                     onGroupChanged = onGroupChanged,
                     onGroupsUpdated = onGroupsUpdated
                 )
@@ -123,10 +122,7 @@ fun SettingsScreen(
                     onLangToggle = onLangToggle
                 )
                 "app_updates" -> AppUpdatesScreen(
-                    backupManager = backupManager,
-                    groupSyncManager = groupSyncManager,
-                    settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) }
+                    backupManager = backupManager
                 )
                 "visibility" -> AppVisibilityScreen(
                     settingsManager = settingsManager,

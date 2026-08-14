@@ -3,7 +3,7 @@ package com.jtool.android.features.cleaning
 import android.content.Context
 import com.jtool.android.core.models.CleaningTask
 
-class JCleaningManager(context: Context) {
+class CleaningManager(context: Context) {
     private val prefs = context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE)
 
     fun saveTasks(tasks: List<CleaningTask>) {
@@ -21,7 +21,7 @@ class JCleaningManager(context: Context) {
             val parts = it.split("|")
             if (parts.size >= 8) {
                 CleaningTask(
-                    id = parts[0].toLongOrNull() ?: 0L,
+                    id = parts[0],
                     title = parts[1].replace("\\|", "|").replace("\\;", ";"),
                     frequencyDays = parts[2].toIntOrNull() ?: 1,
                     isRecurring = parts[3].toBoolean(),

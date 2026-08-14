@@ -23,16 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
-import kotlinx.coroutines.launch
 
 val AisleIcons = mapOf(
     "Common" to Icons.AutoMirrored.Filled.Label,
@@ -68,7 +65,7 @@ fun ShoppingListScreen(
     if (uiState.showAislePicker) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(false)) },
-            title = { Text("Select Aisle") },
+            title = { Text(Loc.selectAisle) },
             text = {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
@@ -311,7 +308,7 @@ fun ShoppingItemRow(
     item: ShoppingItem,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
-    userName: String // Pass the resolved name
+    userName: String
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -321,7 +318,7 @@ fun ShoppingItemRow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 0.dp), // Shrink padding
+                    .padding(vertical = 0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(

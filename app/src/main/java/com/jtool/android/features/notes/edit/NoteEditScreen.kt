@@ -1,0 +1,212 @@
+package com.jtool.android.features.notes.edit
+
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.jtool.android.core.components.comments.CommentSection
+import com.jtool.android.core.components.comments.CommentEvent
+import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.models.NoteType
+import com.jtool.android.features.notes.NotesEvent
+import com.jtool.android.features.notes.NotesUiState
+import com.jtool.android.features.notes.NotesViewModel
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
+    val context = LocalContext.current
+    val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (uiState.isEditMode) {
+                        TextField(
+                            value = uiState.draftTitle,
+                            onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftTitle(it)) },
+                            placeholder = { Text(Loc.noteTitlePlaceholder) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    } else {
+                        Text(
+                            text = if (uiState.draftTitle.isBlank()) Loc.untitledNote else uiState.draftTitle,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.onEvent(NotesEvent.NavigateBack) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                    }
+                },
+                actions = {
+                    if (uiState.isEditMode) {
+                        IconButton(onClick = { 
+                            viewModel.onEvent(NotesEvent.SaveNote)
+                            Toast.makeText(context, Loc.noteSaved, Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(Icons.Default.Save, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleEditMode) }) {
+                            Icon(Icons.Default.Edit, null)
+                        }
+                    }
+                }
+            )
+        },
+        modifier = Modifier.fillMaxSize().imePadding()
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            val noteType = uiState.editingNote?.type ?: uiState.creatingNoteType ?: NoteType.TEXT
+            
+            item {
+                if (noteType == NoteType.TEXT) {
+                    if (uiState.isEditMode) {
+                        TextField(
+                            value = uiState.draftContent,
+                            onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftContent(it)) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp),
+                            placeholder = { Text(Loc.noteContentHint) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text(
+                            text = uiState.draftContent,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                        )
+                    }
+                }
+            }
+
+            if (noteType == NoteType.CHECKLIST) {
+                if (uiState.isEditMode) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextField(
+                                value = uiState.checklistInput,
+                                onValueChange = { viewModel.onEvent(NotesEvent.UpdateChecklistInput(it)) },
+                                placeholder = { Text(Loc.addItem) },
+                                modifier = Modifier.weight(1f),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent
+                                ),
+                                singleLine = true
+                            )
+                            IconButton(onClick = { viewModel.onEvent(NotesEvent.AddChecklistItem) }) {
+                                Icon(Icons.Default.Add, null)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+
+                val checklist = uiState.editingNote?.checklist ?: emptyList()
+                val sortedChecklist = checklist.sortedWith(compareBy<com.jtool.android.core.models.ChecklistItem> { it.isChecked }.thenBy { it.timestamp })
+                
+                items(sortedChecklist, key = { it.id }) { item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = item.isChecked,
+                            onCheckedChange = { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) }
+                        )
+                        Text(
+                            text = item.text,
+                            modifier = Modifier.weight(1f),
+                            textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
+                            color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else Color.Unspecified
+                        )
+                        if (uiState.isEditMode) {
+                            IconButton(onClick = { viewModel.onEvent(NotesEvent.RemoveChecklistItem(item.id)) }) {
+                                Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                Spacer(Modifier.height(8.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        text = "${Loc.by} ${uiState.userNames[uiState.editingNote?.lastUpdatedBy] ?: uiState.editingNote?.lastUpdatedBy ?: "Me"}",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = dateFormat.format(Date(uiState.editingNote?.timestamp ?: System.currentTimeMillis())),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                
+                val currentNote = uiState.editingNote
+                if (currentNote != null && !uiState.isEditMode) {
+                    CommentSection(
+                        comments = currentNote.comments,
+                        currentUserId = viewModel.getAppUserId(),
+                        userNames = uiState.userNames,
+                        onEvent = { event ->
+                            when (event) {
+                                is CommentEvent.Add -> viewModel.onEvent(NotesEvent.AddComment(event.content, event.parentId))
+                                is CommentEvent.Edit -> viewModel.onEvent(NotesEvent.EditComment(event.commentId, event.newContent))
+                                is CommentEvent.Delete -> viewModel.onEvent(NotesEvent.DeleteComment(event.commentId))
+                            }
+                        }
+                    )
+                }
+                
+                Spacer(Modifier.height(32.dp))
+            }
+        }
+    }
+}

@@ -92,6 +92,18 @@ class AdminViewModel(
                     _uiState.update { it.copy(showGroupDeleteConfirm2 = null) }
                 }
             }
+            AdminEvent.StartRTDBMigration -> {
+                viewModelScope.launch {
+                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting migration...") }
+                    val success = groupSyncManager.migrateFromRTDB { status ->
+                        _uiState.update { it.copy(migrationStatus = status) }
+                    }
+                    _uiState.update { it.copy(
+                        isMigrating = false, 
+                        migrationStatus = if (success) "Migration completed successfully!" else it.migrationStatus
+                    ) }
+                }
+            }
         }
     }
 }

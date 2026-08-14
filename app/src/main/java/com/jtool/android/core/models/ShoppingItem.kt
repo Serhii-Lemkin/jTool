@@ -4,10 +4,10 @@ import androidx.annotation.Keep
 
 @Keep
 data class ShoppingItem(
-    val id: Long,
-    val text: String,
-    val isChecked: Boolean,
+    val id: String = "",
+    val text: String = "",
+    val isChecked: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(),
-    val lastUpdatedBy: String = "Unknown",
+    val lastUpdatedBy: String = "",
     val aisle: String = "Common"
 )

@@ -16,5 +16,7 @@ data class AdminUiState(
     val showGroupDeleteConfirm1: String? = null,
     val showGroupDeleteConfirm2: String? = null,
     val isLoading: Boolean = false,
+    val isMigrating: Boolean = false,
+    val migrationStatus: String? = null,
     val error: String? = null
 )

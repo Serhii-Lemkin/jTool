@@ -13,24 +13,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
 
 @Composable
 fun AppUpdatesScreen(
     backupManager: BackupManager,
-    groupSyncManager: GroupSyncManager,
-    settingsManager: SettingsManager,
-    onBack: () -> Unit,
     viewModel: AppUpdatesViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                AppUpdatesViewModel(backupManager, groupSyncManager, settingsManager)
+                val context = this[APPLICATION_KEY]!!.applicationContext
+                AppUpdatesViewModel(context, backupManager)
             }
         }
     )
@@ -52,9 +49,9 @@ fun AppUpdatesScreen(
                     Loc.upToDateMsg.format(uiState.currentVersionName)
                 }
             } else if (uiState.isChecking) {
-                Loc.t("Checking for updates...", "Перевірка оновлень...")
+                Loc.checkingUpdates
             } else {
-                Loc.t("Current version: ${uiState.currentVersionName}", "Поточна версія: ${uiState.currentVersionName}")
+                Loc.currentVersionLabel.format(uiState.currentVersionName)
             }
 
             Text(
@@ -72,7 +69,7 @@ fun AppUpdatesScreen(
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.jtool.android"))
                             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                             context.startActivity(intent)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.jtool.android"))
                             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                             context.startActivity(intent)
@@ -92,12 +89,12 @@ fun AppUpdatesScreen(
                 ) {
                     Icon(Icons.Default.Sync, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(if (uiState.isChecking) Loc.t("Checking...", "Перевірка...") else Loc.checkForUpdates)
+                    Text(if (uiState.isChecking) Loc.checking else Loc.checkForUpdates)
                 }
                 
                 if (uiState.availableVersionCode != null && uiState.availableVersionCode!! <= uiState.currentVersionCode) {
                     Text(
-                        Loc.t("You are on the latest version!", "У вас остання версія!"),
+                        Loc.latestVersionMsg,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
@@ -112,10 +109,9 @@ fun AppUpdatesScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.t("Play Store Updates", "Оновлення з Play Store"), style = MaterialTheme.typography.titleSmall)
+            Text(Loc.playStoreUpdates, style = MaterialTheme.typography.titleSmall)
             Text(
-                Loc.t("Updates are managed automatically by Google Play. If you encounter issues, you can check the store listing manually.", 
-                       "Оновлення керуються автоматично Google Play. Якщо у вас виникли проблеми, ви можете перевірити сторінку додатка вручну."),
+                Loc.playStoreUpdatesDesc,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -125,14 +121,14 @@ fun AppUpdatesScreen(
                     try {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.jtool.android"))
                         context.startActivity(intent)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.jtool.android"))
                         context.startActivity(intent)
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(Loc.t("View in Play Store", "Переглянути в Play Store"))
+                Text(Loc.viewInPlayStore)
             }
         }
     }

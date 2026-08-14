@@ -33,10 +33,9 @@ class GeneralSettingsViewModel(
                 _uiState.update { it.copy(isDarkMode = newMode) }
                 viewModelScope.launch { groupSyncManager.pushUserSettings() }
             }
-            GeneralSettingsEvent.ToggleLanguage -> {
-                val newLang = if (settingsManager.getLanguage() == "en") "uk" else "en"
-                settingsManager.setLanguage(newLang)
-                _uiState.update { it.copy(language = newLang) }
+            is GeneralSettingsEvent.SetLanguage -> {
+                settingsManager.setLanguage(event.lang)
+                _uiState.update { it.copy(language = event.lang) }
                 viewModelScope.launch { groupSyncManager.pushUserSettings() }
             }
         }

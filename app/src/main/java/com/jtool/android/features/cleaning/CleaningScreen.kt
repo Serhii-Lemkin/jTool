@@ -35,8 +35,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
 @Composable
-fun JCleaningScreen(
-    manager: JCleaningManager,
+fun CleaningScreen(
+    manager: CleaningManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
     groupSyncManager: GroupSyncManager,
@@ -296,8 +296,8 @@ fun CleaningTaskRow(
 fun CleaningPreview() {
     val context = LocalContext.current
     MaterialTheme {
-        JCleaningScreen(
-            manager = JCleaningManager(context),
+        CleaningScreen(
+            manager = CleaningManager(context),
             backupManager = BackupManager(context),
             settingsManager = SettingsManager(context),
             groupSyncManager = GroupSyncManager(context)

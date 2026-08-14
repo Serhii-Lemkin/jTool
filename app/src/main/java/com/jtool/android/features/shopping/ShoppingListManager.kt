@@ -19,7 +19,7 @@ class ShoppingListManager(context: Context) {
             val parts = it.split("|")
             if (parts.size >= 4) {
                 ShoppingItem(
-                    id = parts[0].toLongOrNull() ?: 0L,
+                    id = parts[0],
                     text = parts[1],
                     isChecked = parts[2].toBoolean(),
                     timestamp = parts[3].toLongOrNull() ?: 0L,

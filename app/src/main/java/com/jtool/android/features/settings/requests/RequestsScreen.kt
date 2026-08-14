@@ -83,7 +83,7 @@ fun RequestsScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(Loc.t("Troubleshooting", "Вирішення проблем"), style = MaterialTheme.typography.titleSmall)
+                Text(Loc.troubleshooting, style = MaterialTheme.typography.titleSmall)
                 Text(
                     Loc.autoBlockerNote,
                     style = MaterialTheme.typography.bodySmall,
