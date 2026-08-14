@@ -1,0 +1,54 @@
+package com.jtool.android.features.auth
+
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.jtool.android.core.auth.AuthManager
+import com.jtool.android.core.sync.GroupSyncManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+class SignInHandler(
+    private val activity: ComponentActivity,
+    private val authManager: AuthManager,
+    private val groupSyncManager: GroupSyncManager,
+    private val scope: CoroutineScope
+) {
+    private val signInLauncher: ActivityResultLauncher<android.content.Intent> =
+        activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            Log.d("jTool", "Sign-in result received. ResultCode: ${result.resultCode}, HasData: ${result.data != null}")
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                if (account != null) {
+                    scope.launch {
+                        val success = authManager.signInWithGoogle(account)
+                        if (success) {
+                            groupSyncManager.fetchUserSettings()
+                            groupSyncManager.pushUserSettings()
+                        } else {
+                            Toast.makeText(activity, "Firebase Auth Failed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("jTool", "Sign in failed", e)
+                val msg = if (e is ApiException) {
+                    val statusCodeString = CommonStatusCodes.getStatusCodeString(e.statusCode)
+                    "Error Code: ${e.statusCode} ($statusCodeString)\nMessage: ${e.status.statusMessage ?: "No message"}"
+                } else {
+                    e.message
+                }
+                Toast.makeText(activity, "Sign-in Error: $msg", Toast.LENGTH_LONG).show()
+            }
+        }
+
+    fun launchSignIn() {
+        signInLauncher.launch(authManager.getSignInClient().signInIntent)
+    }
+}

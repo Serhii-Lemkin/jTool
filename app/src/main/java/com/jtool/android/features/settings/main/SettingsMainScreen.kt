@@ -1,0 +1,124 @@
+package com.jtool.android.features.settings.main
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.core.auth.AuthManager
+import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.features.settings.SettingsMenuItem
+import kotlinx.coroutines.launch
+
+@Composable
+fun SettingsMainScreen(
+    authManager: AuthManager,
+    settingsManager: SettingsManager,
+    onNavigate: (String) -> Unit,
+    hasUpdate: Boolean,
+    viewModel: SettingsMainViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                SettingsMainViewModel(authManager, settingsManager)
+            }
+        }
+    )
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        item {
+            SettingsMenuItem(
+                title = Loc.account,
+                subtitle = Loc.cloudSyncFirebase,
+                icon = Icons.Default.AccountCircle,
+                onClick = { onNavigate("account") }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+        }
+        
+        if (uiState.currentUser != null) {
+            item {
+                SettingsMenuItem(
+                    title = Loc.groups,
+                    subtitle = Loc.syncSubtitle,
+                    icon = Icons.Default.Group,
+                    onClick = { onNavigate("groups") },
+                    hasBadge = uiState.isSyncMissing
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+            item {
+                SettingsMenuItem(
+                    title = Loc.generalSettings,
+                    subtitle = Loc.appearanceLanguage,
+                    icon = Icons.Default.Settings,
+                    onClick = { onNavigate("general") }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+            item {
+                SettingsMenuItem(
+                    title = Loc.appUpdates,
+                    subtitle = Loc.appUpdatesSubtitle,
+                    icon = Icons.Default.SystemUpdate,
+                    onClick = { onNavigate("app_updates") },
+                    hasBadge = hasUpdate
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+            item {
+                SettingsMenuItem(
+                    title = Loc.visibilityTitle,
+                    subtitle = Loc.visibilitySubtitle,
+                    icon = Icons.Default.Visibility,
+                    onClick = { onNavigate("visibility") }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+            item {
+                SettingsMenuItem(
+                    title = Loc.requestsTitle,
+                    subtitle = Loc.requestsSubtitle,
+                    icon = Icons.Default.Feedback,
+                    onClick = { onNavigate("requests") }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+            item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val scope = rememberCoroutineScope()
+                SettingsMenuItem(
+                    title = Loc.privacyPolicy,
+                    subtitle = Loc.privacySubtitle,
+                    icon = Icons.Default.PrivacyTip,
+                    onClick = {
+                        val manager = GroupSyncManager(context)
+                        scope.launch {
+                            val info = manager.getLatestAppInfo()
+                            val url = info?.get("privacy") as? String
+                            if (!url.isNullOrBlank()) {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                context.startActivity(intent)
+                            } else {
+                                android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase (node: app_info/privacy)")
+                                android.widget.Toast.makeText(context, "Privacy Policy URL not found", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
