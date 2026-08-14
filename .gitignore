@@ -1,30 +1,24 @@
+# IDE and Project Settings
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.gradle/
+.kotlin/
+local.properties
+
+# Build Artifacts
+/build/
+app/build/
+app/debug/
+app/release/
+*.apk
+*.dm
 
 # Security and Signatures
 *.jks
 *.keystore
-local.properties
-/app/google-services.json
 google-services.json
+app/google-services.json
 
-# Local data backups
+# Local Data and Backups
 jtool_*.json
-
-# APK and Build artifacts
-/app/debug/
-/app/release/
-*.apk
-*.dm
+.DS_Store

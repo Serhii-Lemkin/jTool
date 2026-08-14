@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="jTool.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-07-10T04:46:50.460918838Z">
+        <DropdownSelection timestamp="2026-08-08T02:11:47.610431552Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=RF8R50PGKKH" />
+              <DeviceId pluginId="Wireless" identifier="serviceName=adb-RF8R50PGKKH-ADQBA3" />
             </handle>
           </Target>
         </DropdownSelection>

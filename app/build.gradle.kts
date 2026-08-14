@@ -14,15 +14,15 @@ val localProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.example.jtool"
+    namespace = "com.jtool.android"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.jtool"
+        applicationId = "com.jtool.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 30
-        versionName = "2.2"
+        versionCode = 47
+        versionName = "2.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,8 +39,14 @@ android {
     buildTypes {
         release {
             signingConfig = if (file("key.jks").exists()) signingConfigs.getByName("release") else null
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             optimization {
-                enable = false
+                enable = true
             }
         }
     }
@@ -64,6 +70,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.documentfile)
     
     // Firebase
@@ -73,7 +80,6 @@ dependencies {
     implementation(libs.play.services.auth)
 
     testImplementation(libs.junit)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
