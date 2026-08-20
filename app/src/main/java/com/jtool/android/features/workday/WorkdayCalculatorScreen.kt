@@ -18,6 +18,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
 import com.jtool.android.ui.theme.JToolTheme
+import com.jtool.android.core.components.layout.GenericTitle
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Duration
@@ -32,10 +33,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkdayCalculatorScreen(
     settingsManager: SettingsManager,
     groupSyncManager: GroupSyncManager,
+    onBack: () -> Unit,
     viewModel: WorkdayViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -53,13 +56,12 @@ fun WorkdayCalculatorScreen(
         var tempHours by remember { mutableStateOf(uiState.weeklyHours) }
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(WorkdayEvent.ToggleEditDialog(false)) },
-            title = { Text(Loc.editWorkHours) },
+            title = { Text(Loc.worktime_editWorkHours) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text(Loc.setHoursManually, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
                     DayOfWeek.entries.forEach { day ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(day.getDisplayName(TextStyle.SHORT, currentLocale), modifier = Modifier.width(40.dp))
+                            Text(Loc.getDayOfWeekName(day).take(3), modifier = Modifier.width(48.dp))
                             Slider(
                                 value = (tempHours[day] ?: 0.0).toFloat(),
                                 onValueChange = { tempHours = tempHours + (day to it.toDouble()) },
@@ -75,7 +77,7 @@ fun WorkdayCalculatorScreen(
             confirmButton = {
                 Button(onClick = {
                     viewModel.onEvent(WorkdayEvent.SaveWeeklyHours(tempHours))
-                }) { Text(Loc.save) }
+                }) { Text(Loc.general_save) }
             }
         )
     }
@@ -83,136 +85,145 @@ fun WorkdayCalculatorScreen(
     if (uiState.showForgetConfirm) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(WorkdayEvent.ToggleForgetConfirm(false)) },
-            title = { Text(Loc.forgetTitle) },
-            text = { Text(Loc.forgetConfirm) },
+            title = { Text(Loc.worktime_forgetTitle) },
+            text = { Text(Loc.worktime_forgetConfirm) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.onEvent(WorkdayEvent.ConfirmForget)
                 }) {
-                    Text(Loc.delete, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(WorkdayEvent.ToggleForgetConfirm(false)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .imePadding()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.width(48.dp))
+    Scaffold(
+        topBar = {
+            GenericTitle(
+                title = Loc.worktime_workTime,
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = { viewModel.onEvent(WorkdayEvent.ToggleEditDialog(true)) }) {
+                        Icon(Icons.Default.Settings, contentDescription = Loc.worktime_editHours)
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(
-                text = Loc.today,
+                text = Loc.worktime_today,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-            IconButton(onClick = { viewModel.onEvent(WorkdayEvent.ToggleEditDialog(true)) }) {
-                Icon(Icons.Default.Settings, contentDescription = Loc.editHours)
-            }
-        }
-        
-        Text(
-            text = uiState.currentDay.getDisplayName(java.time.format.TextStyle.FULL, currentLocale),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Text(
-            text = "${Loc.requiredHours}: ${uiState.requiredHours}",
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.padding(bottom = 32.dp)
-        )
-
-        if (uiState.requiredHours > 0.0) {
-            OutlinedTextField(
-                value = uiState.inputTime,
-                onValueChange = { 
-                    viewModel.onEvent(WorkdayEvent.UpdateInputTime(it))
-                },
-                label = { Text(Loc.startTime) },
-                placeholder = { Text("") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        viewModel.onEvent(WorkdayEvent.Calculate)
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(Loc.calculate)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        viewModel.onEvent(WorkdayEvent.ToggleRemember)
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(if (uiState.isTimeSaved) Loc.forget else Loc.remember)
-                }
-            }
-        } else {
-            Text(Loc.noWorkScheduled, fontWeight = FontWeight.Medium)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        if (uiState.errorText.isNotEmpty()) {
-            Text(
-                text = uiState.errorText,
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-
-        uiState.finishTime?.let { end ->
-            val now = LocalTime.now()
-            val duration = Duration.between(now, end)
-            val hoursLeft = duration.toHours()
-            val minutesLeft = duration.toMinutes() % 60
             
-            val timeLeftText = when {
-                duration.isNegative || duration.isZero -> Loc.workFinished
-                hoursLeft > 0 -> "${Loc.timeLeft}: ${hoursLeft}${Loc.hourSymbol} ${minutesLeft}${Loc.minuteSymbol}"
-                else -> "${Loc.timeLeft}: ${minutesLeft}${Loc.minuteSymbol}"
+            Text(
+                text = Loc.getDayOfWeekName(uiState.currentDay),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                text = "${Loc.worktime_requiredHours}: ${uiState.requiredHours}",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            if (uiState.requiredHours > 0.0) {
+                OutlinedTextField(
+                    value = uiState.inputTime,
+                    onValueChange = { 
+                        viewModel.onEvent(WorkdayEvent.UpdateInputTime(it))
+                    },
+                    label = { Text(Loc.worktime_startTime) },
+                    placeholder = { Text("") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.onEvent(WorkdayEvent.Calculate)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(Loc.worktime_calculate)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.onEvent(WorkdayEvent.ToggleRemember)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (uiState.isTimeSaved) Loc.worktime_forget else Loc.worktime_remember)
+                    }
+                }
+            } else {
+                Text(Loc.worktime_noWorkScheduled, fontWeight = FontWeight.Medium)
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(modifier = Modifier.height(32.dp))
+
+            if (uiState.errorText.isNotEmpty()) {
                 Text(
-                    text = "${Loc.finishAt}: ${end.format(timeFormatter)}",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = timeLeftText,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.secondary
+                    text = uiState.errorText,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
+
+            uiState.finishTime?.let { end ->
+                val now = LocalTime.now()
+                val duration = Duration.between(now, end)
+                val hoursLeft = duration.toHours()
+                val minutesLeft = duration.toMinutes() % 60
+                
+                val timeLeftText = when {
+                    duration.isNegative || duration.isZero -> Loc.worktime_workFinished
+                    hoursLeft > 0 -> "${Loc.worktime_timeLeft}: ${hoursLeft}${Loc.general_hourSymbol} ${minutesLeft}${Loc.general_minuteSymbol}"
+                    else -> "${Loc.worktime_timeLeft}: ${minutesLeft}${Loc.general_minuteSymbol}"
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${Loc.worktime_finishAt}: ${end.format(timeFormatter)}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = timeLeftText,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+            
+            Spacer(Modifier.height(80.dp))
         }
     }
 }
@@ -224,7 +235,8 @@ fun WorkdayCalculatorScreenPreview() {
     JToolTheme {
         WorkdayCalculatorScreen(
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context)
+            groupSyncManager = GroupSyncManager(context),
+            onBack = {}
         )
     }
 }

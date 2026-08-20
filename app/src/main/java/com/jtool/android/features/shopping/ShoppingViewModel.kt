@@ -76,7 +76,7 @@ class ShoppingViewModel(
         when (event) {
             is ShoppingEvent.UpdateNewItemText -> _uiState.update { it.copy(newItemText = event.text) }
             is ShoppingEvent.ToggleAislePicker -> _uiState.update { it.copy(showAislePicker = event.show) }
-            is ShoppingEvent.SelectAisle -> _uiState.update { it.copy(selectedAisle = event.aisle, showAislePicker = false) }
+            is ShoppingEvent.SelectAisle -> selectAisle(event.aisle)
             is ShoppingEvent.UpdateFilter -> _uiState.update { it.copy(filterType = event.filter, dropdownExpanded = false) }
             is ShoppingEvent.ToggleFilterDropdown -> _uiState.update { it.copy(dropdownExpanded = event.expanded) }
             is ShoppingEvent.RequestDelete -> _uiState.update { it.copy(itemToDelete = event.item) }
@@ -84,6 +84,20 @@ class ShoppingViewModel(
             ShoppingEvent.AddItem -> addItem()
             is ShoppingEvent.ToggleItem -> toggleItem(event.item, event.isChecked)
             is ShoppingEvent.RestoreItem -> restoreItem(event.text)
+            is ShoppingEvent.SelectItem -> _uiState.update { it.copy(selectedItem = event.item) }
+        }
+    }
+
+    private fun selectAisle(aisle: String) {
+        val selectedItem = _uiState.value.selectedItem
+        if (selectedItem != null) {
+            val gid = settingsManager.getCurrentGroupId() ?: return
+            viewModelScope.launch {
+                getShoppingColl(gid).document(selectedItem.id).update("aisle", aisle).await()
+                _uiState.update { it.copy(selectedItem = null, showAislePicker = false) }
+            }
+        } else {
+            _uiState.update { it.copy(selectedAisle = aisle, showAislePicker = false) }
         }
     }
 

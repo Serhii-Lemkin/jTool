@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -35,11 +36,9 @@ fun GeneralSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var langMenuExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
-    val languages = listOf(
-        "en" to "English",
-        "uk" to "Українська"
-    )
+    val languages = remember(context) { Loc.getAvailableLanguages(context) }
 
     Column(
         modifier = Modifier
@@ -61,7 +60,7 @@ fun GeneralSettingsScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(if (uiState.isDarkMode) Loc.darkMode else Loc.lightMode, style = MaterialTheme.typography.bodyLarge)
+                Text(if (uiState.isDarkMode) Loc.settings_darkMode else Loc.settings_lightMode, style = MaterialTheme.typography.bodyLarge)
             }
             Switch(
                 checked = uiState.isDarkMode, 
@@ -87,13 +86,13 @@ fun GeneralSettingsScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(Loc.language, style = MaterialTheme.typography.bodyLarge)
+                Text(Loc.settings_language, style = MaterialTheme.typography.bodyLarge)
             }
             
             Box {
                 TextButton(onClick = { langMenuExpanded = true }) {
                     Text(
-                        text = languages.find { it.first == uiState.language }?.second ?: uiState.language,
+                        text = languages.find { it.locale == uiState.language }?.name ?: uiState.language,
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -101,11 +100,11 @@ fun GeneralSettingsScreen(
                     expanded = langMenuExpanded,
                     onDismissRequest = { langMenuExpanded = false }
                 ) {
-                    languages.forEach { (code, name) ->
+                    languages.forEach { langMeta ->
                         DropdownMenuItem(
-                            text = { Text(name) },
+                            text = { Text(langMeta.name) },
                             onClick = {
-                                viewModel.onEvent(GeneralSettingsEvent.SetLanguage(code))
+                                viewModel.onEvent(GeneralSettingsEvent.SetLanguage(langMeta.locale))
                                 onLangToggle()
                                 langMenuExpanded = false
                             }

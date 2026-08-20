@@ -9,10 +9,10 @@ import com.jtool.android.features.timecalc.TimeCalculatorScreen
 object TimeCalc : AppProperties(
     AppNames.TIME_CALC,
     Icons.Default.Calculate,
-    { Loc.timeCalc }
+    { Loc.timecalc_timeCalc }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
-        TimeCalculatorScreen()
+        TimeCalculatorScreen(onBack = { deps.setScreen(AppNames.LAUNCHER) })
     }
 }

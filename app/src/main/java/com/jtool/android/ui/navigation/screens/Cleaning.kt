@@ -9,7 +9,7 @@ import com.jtool.android.features.cleaning.CleaningScreen
 object Cleaning : AppProperties(
     AppNames.CLEANING,
     Icons.Default.Brush,
-    { Loc.cleaning }
+    { Loc.cleaning_cleaning }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
@@ -17,7 +17,8 @@ object Cleaning : AppProperties(
             manager = deps.cleaningManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager
+            groupSyncManager = deps.groupSyncManager,
+            onBack = { deps.setScreen(AppNames.LAUNCHER) }
         )
     }
 }

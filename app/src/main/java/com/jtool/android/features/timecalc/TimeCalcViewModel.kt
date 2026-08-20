@@ -67,7 +67,7 @@ class TimeCalcViewModel : ViewModel() {
                 )
                 val historyItem = HistoryItem(
                     state.currentDateTime,
-                    if (event.isAddition) Loc.added else Loc.subtracted,
+                    if (event.isAddition) Loc.timecalc_added else Loc.timecalc_subtracted,
                     state.yearsInput, state.monthsInput, state.daysInput, state.hoursInput, state.minutesInput
                 )
                 _uiState.update { it.copy(

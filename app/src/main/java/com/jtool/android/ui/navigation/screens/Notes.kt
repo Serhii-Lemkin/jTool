@@ -9,7 +9,7 @@ import com.jtool.android.features.notes.NotesScreen
 object Notes : AppProperties(
     AppNames.NOTES,
     Icons.Default.Description,
-    { Loc.notes }
+    { Loc.notes_notes }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
@@ -17,7 +17,8 @@ object Notes : AppProperties(
             manager = deps.notesManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager
+            groupSyncManager = deps.groupSyncManager,
+            onBack = { deps.setScreen(AppNames.LAUNCHER) }
         )
     }
 }

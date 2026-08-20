@@ -79,8 +79,8 @@ fun GroupsScreen(
                 OutlinedCard(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(Loc.activeGroup, style = MaterialTheme.typography.labelSmall)
-                            val activeName = uiState.groups[uiState.currentGroupId]?.name ?: uiState.currentGroupId ?: Loc.noneSelected
+                            Text(Loc.settings_activeGroup, style = MaterialTheme.typography.labelSmall)
+                            val activeName = uiState.groups[uiState.currentGroupId]?.name ?: uiState.currentGroupId ?: Loc.settings_noneSelected
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(activeName, style = MaterialTheme.typography.bodyLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                                 if (uiState.currentGroupId != null) {
@@ -104,7 +104,7 @@ fun GroupsScreen(
                     OutlinedTextField(
                         value = groupSearchQuery,
                         onValueChange = { groupSearchQuery = it },
-                        label = { Text(Loc.searchGroups) },
+                        label = { Text(Loc.general_searchGroups) },
                         modifier = Modifier.fillMaxWidth().padding(8.dp),
                         leadingIcon = { Icon(Icons.Default.Search, null) },
                         singleLine = true
@@ -123,7 +123,7 @@ fun GroupsScreen(
             }
         } else if (!hasAnyGroups && !uiState.isLoading) {
             Card(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f))) {
-                Text(text = Loc.noGroupsMsg, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(text = Loc.settings_noGroupsMsg, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
 
@@ -133,47 +133,47 @@ fun GroupsScreen(
 
         val activeGroupId = uiState.currentGroupId
         if (activeGroupId != null && !uiState.isLoading) {
-            Text(Loc.linkedGroupId, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Text(Loc.settings_linkedGroupId, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(16.dp))
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { viewModel.onEvent(GroupsEvent.ManualSync) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.CloudSync, null); Spacer(Modifier.width(12.dp)); Text(Loc.manualSync)
+                    Icon(Icons.Default.CloudSync, null); Spacer(Modifier.width(12.dp)); Text(Loc.settings_manualSync)
                 }
                 Button(onClick = { showInviteDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.PersonAdd, null); Spacer(Modifier.width(8.dp)); Text(Loc.groupInvite)
+                    Icon(Icons.Default.PersonAdd, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_groupInvite)
                 }
-                Spacer(Modifier.height(4.dp)); Text(Loc.shareIdDesc, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(4.dp)); Text(Loc.settings_shareIdDesc, style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { clipboardManager.setText(AnnotatedString(activeGroupId)) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(8.dp)); Text(Loc.copyId)
+                    Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_copyId)
                 }
                 Button(
                     onClick = { if (groupMemberIds.size <= 1) showLastMemberLeaveConfirm = activeGroupId else showUnlinkConfirm = activeGroupId },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Icon(Icons.AutoMirrored.Filled.ExitToApp, null); Spacer(Modifier.width(8.dp)); Text(Loc.unlinkGroup) }
+                ) { Icon(Icons.AutoMirrored.Filled.ExitToApp, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_unlinkGroup) }
             }
             Spacer(Modifier.height(24.dp)); HorizontalDivider(); Spacer(Modifier.height(24.dp))
         }
 
         if (!uiState.isLoading) {
-            Text(Loc.addNewGroup, style = MaterialTheme.typography.titleMedium)
+            Text(Loc.settings_addNewGroup, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { showCreateGroupDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text(Loc.createNewGroup)
+                    Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_createNewGroup)
                 }
                 Button(onClick = { showJoinGroupDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.GroupAdd, null); Spacer(Modifier.width(8.dp)); Text(Loc.joinGroup)
+                    Icon(Icons.Default.GroupAdd, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_joinGroup)
                 }
             }
         }
 
         if (uiState.currentGroupId != null && groupMemberIds.isNotEmpty() && !uiState.isLoading) {
             Spacer(Modifier.height(32.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
-            Text(Loc.groupMembers, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Text(Loc.settings_groupMembers, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(8.dp))
             groupMemberIds.forEach { uid ->
-                val name = globalUserNames[uid] ?: Loc.unknown
+                val name = globalUserNames[uid] ?: Loc.general_unknown
                 val isOwner = uiState.groups[uiState.currentGroupId]?.owner == uid
                 GroupMemberItem(name = name, isOwner = isOwner)
             }

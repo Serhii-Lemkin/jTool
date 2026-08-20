@@ -9,13 +9,14 @@ import com.jtool.android.features.workday.WorkdayCalculatorScreen
 object WorkTime : AppProperties(
     AppNames.WORK_TIME,
     Icons.Default.Schedule,
-    { Loc.workTime }
+    { Loc.worktime_workTime }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
         WorkdayCalculatorScreen(
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager
+            groupSyncManager = deps.groupSyncManager,
+            onBack = { deps.setScreen(AppNames.LAUNCHER) }
         )
     }
 }

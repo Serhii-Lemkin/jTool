@@ -9,10 +9,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
@@ -65,42 +69,47 @@ fun LauncherScreen(
         
         if (currentUser != null) {
             Text(
-                text = "${Loc.hello}, ${settingsManager.getUserName()}!",
+                text = "${Loc.launcher_hello}, ${settingsManager.getUserName()}!",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
             )
             
             if (groupName != null) {
                 Text(
-                    text = Loc.activeGroupLabel.format(groupName),
+                    text = Loc.settings_activeGroupLabel.format(groupName),
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
                 )
             } else {
                 TextButton(onClick = onJoinGroupClick) {
                     Text(
-                        text = Loc.noActiveGroup,
+                        text = Loc.settings_noActiveGroup,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error,
-                        textDecoration = TextDecoration.Underline
+                        textDecoration = TextDecoration.Underline,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
         } else {
             Text(
-                text = "${Loc.hello}!",
+                text = "${Loc.launcher_hello}!",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(Loc.notSignedIn, fontSize = 14.sp)
+                Text(Loc.settings_notSignedIn, fontSize = 14.sp, textAlign = TextAlign.Center)
                 TextButton(onClick = onAccountClick) {
                     Text(
-                        text = Loc.pleaseSignInLink,
+                        text = Loc.settings_pleaseSignInLink,
                         fontSize = 14.sp,
-                        textDecoration = TextDecoration.Underline
+                        textDecoration = TextDecoration.Underline,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -132,7 +141,7 @@ fun LauncherScreen(
                 
                 item {
                     AppIcon(
-                        name = Loc.settings,
+                        name = Loc.launcher_settings,
                         icon = Icons.Default.Settings,
                         onClick = onSettingsClick,
                         hasBadge = showBadge
@@ -142,7 +151,7 @@ fun LauncherScreen(
                 if (currentUser != null && isAdmin) {
                     item {
                         AppIcon(
-                            name = Loc.adminPanel,
+                            name = Loc.admin_adminPanel,
                             icon = Icons.Default.AdminPanelSettings,
                             onClick = onAdminClick
                         )
@@ -169,12 +178,12 @@ fun LauncherScreen(
                 }
 
                 item {
-                    AppListRow(name = Loc.settings, icon = Icons.Default.Settings, onClick = onSettingsClick, hasBadge = showBadge)
+                    AppListRow(name = Loc.launcher_settings, icon = Icons.Default.Settings, onClick = onSettingsClick, hasBadge = showBadge)
                 }
 
                 if (currentUser != null && isAdmin) {
                     item {
-                        AppListRow(name = Loc.adminPanel, icon = Icons.Default.AdminPanelSettings, onClick = onAdminClick)
+                        AppListRow(name = Loc.admin_adminPanel, icon = Icons.Default.AdminPanelSettings, onClick = onAdminClick)
                     }
                 }
             }
@@ -203,9 +212,21 @@ fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: B
                 Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text(text = name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = name,
+                fontSize = if (name.length > 12) 14.sp else 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+            Icon(
+                imageVector = Icons.Default.ChevronRight, 
+                contentDescription = null, 
+                modifier = Modifier.scale(if (isRtl) -1f else 1f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
         }
     }
 }
@@ -221,9 +242,10 @@ fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: Bool
         BadgedBox(
             badge = {
                 if (hasBadge) {
+                    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                     Badge(
                         containerColor = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.offset(x = (-8).dp, y = 8.dp)
+                        modifier = Modifier.offset(x = if (isRtl) 8.dp else (-8).dp, y = 8.dp)
                     )
                 }
             }
@@ -252,9 +274,11 @@ fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: Bool
         }
         Text(
             text = name,
-            fontSize = 14.sp,
+            fontSize = if (name.length > 10) 10.sp else 12.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
             modifier = Modifier.padding(top = 4.dp)
         )
     }

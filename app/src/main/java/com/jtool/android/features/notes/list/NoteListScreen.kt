@@ -23,57 +23,59 @@ import com.jtool.android.features.notes.NotesEvent
 import com.jtool.android.features.notes.NotesUiState
 import com.jtool.android.features.notes.NotesViewModel
 import com.jtool.android.core.components.comments.getTotalCommentsCount
+import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.UnifiedFAB
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(Loc.notes, fontWeight = FontWeight.Bold) }
-            )
-        },
-        floatingActionButton = {
-            Box {
-                FloatingActionButton(
-                    onClick = { viewModel.onEvent(NotesEvent.ToggleTypeMenu(true)) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(Icons.Default.Add, null)
+fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                GenericTitle(title = Loc.notes_notes, onBack = onBack)
+            }
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                items(uiState.notes.sortedByDescending { it.timestamp }, key = { it.id }) { note ->
+                    NoteListItem(note, uiState.userNames, viewModel)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
                 }
-                DropdownMenu(
-                    expanded = uiState.showTypeMenu,
-                    onDismissRequest = { viewModel.onEvent(NotesEvent.ToggleTypeMenu(false)) }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(Loc.textNote) },
-                        onClick = { viewModel.onEvent(NotesEvent.StartNewNote(NoteType.TEXT)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(Loc.checklistNote) },
-                        onClick = { viewModel.onEvent(NotesEvent.StartNewNote(NoteType.CHECKLIST)) },
-                        leadingIcon = { Icon(Icons.Default.Checklist, null) }
-                    )
+                
+                item {
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            items(uiState.notes.sortedByDescending { it.timestamp }, key = { it.id }) { note ->
-                NoteListItem(note, uiState.userNames, viewModel)
-                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+        UnifiedFAB(
+            onClick = {},
+            dropdownContent = { onDismiss ->
+                DropdownMenuItem(
+                    text = { Text(Loc.notes_textNote) },
+                    onClick = { 
+                        onDismiss()
+                        viewModel.onEvent(NotesEvent.StartNewNote(NoteType.TEXT)) 
+                    },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
+                )
+                DropdownMenuItem(
+                    text = { Text(Loc.notes_checklistNote) },
+                    onClick = { 
+                        onDismiss()
+                        viewModel.onEvent(NotesEvent.StartNewNote(NoteType.CHECKLIST)) 
+                    },
+                    leadingIcon = { Icon(Icons.Default.Checklist, null) }
+                )
             }
-        }
+        )
     }
 }
 
@@ -116,7 +118,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(
-                        text = { Text(Loc.update) },
+                        text = { Text(Loc.general_update) },
                         onClick = { 
                             viewModel.onEvent(NotesEvent.OpenNote(note, true))
                             menuExpanded = false
@@ -124,7 +126,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
                         leadingIcon = { Icon(Icons.Default.Edit, null) }
                     )
                     DropdownMenuItem(
-                        text = { Text(Loc.delete) },
+                        text = { Text(Loc.general_delete) },
                         onClick = { 
                             viewModel.onEvent(NotesEvent.RequestDelete(note))
                             menuExpanded = false
@@ -159,7 +161,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${Loc.by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}",
+                    text = "${Loc.general_by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )

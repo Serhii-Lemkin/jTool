@@ -9,7 +9,7 @@ import com.jtool.android.features.links.LinksScreen
 object Links : AppProperties(
     AppNames.LINKS,
     Icons.Default.Link,
-    { Loc.links }
+    { Loc.links_links }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
@@ -17,7 +17,8 @@ object Links : AppProperties(
             manager = deps.linksManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager
+            groupSyncManager = deps.groupSyncManager,
+            onBack = { deps.setScreen(AppNames.LAUNCHER) }
         )
     }
 }

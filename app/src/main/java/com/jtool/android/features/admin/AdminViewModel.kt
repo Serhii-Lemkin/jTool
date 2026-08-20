@@ -22,10 +22,6 @@ class AdminViewModel(
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
             .launchIn(viewModelScope)
 
-        groupSyncManager.allSuggestionsFlow()
-            .onEach { requests -> _uiState.update { it.copy(requests = requests) } }
-            .launchIn(viewModelScope)
-
         groupSyncManager.allUsersFlow()
             .onEach { users -> _uiState.update { it.copy(users = users) } }
             .launchIn(viewModelScope)
@@ -39,15 +35,6 @@ class AdminViewModel(
         when (event) {
             is AdminEvent.Navigate -> {
                 _uiState.update { it.copy(currentSubScreen = event.subScreen) }
-            }
-            is AdminEvent.SelectRequest -> {
-                _uiState.update { it.copy(selectedRequest = event.request, currentSubScreen = if (event.request != null) "request_detail" else "requests") }
-            }
-            is AdminEvent.DeleteRequest -> {
-                viewModelScope.launch {
-                    groupSyncManager.deleteSuggestion(event.id)
-                    _uiState.update { it.copy(selectedRequest = null, currentSubScreen = "requests") }
-                }
             }
             is AdminEvent.UpdateUserSearchQuery -> {
                 _uiState.update { it.copy(userSearchQuery = event.query) }
@@ -92,15 +79,27 @@ class AdminViewModel(
                     _uiState.update { it.copy(showGroupDeleteConfirm2 = null) }
                 }
             }
-            AdminEvent.StartRTDBMigration -> {
+            AdminEvent.StartLegacyMigration -> {
                 viewModelScope.launch {
-                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting migration...") }
-                    val success = groupSyncManager.migrateFromRTDB { status ->
+                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting Legacy Migration...") }
+                    val success = groupSyncManager.migrateSupportLegacy { status ->
                         _uiState.update { it.copy(migrationStatus = status) }
                     }
                     _uiState.update { it.copy(
-                        isMigrating = false, 
-                        migrationStatus = if (success) "Migration completed successfully!" else it.migrationStatus
+                        isMigrating = false,
+                        migrationStatus = if (success) "Legacy Migration Completed!" else "Failed"
+                    ) }
+                }
+            }
+            AdminEvent.StartUserDataMigration -> {
+                viewModelScope.launch {
+                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting User Data Migration...") }
+                    val success = groupSyncManager.migrateAllUsersToUserData { status ->
+                        _uiState.update { it.copy(migrationStatus = status) }
+                    }
+                    _uiState.update { it.copy(
+                        isMigrating = false,
+                        migrationStatus = if (success) "User Data Migration Completed!" else "Failed"
                     ) }
                 }
             }

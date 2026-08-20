@@ -21,12 +21,12 @@ fun CreateGroupDialog(
     var groupNameInput by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.createNewGroup) },
+        title = { Text(Loc.settings_createNewGroup) },
         text = {
             OutlinedTextField(
                 value = groupNameInput,
                 onValueChange = { groupNameInput = it },
-                label = { Text(Loc.groupName) },
+                label = { Text(Loc.settings_groupName) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -35,10 +35,10 @@ fun CreateGroupDialog(
             Button(
                 onClick = { onConfirm(groupNameInput) },
                 enabled = groupNameInput.isNotBlank()
-            ) { Text(Loc.save) }
+            ) { Text(Loc.general_save) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(Loc.cancel) }
+            TextButton(onClick = onDismiss) { Text(Loc.general_cancel) }
         }
     )
 }
@@ -51,12 +51,12 @@ fun JoinGroupDialog(
     var joinGroupId by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.joinGroup) },
+        title = { Text(Loc.settings_joinGroup) },
         text = {
             OutlinedTextField(
                 value = joinGroupId,
                 onValueChange = { joinGroupId = it },
-                label = { Text(Loc.groupIdToJoin) },
+                label = { Text(Loc.settings_groupIdToJoin) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -65,10 +65,10 @@ fun JoinGroupDialog(
             Button(
                 onClick = { onConfirm(joinGroupId) },
                 enabled = joinGroupId.isNotBlank()
-            ) { Text(Loc.joinGroup) }
+            ) { Text(Loc.settings_joinGroup) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(Loc.cancel) }
+            TextButton(onClick = onDismiss) { Text(Loc.general_cancel) }
         }
     )
 }
@@ -80,16 +80,16 @@ fun UnlinkConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.confirmUnlinkTitle) },
-        text = { Text(Loc.confirmUnlinkMsg) },
+        title = { Text(Loc.settings_confirmUnlinkTitle) },
+        text = { Text(Loc.settings_confirmUnlinkMsg) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(Loc.unlinkGroup, color = MaterialTheme.colorScheme.error)
+                Text(Loc.settings_unlinkGroup, color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(Loc.cancel)
+                Text(Loc.general_cancel)
             }
         }
     )
@@ -102,19 +102,19 @@ fun LastMemberLeaveDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.deleteGroupTitle) },
-        text = { Text(Loc.lastMemberLeaveMsg) },
+        title = { Text(Loc.settings_deleteGroupTitle) },
+        text = { Text(Loc.settings_lastMemberLeaveMsg) },
         confirmButton = {
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
-                Text(Loc.unlinkGroup)
+                Text(Loc.settings_unlinkGroup)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(Loc.cancel)
+                Text(Loc.general_cancel)
             }
         }
     )
@@ -128,10 +128,10 @@ fun InviteDialog(
     var inviteEmail by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.groupInvite) },
+        title = { Text(Loc.settings_groupInvite) },
         text = {
             Column {
-                Text(Loc.enterEmail, style = MaterialTheme.typography.bodySmall)
+                Text(Loc.settings_enterEmail, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = inviteEmail,
@@ -146,12 +146,12 @@ fun InviteDialog(
                 onClick = { onConfirm(inviteEmail) },
                 enabled = inviteEmail.contains("@")
             ) {
-                Text(Loc.sendRequest)
+                Text(Loc.support_submit)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(Loc.cancel)
+                Text(Loc.general_cancel)
             }
         }
     )
@@ -166,12 +166,12 @@ fun EditGroupNameDialog(
     var newGroupName by remember { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.editGroupName) },
+        title = { Text(Loc.settings_editGroupName) },
         text = {
             OutlinedTextField(
                 value = newGroupName,
                 onValueChange = { newGroupName = it },
-                label = { Text(Loc.groupName) },
+                label = { Text(Loc.settings_groupName) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -181,12 +181,12 @@ fun EditGroupNameDialog(
                 onClick = { onConfirm(newGroupName) },
                 enabled = newGroupName.isNotBlank()
             ) {
-                Text(Loc.save)
+                Text(Loc.general_save)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(Loc.cancel)
+                Text(Loc.general_cancel)
             }
         }
     )
@@ -202,38 +202,38 @@ fun DeleteGroupConfirmDialog(
     if (step == 1) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text(Loc.deleteGroup) },
-            text = { Text(Loc.deleteGroupPermanently) },
+            title = { Text(Loc.admin_deleteGroup) },
+            text = { Text(Loc.admin_deleteGroupPermanently) },
             confirmButton = {
                 Button(
                     onClick = onNext,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.delete)
+                    Text(Loc.general_delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
     } else if (step == 2) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text(Loc.areYouSure) },
-            text = { Text(Loc.confirmDeleteMsg) },
+            title = { Text(Loc.general_areYouSure) },
+            text = { Text(Loc.general_confirmDeleteMsg) },
             confirmButton = {
                 Button(
                     onClick = onConfirm,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.delete)
+                    Text(Loc.general_delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -248,10 +248,10 @@ fun GroupCreatedDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Loc.groupCreated) },
+        title = { Text(Loc.settings_groupCreated) },
         text = {
             Column {
-                Text(Loc.groupIdLabel.format(groupId))
+                Text(Loc.settings_groupIdLabel.format(groupId))
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = { onCopy(groupId) },
@@ -259,13 +259,13 @@ fun GroupCreatedDialog(
                 ) {
                     Icon(Icons.Default.ContentCopy, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(Loc.copyId)
+                    Text(Loc.settings_copyId)
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(Loc.close)
+                Text(Loc.general_close)
             }
         }
     )
@@ -284,7 +284,7 @@ fun GroupMemberItem(
                     Spacer(Modifier.width(8.dp))
                     SuggestionChip(
                         onClick = { },
-                        label = { Text(Loc.ownerLabel, fontSize = 10.sp) },
+                        label = { Text(Loc.settings_ownerLabel, fontSize = 10.sp) },
                         colors = SuggestionChipDefaults.suggestionChipColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             labelColor = MaterialTheme.colorScheme.primary

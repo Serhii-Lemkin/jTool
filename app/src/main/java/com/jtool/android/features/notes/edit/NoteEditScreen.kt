@@ -42,7 +42,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                         TextField(
                             value = uiState.draftTitle,
                             onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftTitle(it)) },
-                            placeholder = { Text(Loc.noteTitlePlaceholder) },
+                            placeholder = { Text(Loc.notes_noteTitlePlaceholder) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -54,7 +54,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                         )
                     } else {
                         Text(
-                            text = if (uiState.draftTitle.isBlank()) Loc.untitledNote else uiState.draftTitle,
+                            text = if (uiState.draftTitle.isBlank()) Loc.notes_untitledNote else uiState.draftTitle,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -68,8 +68,12 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 actions = {
                     if (uiState.isEditMode) {
                         IconButton(onClick = { 
-                            viewModel.onEvent(NotesEvent.SaveNote)
-                            Toast.makeText(context, Loc.noteSaved, Toast.LENGTH_SHORT).show()
+                            if (uiState.draftTitle.isBlank()) {
+                                Toast.makeText(context, Loc.notes_noteTitlePlaceholder, Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.onEvent(NotesEvent.SaveNote)
+                                Toast.makeText(context, Loc.notes_noteSaved, Toast.LENGTH_SHORT).show()
+                            }
                         }) {
                             Icon(Icons.Default.Save, null, tint = MaterialTheme.colorScheme.primary)
                         }
@@ -99,7 +103,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                             value = uiState.draftContent,
                             onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftContent(it)) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp),
-                            placeholder = { Text(Loc.noteContentHint) },
+                            placeholder = { Text(Loc.notes_noteContentHint) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -123,7 +127,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                             TextField(
                                 value = uiState.checklistInput,
                                 onValueChange = { viewModel.onEvent(NotesEvent.UpdateChecklistInput(it)) },
-                                placeholder = { Text(Loc.addItem) },
+                                placeholder = { Text(Loc.shoplist_addItem) },
                                 modifier = Modifier.weight(1f),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
@@ -176,7 +180,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
-                        text = "${Loc.by} ${uiState.userNames[uiState.editingNote?.lastUpdatedBy] ?: uiState.editingNote?.lastUpdatedBy ?: "Me"}",
+                        text = "${Loc.general_by} ${uiState.userNames[uiState.editingNote?.lastUpdatedBy] ?: uiState.editingNote?.lastUpdatedBy ?: "Me"}",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
@@ -191,9 +195,12 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 
                 val currentNote = uiState.editingNote
                 if (currentNote != null && !uiState.isEditMode) {
+                    val appUserId = viewModel.getAppUserId()
+                    val authUid = viewModel.getAuthUserId()
+                    
                     CommentSection(
                         comments = currentNote.comments,
-                        currentUserId = viewModel.getAppUserId(),
+                        currentUserId = appUserId,
                         userNames = uiState.userNames,
                         onEvent = { event ->
                             when (event) {
@@ -201,7 +208,8 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                                 is CommentEvent.Edit -> viewModel.onEvent(NotesEvent.EditComment(event.commentId, event.newContent))
                                 is CommentEvent.Delete -> viewModel.onEvent(NotesEvent.DeleteComment(event.commentId))
                             }
-                        }
+                        },
+                        isOwner = { it.userId == appUserId || it.userId == authUid }
                     )
                 }
                 

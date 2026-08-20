@@ -30,6 +30,9 @@ import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.TitleDropdownMenu
+import com.jtool.android.core.components.layout.RightAlignedFAB
 
 val AisleIcons = mapOf(
     "Common" to Icons.AutoMirrored.Filled.Label,
@@ -45,12 +48,14 @@ val AisleIcons = mapOf(
     "Pets" to Icons.Default.Pets
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingListScreen(
     manager: ShoppingListManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
     groupSyncManager: GroupSyncManager,
+    onBack: () -> Unit,
     viewModel: ShoppingViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -64,30 +69,37 @@ fun ShoppingListScreen(
 
     if (uiState.showAislePicker) {
         AlertDialog(
-            onDismissRequest = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(false)) },
-            title = { Text(Loc.selectAisle) },
+            onDismissRequest = { 
+                viewModel.onEvent(ShoppingEvent.SelectItem(null))
+                viewModel.onEvent(ShoppingEvent.ToggleAislePicker(false)) 
+            },
+            title = { Text(Loc.shoplist_selectAisle) },
             text = {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier.height(200.dp),
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.height(300.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(AisleIcons.toList()) { (name, icon) ->
-                        Box(
+                    items(AisleIcons.toList()) { (key, icon) ->
+                        Card(
                             modifier = Modifier
-                                .size(48.dp)
+                                .fillMaxWidth()
                                 .clickable {
-                                    viewModel.onEvent(ShoppingEvent.SelectAisle(name))
-                                }
-                                .padding(4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                icon,
-                                contentDescription = null,
-                                tint = if (uiState.selectedAisle == name) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    viewModel.onEvent(ShoppingEvent.SelectAisle(key))
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (uiState.selectedAisle == key) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                             )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(text = Loc.getAisleName(key), fontSize = 12.sp, maxLines = 1)
+                            }
                         }
                     }
                 }
@@ -99,205 +111,211 @@ fun ShoppingListScreen(
     if (uiState.itemToDelete != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) },
-            title = { Text(Loc.confirmDeleteTitle) },
-            text = { Text(Loc.confirmDeleteMsg) },
+            title = { Text(Loc.general_confirmDeleteTitle) },
+            text = { Text(Loc.general_confirmDeleteMsg) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.onEvent(ShoppingEvent.ConfirmDelete)
                 }) {
-                    Text(Loc.delete, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .padding(16.dp)
-            .imePadding(),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = Loc.shoppingList,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Box {
-                        IconButton(onClick = { viewModel.onEvent(ShoppingEvent.ToggleFilterDropdown(true)) }) {
-                            val icon = when {
-                                uiState.filterType == "Unactive" -> Icons.Default.CheckBox
-                                uiState.filterType.startsWith("Aisle:") -> AisleIcons[uiState.filterType.removePrefix("Aisle:")] ?: Icons.AutoMirrored.Filled.Label
-                                else -> Icons.Default.FilterList
-                            }
-                            Icon(icon, contentDescription = "Filter", tint = MaterialTheme.colorScheme.primary)
-                        }
-                        DropdownMenu(
-                            expanded = uiState.dropdownExpanded,
-                            onDismissRequest = { viewModel.onEvent(ShoppingEvent.ToggleFilterDropdown(false)) }
-                        ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                val filterIcon = when {
+                    uiState.filterType == "Unactive" -> Icons.Default.CheckBox
+                    uiState.filterType.startsWith("Aisle:") -> AisleIcons[uiState.filterType.removePrefix("Aisle:")] ?: Icons.AutoMirrored.Filled.Label
+                    else -> Icons.Default.FilterList
+                }
+                GenericTitle(
+                    title = Loc.shoplist_shoppingList,
+                    onBack = onBack,
+                    actions = {
+                        TitleDropdownMenu(icon = filterIcon) {
                             DropdownMenuItem(
-                                text = { Icon(Icons.Default.FilterList, contentDescription = Loc.all, tint = MaterialTheme.colorScheme.primary) },
+                                leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
+                                text = { Text(Loc.shoplist_all) },
                                 onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("All")) }
                             )
                             DropdownMenuItem(
-                                text = { Icon(Icons.Default.CheckBox, contentDescription = Loc.unactive, tint = MaterialTheme.colorScheme.primary) },
+                                leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
+                                text = { Text(Loc.shoplist_unactive) },
                                 onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Unactive")) }
                             )
                             uiState.activeAisles.forEach { aisle ->
                                 DropdownMenuItem(
-                                    text = { Icon(AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label, contentDescription = aisle, tint = MaterialTheme.colorScheme.primary) },
+                                    leadingIcon = { Icon(AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label, contentDescription = null) },
+                                    text = { Text(Loc.getAisleName(aisle)) },
                                     onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Aisle:$aisle")) }
                                 )
                             }
                         }
                     }
-                }
-            }
-
-            items(uiState.displayItems, key = { it.id }) { item ->
-                ShoppingItemRow(
-                    item = item,
-                    onToggle = { checked ->
-                        viewModel.onEvent(ShoppingEvent.ToggleItem(item, checked))
-                    },
-                    onDelete = {
-                        viewModel.onEvent(ShoppingEvent.RequestDelete(item))
-                    },
-                    userName = uiState.userNames[item.lastUpdatedBy] ?: item.lastUpdatedBy
                 )
             }
+        ) { padding ->
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .imePadding(),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        items(uiState.displayItems, key = { it.id }) { item ->
+                            ShoppingItemRow(
+                                item = item,
+                                onToggle = { checked ->
+                                    viewModel.onEvent(ShoppingEvent.ToggleItem(item, checked))
+                                },
+                                onDelete = {
+                                    viewModel.onEvent(ShoppingEvent.RequestDelete(item))
+                                },
+                                onChangeAisle = {
+                                    viewModel.onEvent(ShoppingEvent.SelectItem(item))
+                                    viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true))
+                                },
+                                userName = uiState.userNames[item.lastUpdatedBy] ?: item.lastUpdatedBy
+                            )
+                        }
 
-            if (uiState.checkedItems.isNotEmpty()) {
-                item {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                    Text(
-                        text = Loc.recentlyChecked,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-
-                items(uiState.checkedItems, key = { it.id }) { item ->
-                    ShoppingItemRow(
-                        item = item,
-                        onToggle = { checked ->
-                            viewModel.onEvent(ShoppingEvent.ToggleItem(item, checked))
-                        },
-                        onDelete = {
-                            viewModel.onEvent(ShoppingEvent.RequestDelete(item))
-                        },
-                        userName = uiState.userNames[item.lastUpdatedBy] ?: item.lastUpdatedBy
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (uiState.suggestions.isNotEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                tonalElevation = 2.dp
-            ) {
-                Column {
-                    uiState.suggestions.forEach { suggestionText ->
-                        TextButton(
-                            onClick = {
-                                viewModel.onEvent(ShoppingEvent.RestoreItem(suggestionText))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.History, 
-                                    contentDescription = null, 
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(Modifier.width(12.dp))
+                        if (uiState.checkedItems.isNotEmpty()) {
+                            item {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                                 Text(
-                                    text = suggestionText,
-                                    modifier = Modifier.weight(1f),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = Loc.shoplist_recentlyChecked,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.secondary
                                 )
-                                Text(
-                                    text = Loc.restore,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                            }
+
+                            items(uiState.checkedItems, key = { it.id }) { item ->
+                                ShoppingItemRow(
+                                    item = item,
+                                    onToggle = { checked ->
+                                        viewModel.onEvent(ShoppingEvent.ToggleItem(item, checked))
+                                    },
+                                    onDelete = {
+                                        viewModel.onEvent(ShoppingEvent.RequestDelete(item))
+                                    },
+                                    onChangeAisle = {
+                                        viewModel.onEvent(ShoppingEvent.SelectItem(item))
+                                        viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true))
+                                    },
+                                    userName = uiState.userNames[item.lastUpdatedBy] ?: item.lastUpdatedBy
                                 )
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true)) }) {
-                Icon(
-                    AisleIcons[uiState.selectedAisle] ?: Icons.AutoMirrored.Filled.Label,
-                    contentDescription = "Select Aisle",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            OutlinedTextField(
-                value = uiState.newItemText,
-                onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
-                label = { Text(Loc.addItem) },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    if (uiState.newItemText.isNotBlank()) {
-                        val trimmedText = uiState.newItemText.trim()
-                        val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
                         
-                        if (existingItem != null && !existingItem.isChecked) {
-                            Toast.makeText(context, Loc.itemAlreadyInList, Toast.LENGTH_SHORT).show()
-                        } else {
-                            viewModel.onEvent(ShoppingEvent.AddItem)
-                            if (existingItem != null && existingItem.isChecked) {
-                                Toast.makeText(context, Loc.restoredExisting, Toast.LENGTH_SHORT).show()
+                        item {
+                            Spacer(Modifier.height(100.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (uiState.suggestions.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            tonalElevation = 2.dp
+                        ) {
+                            Column {
+                                uiState.suggestions.forEach { suggestionText ->
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.onEvent(ShoppingEvent.RestoreItem(suggestionText))
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.History, 
+                                                contentDescription = null, 
+                                                modifier = Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = suggestionText,
+                                                modifier = Modifier.weight(1f),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = Loc.shoplist_restore,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                },
-                enabled = uiState.newItemText.isNotBlank()
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true)) }) {
+                            Icon(
+                                AisleIcons[uiState.selectedAisle] ?: Icons.AutoMirrored.Filled.Label,
+                                contentDescription = "Select Aisle",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        OutlinedTextField(
+                            value = uiState.newItemText,
+                            onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
+                            label = { Text(Loc.shoplist_addItem) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (uiState.newItemText.isNotBlank()) {
+                                    val trimmedText = uiState.newItemText.trim()
+                                    val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
+                                    
+                                    if (existingItem != null && !existingItem.isChecked) {
+                                        Toast.makeText(context, Loc.shoplist_itemAlreadyInList, Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        viewModel.onEvent(ShoppingEvent.AddItem)
+                                        if (existingItem != null && existingItem.isChecked) {
+                                            Toast.makeText(context, Loc.shoplist_restoredExisting, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = uiState.newItemText.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add")
+                        }
+                    }
+                }
             }
         }
     }
@@ -308,10 +326,15 @@ fun ShoppingItemRow(
     item: ShoppingItem,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onChangeAisle: () -> Unit,
     userName: String
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!item.isChecked) },
         color = Color.Transparent
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -323,7 +346,7 @@ fun ShoppingItemRow(
             ) {
                 Checkbox(
                     checked = item.isChecked,
-                    onCheckedChange = onToggle
+                    onCheckedChange = { onToggle(it) }
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -341,19 +364,38 @@ fun ShoppingItemRow(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "${Loc.by} $userName",
+                            text = "${Loc.general_by} $userName",
                             fontSize = 9.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                     }
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Menu", modifier = Modifier.size(18.dp))
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                            text = { Text(Loc.shoplist_changeAisle) },
+                            onClick = {
+                                onChangeAisle()
+                                menuExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                            text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                onDelete()
+                                menuExpanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -369,7 +411,8 @@ fun ShoppingListPreview() {
             manager = ShoppingListManager(context),
             backupManager = BackupManager(context),
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context)
+            groupSyncManager = GroupSyncManager(context),
+            onBack = {}
         )
     }
 }

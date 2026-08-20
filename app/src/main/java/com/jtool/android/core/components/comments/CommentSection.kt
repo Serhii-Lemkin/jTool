@@ -10,7 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.Comment
@@ -21,8 +24,14 @@ fun CommentSection(
     currentUserId: String,
     userNames: Map<String, String>,
     onEvent: (CommentEvent) -> Unit,
-    state: CommentSectionState = rememberCommentSectionState()
+    state: CommentSectionState = rememberCommentSectionState(),
+    initiallyExpanded: Boolean = false,
+    isOwner: (Comment) -> Boolean = { it.userId == currentUserId }
 ) {
+    LaunchedEffect(Unit) {
+        if (initiallyExpanded) state.isExpanded = true
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -31,13 +40,15 @@ fun CommentSection(
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
             Icon(
                 imageVector = if (state.isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
-                contentDescription = null
+                contentDescription = null,
+                modifier = Modifier.scale(if (!state.isExpanded && isRtl) -1f else 1f)
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "${Loc.comments} (${getTotalCommentsCount(comments)})",
+                text = "${Loc.comments_comments} (${getTotalCommentsCount(comments)})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -53,7 +64,7 @@ fun CommentSection(
                             modifier = Modifier.padding(bottom = 4.dp)
                         ) {
                             Text(
-                                text = Loc.replying,
+                                text = Loc.comments_replying,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -63,20 +74,35 @@ fun CommentSection(
                             }
                         }
                     }
+                    
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+                        
+                        val sendButton = @Composable {
+                            IconButton(
+                                onClick = { state.onAddComment(onEvent) },
+                                enabled = state.commentInput.isNotBlank()
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Send, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+
+                        if (isRtl) {
+                            sendButton()
+                            Spacer(Modifier.width(8.dp))
+                        }
+
                         OutlinedTextField(
                             value = state.commentInput,
                             onValueChange = { state.commentInput = it },
-                            placeholder = { Text(Loc.addComment) },
+                            placeholder = { Text(Loc.comments_addComment) },
                             modifier = Modifier.weight(1f),
                             maxLines = 3
                         )
-                        Spacer(Modifier.width(8.dp))
-                        IconButton(
-                            onClick = { state.onAddComment(onEvent) },
-                            enabled = state.commentInput.isNotBlank()
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, null, tint = MaterialTheme.colorScheme.primary)
+                        
+                        if (!isRtl) {
+                            Spacer(Modifier.width(8.dp))
+                            sendButton()
                         }
                     }
                 }
@@ -89,7 +115,8 @@ fun CommentSection(
                         currentUserId = currentUserId,
                         userNames = userNames,
                         onEvent = onEvent,
-                        onReplyRequest = { state.setReplyingTo(it) }
+                        onReplyRequest = { state.setReplyingTo(it) },
+                        isOwner = isOwner
                     )
                 }
             }

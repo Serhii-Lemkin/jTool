@@ -39,8 +39,8 @@ fun SettingsMainScreen(
     ) {
         item {
             SettingsMenuItem(
-                title = Loc.account,
-                subtitle = Loc.cloudSyncFirebase,
+                title = Loc.settings_account,
+                subtitle = Loc.settings_cloudSyncFirebase,
                 icon = Icons.Default.AccountCircle,
                 onClick = { onNavigate("account") }
             )
@@ -50,8 +50,8 @@ fun SettingsMainScreen(
         if (uiState.currentUser != null) {
             item {
                 SettingsMenuItem(
-                    title = Loc.groups,
-                    subtitle = Loc.syncSubtitle,
+                    title = Loc.settings_groups,
+                    subtitle = Loc.settings_syncSubtitle,
                     icon = Icons.Default.Group,
                     onClick = { onNavigate("groups") },
                     hasBadge = uiState.isSyncMissing
@@ -60,8 +60,8 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.generalSettings,
-                    subtitle = Loc.appearanceLanguage,
+                    title = Loc.settings_generalSettings,
+                    subtitle = Loc.settings_appearanceLanguage,
                     icon = Icons.Default.Settings,
                     onClick = { onNavigate("general") }
                 )
@@ -69,8 +69,8 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.appUpdates,
-                    subtitle = Loc.appUpdatesSubtitle,
+                    title = Loc.settings_appUpdates,
+                    subtitle = Loc.settings_appUpdatesSubtitle,
                     icon = Icons.Default.SystemUpdate,
                     onClick = { onNavigate("app_updates") },
                     hasBadge = hasUpdate
@@ -79,8 +79,8 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.visibilityTitle,
-                    subtitle = Loc.visibilitySubtitle,
+                    title = Loc.settings_visibilityTitle,
+                    subtitle = Loc.settings_visibilitySubtitle,
                     icon = Icons.Default.Visibility,
                     onClick = { onNavigate("visibility") }
                 )
@@ -88,8 +88,8 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.requestsTitle,
-                    subtitle = Loc.requestsSubtitle,
+                    title = Loc.support_hub_title,
+                    subtitle = Loc.support_new_request,
                     icon = Icons.Default.Feedback,
                     onClick = { onNavigate("requests") }
                 )
@@ -99,20 +99,20 @@ fun SettingsMainScreen(
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val scope = rememberCoroutineScope()
                 SettingsMenuItem(
-                    title = Loc.privacyPolicy,
-                    subtitle = Loc.privacySubtitle,
+                    title = Loc.settings_privacyPolicy,
+                    subtitle = Loc.settings_privacySubtitle,
                     icon = Icons.Default.PrivacyTip,
                     onClick = {
                         val manager = GroupSyncManager(context)
                         scope.launch {
-                            val info = manager.getLatestAppInfo()
-                            val url = info?.get("privacy") as? String
+                            val options = manager.getAppOptions()
+                            val url = options?.get("privacy") as? String
                             if (!url.isNullOrBlank()) {
                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                                 intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                                 context.startActivity(intent)
                             } else {
-                                android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase (node: app_info/privacy)")
+                                android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase (node: app_options/config)")
                                 android.widget.Toast.makeText(context, "Privacy Policy URL not found", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }

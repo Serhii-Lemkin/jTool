@@ -94,7 +94,10 @@ class SettingsManager(context: Context) {
         prefs.edit().putString("user_name", name).apply()
     }
 
-    fun getAppUserId(): String {
+    fun getUserId(): String {
+        val authUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        if (authUid != null) return authUid
+        
         var id = prefs.getString("app_user_id", null)
         if (id == null) {
             id = java.util.UUID.randomUUID().toString().take(8)
@@ -102,6 +105,8 @@ class SettingsManager(context: Context) {
         }
         return id
     }
+
+    fun getAppUserId(): String = getUserId()
 
     fun saveAppUserId(id: String) {
         prefs.edit().putString("app_user_id", id).apply()

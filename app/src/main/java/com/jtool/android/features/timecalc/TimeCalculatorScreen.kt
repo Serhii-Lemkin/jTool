@@ -17,126 +17,130 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.ui.theme.JToolTheme
-import java.time.LocalDateTime
+import com.jtool.android.core.components.layout.GenericTitle
 import java.time.format.DateTimeFormatter
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimeCalculatorScreen(
+    onBack: () -> Unit,
     viewModel: TimeCalcViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .imePadding()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { viewModel.onEvent(TimeCalcEvent.ResetToNow) }) {
-                Icon(Icons.Default.Refresh, contentDescription = Loc.resetToNow)
-            }
-        }
-
-        Text(
-            text = Loc.timeCalc,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // Section: Set Base Time
-        Text(Loc.baseDateTime, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TimeInputField(Loc.year, uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
-            TimeInputField(Loc.month, uiState.bMo, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mo = it)) }
-            TimeInputField(Loc.day, uiState.bD, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(d = it)) }
-            TimeInputField(Loc.hour, uiState.bH, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(h = it)) }
-            TimeInputField(Loc.minute, uiState.bMi, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mi = it)) }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Large Display
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Box(modifier = Modifier.padding(16.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = uiState.currentDateTime.format(formatter),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Section: Operations
-        Text(Loc.addSub, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TimeInputField(Loc.yearShort.uppercase(), uiState.yearsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(y = it)) }
-            TimeInputField(Loc.monthShort.uppercase(), uiState.monthsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mo = it)) }
-            TimeInputField(Loc.dayShort.uppercase(), uiState.daysInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(d = it)) }
-            TimeInputField(Loc.hourSymbol.uppercase(), uiState.hoursInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(h = it)) }
-            TimeInputField(Loc.minuteSymbol.uppercase(), uiState.minutesInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mi = it)) }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = {
-                    viewModel.onEvent(TimeCalcEvent.PerformOperation(true))
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.Add, null)
-                Text(Loc.add)
-            }
-
-            Button(
-                onClick = {
-                    viewModel.onEvent(TimeCalcEvent.PerformOperation(false))
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.Remove, null)
-                Text(Loc.sub)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(Loc.history, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.Start))
-        
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            itemsIndexed(uiState.history.reversed()) { _, item ->
-                Card(
-                    onClick = { viewModel.onEvent(TimeCalcEvent.RestoreFromHistory(item)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("${item.operation}: ${item.summary}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("${Loc.resultedIn}: ${item.baseDate.format(formatter)}", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+    Scaffold(
+        topBar = {
+            GenericTitle(
+                title = Loc.timecalc_timeCalc,
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = { viewModel.onEvent(TimeCalcEvent.ResetToNow) }) {
+                        Icon(Icons.Default.Refresh, contentDescription = Loc.worktime_resetToNow)
                     }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .imePadding()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Section: Set Base Time
+            Text(Loc.timecalc_baseDateTime, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TimeInputField(Loc.timecalc_year, uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
+                TimeInputField(Loc.timecalc_month, uiState.bMo, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mo = it)) }
+                TimeInputField(Loc.timecalc_day, uiState.bD, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(d = it)) }
+                TimeInputField(Loc.timecalc_hour, uiState.bH, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(h = it)) }
+                TimeInputField(Loc.timecalc_minute, uiState.bMi, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mi = it)) }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Large Display
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(modifier = Modifier.padding(16.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = uiState.currentDateTime.format(formatter),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Operations
+            Text(Loc.timecalc_addSub, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TimeInputField(Loc.general_yearShort.uppercase(), uiState.yearsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(y = it)) }
+                TimeInputField(Loc.general_monthShort.uppercase(), uiState.monthsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mo = it)) }
+                TimeInputField(Loc.general_dayShort.uppercase(), uiState.daysInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(d = it)) }
+                TimeInputField(Loc.general_hourSymbol.uppercase(), uiState.hoursInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(h = it)) }
+                TimeInputField(Loc.general_minuteSymbol.uppercase(), uiState.minutesInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mi = it)) }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = {
+                        viewModel.onEvent(TimeCalcEvent.PerformOperation(true))
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Add, null)
+                    Text(Loc.general_add)
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.onEvent(TimeCalcEvent.PerformOperation(false))
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Remove, null)
+                    Text(Loc.timecalc_sub)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(Loc.timecalc_history, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.Start))
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                val reversedHistory = uiState.history.reversed()
+                itemsIndexed(reversedHistory) { _, item ->
+                    Card(
+                        onClick = { viewModel.onEvent(TimeCalcEvent.RestoreFromHistory(item)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text("${item.operation}: ${item.summary}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("${Loc.timecalc_resultedIn}: ${item.baseDate.format(formatter)}", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                }
+                
+                item {
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }
@@ -155,50 +159,8 @@ fun TimeInputField(label: String, value: String, modifier: Modifier = Modifier, 
     )
 }
 
-private fun updateBase(y: String, mo: String, d: String, h: String, mi: String, onUpdate: (LocalDateTime) -> Unit) {
-    try {
-        val year = y.toIntOrNull() ?: 2024
-        val month = (mo.toIntOrNull() ?: 1).coerceIn(1, 12)
-        val day = (d.toIntOrNull() ?: 1).coerceIn(1, 31)
-        val hour = (h.toIntOrNull() ?: 0).coerceIn(0, 23)
-        val min = (mi.toIntOrNull() ?: 0).coerceIn(0, 59)
-        
-        // Basic check for February/31sts to avoid crash
-        val tempDate = LocalDateTime.of(year, month, 1, hour, min)
-        val finalDay = day.coerceIn(1, tempDate.toLocalDate().lengthOfMonth())
-        onUpdate(LocalDateTime.of(year, month, finalDay, hour, min))
-    } catch (_: Exception) {}
-}
-
-data class HistoryItem(
-    val baseDate: LocalDateTime,
-    val operation: String,
-    val y: String, val mo: String, val d: String, val h: String, val mi: String
-) {
-    val summary: String get() {
-        val parts = mutableListOf<String>()
-        if (y.isNotEmpty()) parts.add("${y}${Loc.yearShort}")
-        if (mo.isNotEmpty()) parts.add("${mo}${Loc.monthShort}")
-        if (d.isNotEmpty()) parts.add("${d}${Loc.dayShort}")
-        if (h.isNotEmpty()) parts.add("${h}${Loc.hourSymbol}")
-        if (mi.isNotEmpty()) parts.add("${mi}${Loc.minuteSymbol}")
-        return if (parts.isEmpty()) Loc.zeroUnits else parts.joinToString(" ")
-    }
-}
-
-private fun calculateNewDate(base: LocalDateTime, y: String, mo: String, d: String, h: String, mi: String, isAddition: Boolean): LocalDateTime {
-    var result = base
-    val m = if (isAddition) 1L else -1L
-    if (y.isNotEmpty()) result = result.plusYears(y.toLong() * m)
-    if (mo.isNotEmpty()) result = result.plusMonths(mo.toLong() * m)
-    if (d.isNotEmpty()) result = result.plusDays(d.toLong() * m)
-    if (h.isNotEmpty()) result = result.plusHours(h.toLong() * m)
-    if (mi.isNotEmpty()) result = result.plusMinutes(mi.toLong() * m)
-    return result
-}
-
 @Preview(showBackground = true)
 @Composable
 fun TimeCalculatorPreview() {
-    JToolTheme { TimeCalculatorScreen() }
+    JToolTheme { TimeCalculatorScreen(onBack = {}) }
 }

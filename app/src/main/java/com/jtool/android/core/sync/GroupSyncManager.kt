@@ -6,21 +6,23 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.jtool.android.core.models.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.helpers.GroupOperationsHelper
-import com.jtool.android.core.sync.helpers.RTDBMigrationHelper
+import com.jtool.android.core.sync.helpers.SupportDatabaseHelper
 import com.jtool.android.core.sync.helpers.UserAdminHelper
+import com.jtool.android.features.support.logic.SupportRequest
+import com.jtool.android.features.support.logic.SupportStatus
+import com.jtool.android.features.support.logic.SupportType
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 
 class GroupSyncManager(private val context: Context) {
     private val firestore = FirebaseFirestore.getInstance()
-    private val database = com.google.firebase.database.FirebaseDatabase.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val settings = SettingsManager(context)
 
-    private val migrationHelper = RTDBMigrationHelper(firestore, database, auth)
     private val userAdminHelper: UserAdminHelper = UserAdminHelper(firestore, auth, settings) { groupOpsHelper }
     private val groupOpsHelper: GroupOperationsHelper = GroupOperationsHelper(context, firestore, auth, settings) { userAdminHelper }
+    private val supportHelper: SupportDatabaseHelper = SupportDatabaseHelper(firestore)
 
     private fun getAppInfoColl() = firestore.collection("app_info")
     private fun getSuggestionsColl() = firestore.collection("suggestions")
@@ -38,51 +40,29 @@ class GroupSyncManager(private val context: Context) {
         }
     }
 
-    suspend fun pushSuggestion(text: String, userId: String) {
-        try {
-            val sanitizedText = text.trim()
-            if (sanitizedText.isBlank()) return
-            val timestamp = System.currentTimeMillis()
-            val suggestionData = mapOf(
-                "text" to sanitizedText,
-                "userId" to userId,
-                "timestamp" to timestamp
-            )
-            getSuggestionsColl().add(suggestionData).await()
-        } catch (e: Exception) {}
-    }
+    // --- CRM / Support Logic ---
 
-    fun suggestionsFlow(): Flow<List<String>> = kotlinx.coroutines.flow.callbackFlow {
+    fun getSupportColl() = firestore.collection("support_requests")
+    suspend fun getAppOptions() = supportHelper.getAppOptions()
+    suspend fun submitSupportRequest(request: SupportRequest, uid: String, bypassLimit: Boolean = false) = supportHelper.submitRequest(request, uid, bypassLimit)
+    fun supportRequestsFlow(isAdmin: Boolean, userId: String) = supportHelper.getRequestsFlow(isAdmin, userId)
+    suspend fun updateSupportStatus(id: String, status: SupportStatus) = supportHelper.updateStatus(id, status)
+    suspend fun updateSupportType(id: String, type: SupportType) = supportHelper.updateType(id, type)
+    fun supportCommentsFlow(id: String) = supportHelper.getCommentsFlow(id)
+    suspend fun addSupportComment(id: String, comment: com.jtool.android.core.models.Comment) = supportHelper.addComment(id, comment)
+    suspend fun editSupportComment(id: String, commentId: String, newContent: String) = supportHelper.editComment(id, commentId, newContent)
+    suspend fun deleteSupportComment(id: String, commentId: String) = supportHelper.deleteComment(id, commentId)
+    suspend fun deleteSupportRequest(id: String) = supportHelper.deleteRequest(id)
+    suspend fun migrateSupportLegacy(onProgress: (String) -> Unit) = supportHelper.migrateLegacyRequests(onProgress)
+
+    fun suggestionsFlow(): kotlinx.coroutines.flow.Flow<List<String>> = kotlinx.coroutines.flow.callbackFlow {
         val listener = getSuggestionsColl().addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    doc.getString("text")
-                }.distinct()
+                val list = snapshot.documents.mapNotNull { it.getString("text") }.distinct()
                 trySend(list)
             }
         }
         awaitClose { listener.remove() }
-    }
-
-    fun allSuggestionsFlow(): Flow<List<Map<String, String>>> = kotlinx.coroutines.flow.callbackFlow {
-        val listener = getSuggestionsColl().addSnapshotListener { snapshot, _ ->
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    val map = mutableMapOf<String, String>()
-                    map["id"] = doc.id
-                    doc.data?.forEach { (key, value) ->
-                        map[key] = value?.toString() ?: ""
-                    }
-                    map
-                }
-                trySend(list)
-            }
-        }
-        awaitClose { listener.remove() }
-    }
-
-    suspend fun deleteSuggestion(id: String) {
-        getSuggestionsColl().document(id).delete().await()
     }
 
     // --- Delegated Methods ---
@@ -111,8 +91,8 @@ class GroupSyncManager(private val context: Context) {
     suspend fun deleteUserPermanently(uid: String) = userAdminHelper.deleteUserPermanently(uid)
     suspend fun deleteMyAccount(): Boolean = userAdminHelper.deleteMyAccount()
     fun userNamesFlow(): Flow<Map<String, String>> = userAdminHelper.userNamesFlow()
+    suspend fun migrateAllUsersToUserData(onProgress: (String) -> Unit) = userAdminHelper.migrateAllUsersToUserData(onProgress)
     fun groupMembersFlow(groupId: String): Flow<List<String>> = groupOpsHelper.groupMembersFlow(groupId)
     fun userGroupsFlow(): Flow<List<String>> = groupOpsHelper.userGroupsFlow()
     fun groupInfoFlow(groupIds: List<String>): Flow<Map<String, GroupInfo>> = groupOpsHelper.groupInfoFlow(groupIds)
-    suspend fun migrateFromRTDB(onStatusUpdate: (String) -> Unit): Boolean = migrationHelper.migrateFromRTDB(onStatusUpdate)
 }

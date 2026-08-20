@@ -9,7 +9,7 @@ import com.jtool.android.features.shopping.ShoppingListScreen
 object ShopList : AppProperties(
     AppNames.SHOP_LIST,
     Icons.Default.ShoppingCart,
-    { Loc.shoppingList }
+    { Loc.shoplist_shoppingList }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
@@ -17,7 +17,8 @@ object ShopList : AppProperties(
             manager = deps.shoppingListManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager
+            groupSyncManager = deps.groupSyncManager,
+            onBack = { deps.setScreen(AppNames.LAUNCHER) }
         )
     }
 }

@@ -10,7 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,7 +30,8 @@ import com.jtool.android.features.settings.groups.GroupsScreen
 import com.jtool.android.features.settings.general.GeneralSettingsScreen
 import com.jtool.android.features.settings.updates.AppUpdatesScreen
 import com.jtool.android.features.settings.visibility.AppVisibilityScreen
-import com.jtool.android.features.settings.requests.RequestsScreen
+import com.jtool.android.features.support.screens.SupportHubScreen
+import com.jtool.android.core.components.layout.GenericTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,31 +71,30 @@ fun SettingsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        when(uiState.currentSubScreen) {
-                            "account" -> Loc.account
-                            "groups" -> Loc.groups
-                            "general" -> Loc.generalSettings
-                            "app_updates" -> Loc.appUpdates
-                            "visibility" -> Loc.visibilityTitle
-                            "requests" -> Loc.requestsTitle
-                            else -> Loc.settings
-                        }
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = { 
+            if (uiState.currentSubScreen != "requests") {
+                GenericTitle(
+                    title = when(uiState.currentSubScreen) {
+                        "account" -> Loc.settings_account
+                        "groups" -> Loc.settings_groups
+                        "general" -> Loc.settings_generalSettings
+                        "app_updates" -> Loc.settings_appUpdates
+                        "visibility" -> Loc.settings_visibilityTitle
+                        else -> Loc.launcher_settings
+                    },
+                    onBack = { 
                         if (uiState.currentSubScreen == "main") onBack() else viewModel.onEvent(SettingsEvent.Navigate("main")) 
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Loc.back)
                     }
-                }
-            )
+                )
+            }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        val boxModifier = if (uiState.currentSubScreen == "requests") {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier.padding(padding).fillMaxSize()
+        }
+        
+        Box(modifier = boxModifier) {
             when (uiState.currentSubScreen) {
                 "main" -> SettingsMainScreen(
                     authManager = authManager,
@@ -128,8 +131,8 @@ fun SettingsScreen(
                     settingsManager = settingsManager,
                     onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) }
                 )
-                "requests" -> RequestsScreen(
-                    groupSyncManager = groupSyncManager,
+                "requests" -> SupportHubScreen(
+                    syncManager = groupSyncManager,
                     settingsManager = settingsManager,
                     onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) }
                 )
@@ -167,6 +170,12 @@ fun SettingsMenuItem(
             Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        Icon(
+            imageVector = Icons.Default.ChevronRight, 
+            contentDescription = null, 
+            modifier = Modifier.scale(if (isRtl) -1f else 1f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
     }
 }

@@ -95,7 +95,7 @@ class WorkdayViewModel(
             val totalMinutes = (_uiState.value.requiredHours * 60).toLong()
             _uiState.update { it.copy(finishTime = parsed.plusMinutes(totalMinutes), errorText = "") }
         } else {
-            _uiState.update { it.copy(finishTime = null, errorText = Loc.invalidFormat) }
+            _uiState.update { it.copy(finishTime = null, errorText = Loc.worktime_invalidFormat) }
         }
     }
 

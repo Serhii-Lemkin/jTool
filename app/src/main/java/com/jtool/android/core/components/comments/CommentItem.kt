@@ -22,7 +22,8 @@ fun CommentItem(
     currentUserId: String,
     userNames: Map<String, String>,
     onEvent: (CommentEvent) -> Unit,
-    onReplyRequest: (String) -> Unit
+    onReplyRequest: (String) -> Unit,
+    isOwner: (Comment) -> Boolean = { it.userId == currentUserId }
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editInput by remember { mutableStateOf(comment.content) }
@@ -49,7 +50,7 @@ fun CommentItem(
             if (comment.isEdited) {
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = "(${Loc.edited})",
+                    text = "(${Loc.comments_edited})",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )
@@ -70,16 +71,16 @@ fun CommentItem(
                     onDismissRequest = { menuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text(Loc.reply) },
+                        text = { Text(Loc.comments_reply) },
                         onClick = {
                             onReplyRequest(comment.id)
                             menuExpanded = false
                         },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Reply, null, modifier = Modifier.size(18.dp)) }
                     )
-                    if (comment.userId == currentUserId && !comment.isPending) {
+                    if (isOwner(comment) && !comment.isPending) {
                         DropdownMenuItem(
-                            text = { Text(Loc.edit) },
+                            text = { Text(Loc.comments_edit) },
                             onClick = {
                                 isEditing = true
                                 menuExpanded = false
@@ -87,7 +88,7 @@ fun CommentItem(
                             leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }
                         )
                         DropdownMenuItem(
-                            text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) },
+                            text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
                             onClick = {
                                 onEvent(CommentEvent.Delete(comment.id))
                                 menuExpanded = false
@@ -135,7 +136,8 @@ fun CommentItem(
                 currentUserId = currentUserId,
                 userNames = userNames,
                 onEvent = onEvent,
-                onReplyRequest = onReplyRequest
+                onReplyRequest = onReplyRequest,
+                isOwner = isOwner
             )
         }
     }

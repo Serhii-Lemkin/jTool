@@ -20,6 +20,7 @@ fun NotesScreen(
     backupManager: BackupManager,
     settingsManager: SettingsManager,
     groupSyncManager: GroupSyncManager,
+    onBack: () -> Unit,
     viewModel: NotesViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -34,22 +35,22 @@ fun NotesScreen(
         BackHandler { viewModel.onEvent(NotesEvent.NavigateBack) }
         NoteEditScreen(uiState, viewModel)
     } else {
-        NoteListScreen(uiState, viewModel)
+        NoteListScreen(uiState, viewModel, onBack)
     }
 
     if (uiState.noteToDelete != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(NotesEvent.RequestDelete(null)) },
-            title = { Text(Loc.deleteNoteTitle) },
-            text = { Text(Loc.confirmDeleteMsg) },
+            title = { Text(Loc.notes_deleteNoteTitle) },
+            text = { Text(Loc.general_confirmDeleteMsg) },
             confirmButton = {
                 TextButton(onClick = { viewModel.onEvent(NotesEvent.ConfirmDelete) }) {
-                    Text(Loc.delete, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(NotesEvent.RequestDelete(null)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -65,7 +66,8 @@ fun NotesPreview() {
             manager = NotesManager(context),
             backupManager = BackupManager(context),
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context)
+            groupSyncManager = GroupSyncManager(context),
+            onBack = {}
         )
     }
 }

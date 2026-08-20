@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.lifecycle.lifecycleScope
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -18,6 +19,7 @@ import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
+import com.jtool.android.core.crash.CrashInterceptor
 import com.jtool.android.core.connectivity.ConnectivityObserver
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
@@ -55,6 +57,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashInterceptor.install(applicationContext)
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         
         settingsManager = SettingsManager(this)
@@ -71,6 +74,8 @@ class MainActivity : ComponentActivity() {
         AppUtils.logAppSignature(this)
         AppUtils.requestNotificationPermission(this)
         connectivityObserver.start()
+
+        Loc.load(this, settingsManager.getLanguage())
 
         appUpdateManager = AppUpdateManagerFactory.create(this)
         checkForUpdates()
@@ -100,45 +105,45 @@ class MainActivity : ComponentActivity() {
             var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
             var groups by remember { mutableStateOf(settingsManager.getGroups()) }
 
-            Loc.lang = currentLang
-
             JToolTheme(darkTheme = isDark) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AppNavigation(
-                            settingsManager = settingsManager,
-                            shoppingListManager = shoppingListManager,
-                            notesManager = notesManager,
-                            cleaningManager = cleaningManager,
-                            backupManager = backupManager,
-                            authManager = authManager,
-                            groupSyncManager = groupSyncManager,
-                            onSignIn = { signInHandler.launchSignIn() },
-                            isDarkMode = isDark,
-                            currentUser = currentUserState,
-                            currentGroupId = currentGroupId,
-                            onGroupChanged = { 
-                                currentGroupId = it
-                                groups = settingsManager.getGroups()
-                            },
-                            onThemeToggle = {
-                                isDark = !isDark
-                                settingsManager.setDarkMode(isDark)
-                                lifecycleScope.launch { groupSyncManager.pushUserSettings() }
-                            },
-                            currentLang = currentLang,
-                            onLangToggle = {
-                                currentLang = settingsManager.getLanguage()
-                                Loc.lang = currentLang
-                            },
-                            groups = groups,
-                            onGroupsUpdated = { groups = it }
-                        )
-                        
-                        SyncStatusOverlay()
+                CompositionLocalProvider(LocalLayoutDirection provides Loc.layoutDirection) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            AppNavigation(
+                                settingsManager = settingsManager,
+                                shoppingListManager = shoppingListManager,
+                                notesManager = notesManager,
+                                cleaningManager = cleaningManager,
+                                backupManager = backupManager,
+                                authManager = authManager,
+                                groupSyncManager = groupSyncManager,
+                                onSignIn = { signInHandler.launchSignIn() },
+                                isDarkMode = isDark,
+                                currentUser = currentUserState,
+                                currentGroupId = currentGroupId,
+                                onGroupChanged = { 
+                                    currentGroupId = it
+                                    groups = settingsManager.getGroups()
+                                },
+                                onThemeToggle = {
+                                    isDark = !isDark
+                                    settingsManager.setDarkMode(isDark)
+                                    lifecycleScope.launch { groupSyncManager.pushUserSettings() }
+                                },
+                                currentLang = currentLang,
+                                onLangToggle = {
+                                    currentLang = settingsManager.getLanguage()
+                                    Loc.load(this@MainActivity, currentLang)
+                                },
+                                groups = groups,
+                                onGroupsUpdated = { groups = it }
+                            )
+                            
+                            SyncStatusOverlay()
+                        }
                     }
                 }
             }

@@ -13,4 +13,5 @@ sealed interface ShoppingEvent {
     object AddItem : ShoppingEvent
     data class ToggleItem(val item: ShoppingItem, val isChecked: Boolean) : ShoppingEvent
     data class RestoreItem(val text: String) : ShoppingEvent
+    data class SelectItem(val item: ShoppingItem?) : ShoppingEvent
 }

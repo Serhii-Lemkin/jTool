@@ -2,8 +2,6 @@ package com.jtool.android.features.admin
 
 sealed interface AdminEvent {
     data class Navigate(val subScreen: String) : AdminEvent
-    data class SelectRequest(val request: Map<String, String>?) : AdminEvent
-    data class DeleteRequest(val id: String) : AdminEvent
     data class UpdateUserSearchQuery(val query: String) : AdminEvent
     object ApplyUserSearch : AdminEvent
     data class SetUserAdminStatus(val uid: String, val isAdmin: Boolean) : AdminEvent
@@ -13,6 +11,6 @@ sealed interface AdminEvent {
     object ApplyGroupSearch : AdminEvent
     data class RequestDeleteGroup(val gid: String?, val step: Int) : AdminEvent
     data class ConfirmDeleteGroup(val gid: String) : AdminEvent
-    
-    object StartRTDBMigration : AdminEvent
+    object StartLegacyMigration : AdminEvent
+    object StartUserDataMigration : AdminEvent
 }

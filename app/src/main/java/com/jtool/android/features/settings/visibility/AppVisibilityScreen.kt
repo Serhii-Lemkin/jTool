@@ -29,12 +29,12 @@ fun AppVisibilityScreen(
     val uiState by viewModel.uiState.collectAsState()
     val apps = remember {
         listOf(
-            "WorkTime" to Loc.workTime,
-            "TimeCalc" to Loc.timeCalc,
-            "ShopList" to Loc.shoppingList,
-            "Notes" to Loc.notes,
-            "Links" to Loc.links,
-            "Cleaning" to Loc.cleaning
+            "WorkTime" to Loc.worktime_workTime,
+            "TimeCalc" to Loc.timecalc_timeCalc,
+            "ShopList" to Loc.shoplist_shoppingList,
+            "Notes" to Loc.notes_notes,
+            "Links" to Loc.links_links,
+            "Cleaning" to Loc.cleaning_cleaning
         )
     }
 
@@ -53,10 +53,10 @@ fun AppVisibilityScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(Loc.layoutType, style = MaterialTheme.typography.titleSmall)
+            Text(Loc.settings_layoutType, style = MaterialTheme.typography.titleSmall)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (uiState.isGridLayout) Loc.gridLayout else Loc.listLayout, 
+                    if (uiState.isGridLayout) Loc.settings_gridLayout else Loc.settings_listLayout, 
                     modifier = Modifier.padding(end = 8.dp), 
                     style = MaterialTheme.typography.bodyMedium
                 )

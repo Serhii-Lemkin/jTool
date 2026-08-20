@@ -9,6 +9,7 @@ import com.jtool.android.core.models.ChecklistItem
 import com.jtool.android.core.models.Comment
 import com.jtool.android.core.models.NoteItem
 import com.jtool.android.core.models.NoteType
+import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
 import kotlinx.coroutines.Job
@@ -185,14 +186,14 @@ class NotesViewModel(
         val gid = settingsManager.getCurrentGroupId() ?: return
         if (text.isNotBlank()) {
             val id = System.currentTimeMillis().toString()
-            val newItem = ChecklistItem(id = id, text = text, isChecked = false)
+            val newItem = ChecklistItem(id = id, text = text, isChecked = false, timestamp = System.currentTimeMillis())
             val editingNote = _uiState.value.editingNote
             
             if (editingNote != null) {
                 viewModelScope.launch {
                     val noteRef = getNotesColl(gid).document(editingNote.id)
                     noteRef.collection("checklist").document(id).set(newItem).await()
-                    noteRef.update("timestamp", System.currentTimeMillis()).await()
+                    noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
                     _uiState.update { it.copy(checklistInput = "") }
                 }
             } else {
@@ -205,11 +206,11 @@ class NotesViewModel(
         val gid = settingsManager.getCurrentGroupId() ?: return
         val note = _uiState.value.editingNote ?: return
         val item = note.checklist.find { it.id == id } ?: return
+        val updatedItem = item.copy(isChecked = !item.isChecked, timestamp = System.currentTimeMillis())
         viewModelScope.launch {
             val noteRef = getNotesColl(gid).document(note.id)
-            noteRef.collection("checklist").document(id)
-                ?.update("isChecked", !item.isChecked)?.await()
-            noteRef.update("timestamp", System.currentTimeMillis()).await()
+            noteRef.collection("checklist").document(id).set(updatedItem).await()
+            noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
         }
     }
 
@@ -219,7 +220,7 @@ class NotesViewModel(
         viewModelScope.launch {
             val noteRef = getNotesColl(gid).document(note.id)
             noteRef.collection("checklist").document(id).delete().await()
-            noteRef.update("timestamp", System.currentTimeMillis()).await()
+            noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
         }
     }
 
@@ -228,8 +229,15 @@ class NotesViewModel(
         val note = state.editingNote ?: return
         val gid = settingsManager.getCurrentGroupId() ?: return
         
+        val title = state.draftTitle.trim()
+        
+        if (title.isEmpty()) {
+            _uiState.update { it.copy(error = Loc.notes_noteTitlePlaceholder) }
+            return
+        }
+        
         val noteData = mapOf(
-            "title" to state.draftTitle.trim(),
+            "title" to title,
             "content" to state.draftContent.trim(),
             "type" to note.type.name,
             "timestamp" to System.currentTimeMillis(),
@@ -243,6 +251,7 @@ class NotesViewModel(
     }
 
     fun getAppUserId(): String = settingsManager.getAppUserId()
+    fun getAuthUserId(): String = settingsManager.getUserId()
 
     // --- Comment Handling ---
 
@@ -297,21 +306,50 @@ class NotesViewModel(
     private fun editComment(commentId: String, newContent: String) {
         val note = _uiState.value.editingNote ?: return
         val gid = settingsManager.getCurrentGroupId() ?: return
+        
+        // Find existing comment to preserve other properties
+        fun findComment(comments: List<Comment>): Comment? {
+            for (c in comments) {
+                if (c.id == commentId) return c
+                val found = findComment(c.replies)
+                if (found != null) return found
+            }
+            return null
+        }
+        
+        val existing = findComment(note.comments) ?: return
+        val updatedComment = existing.copy(content = newContent, isEdited = true, timestamp = System.currentTimeMillis())
+
         viewModelScope.launch {
             val noteRef = getNotesColl(gid).document(note.id)
-            noteRef.collection("comments").document(commentId)
-                ?.update("content", newContent, "isEdited", true)?.await()
-            noteRef.update("timestamp", System.currentTimeMillis()).await()
+            noteRef.collection("comments").document(commentId).set(updatedComment).await()
+            noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
         }
     }
 
     private fun deleteComment(commentId: String) {
         val note = _uiState.value.editingNote ?: return
         val gid = settingsManager.getCurrentGroupId() ?: return
+
+        // Optimistic UI Update
+        _uiState.update { state ->
+            val updatedNote = state.editingNote?.let { n ->
+                fun removeComment(list: List<Comment>): List<Comment> = list.filter { it.id != commentId }.map { 
+                    it.copy(replies = removeComment(it.replies))
+                }
+                n.copy(comments = removeComment(n.comments))
+            }
+            state.copy(editingNote = updatedNote ?: state.editingNote)
+        }
+
         viewModelScope.launch {
-            val noteRef = getNotesColl(gid).document(note.id)
-            noteRef.collection("comments").document(commentId).delete().await()
-            noteRef.update("timestamp", System.currentTimeMillis()).await()
+            try {
+                val noteRef = getNotesColl(gid).document(note.id)
+                noteRef.collection("comments").document(commentId).delete().await()
+                noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
+            } catch (e: Exception) {
+                android.util.Log.e("NotesVM", "Failed to delete comment", e)
+            }
         }
     }
 

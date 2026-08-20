@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.User
 import com.jtool.android.core.settings.SettingsManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -27,8 +28,8 @@ class GroupOperationsHelper(
         val uid = auth.currentUser?.uid ?: run { trySend(null); close(); return@callbackFlow }
         val listener = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
-                val gid = snapshot.getString("currentGroupId")
-                trySend(gid)
+                val data = snapshot.toObject(com.jtool.android.core.models.UserData::class.java)
+                trySend(data?.currentGroupId)
             }
         }
         awaitClose { listener.remove() }
@@ -37,8 +38,8 @@ class GroupOperationsHelper(
     suspend fun getUserGroups(): List<String> {
         val uid = auth.currentUser?.uid ?: return emptyList()
         val snapshot = getUsersColl().document(uid).get().await()
-        @Suppress("UNCHECKED_CAST")
-        return (snapshot.get("groupIds") as? List<String>) ?: emptyList()
+        val user = snapshot.toObject(User::class.java)
+        return user?.groupIds ?: emptyList()
     }
 
     suspend fun createGroup(groupName: String): String? {
@@ -54,6 +55,25 @@ class GroupOperationsHelper(
             val groupDoc = getGroupsColl().add(groupData).await()
             val groupId = groupDoc.id
             groupDoc.collection("members").document(uid).set(mapOf("joinedAt" to System.currentTimeMillis())).await()
+            
+            // Update User's group list and current group
+            val userRef = getUsersColl().document(uid)
+            val userSnapshot = userRef.get().await()
+            val user = userSnapshot.toObject(User::class.java)
+            val currentGroups = user?.groupIds?.toMutableList() ?: mutableListOf()
+            if (!currentGroups.contains(groupId)) {
+                currentGroups.add(groupId)
+            }
+            
+            userRef.set(mapOf(
+                "groupIds" to currentGroups,
+                "currentGroupId" to groupId
+            ), SetOptions.merge()).await()
+            
+            settings.addGroup(GroupInfo(id = groupId, name = groupName, owner = uid))
+            settings.setCurrentGroupId(groupId)
+            
+            userAdminHelperProvider().pushUserSettings()
             groupId
         } catch (e: Exception) {
             android.util.Log.e("GroupSync", "Failed to create group", e)
@@ -84,13 +104,14 @@ class GroupOperationsHelper(
                 .set(mapOf("joinedAt" to System.currentTimeMillis())).await()
             
             val groupSnapshot = getGroupsColl().document(groupId).get().await()
-            val groupName = groupSnapshot.getString("name") ?: "New Group"
-            val owner = groupSnapshot.getString("ownerUid")
+            val group = groupSnapshot.toObject(GroupInfo::class.java)?.copy(id = groupSnapshot.id)
+            val groupName = group?.name ?: "New Group"
+            val owner = group?.owner
             
             val userRef = getUsersColl().document(uid)
             val userSnapshot = userRef.get().await()
-            @Suppress("UNCHECKED_CAST")
-            val currentGroups = (userSnapshot.get("groupIds") as? List<String>)?.toMutableList() ?: mutableListOf()
+            val user = userSnapshot.toObject(User::class.java)
+            val currentGroups = user?.groupIds?.toMutableList() ?: mutableListOf()
             
             if (!currentGroups.contains(groupId)) {
                 currentGroups.add(groupId)
@@ -121,8 +142,9 @@ class GroupOperationsHelper(
             if (memberIds.size <= 1 && memberIds.contains(uid)) {
                 userAdminHelperProvider().deleteGroupPermanently(groupId)
             } else {
-                val groupData = groupDoc.get().await()
-                val ownerUid = groupData.getString("ownerUid")
+                val groupSnapshot = groupDoc.get().await()
+                val group = groupSnapshot.toObject(GroupInfo::class.java)
+                val ownerUid = group?.owner
                 if (ownerUid == uid) {
                     val nextOwner = memberIds.filter { it != uid }.random()
                     groupDoc.update("ownerUid", nextOwner).await()
@@ -132,8 +154,8 @@ class GroupOperationsHelper(
             
             val userRef = getUsersColl().document(uid)
             val userSnapshot = userRef.get().await()
-            @Suppress("UNCHECKED_CAST")
-            val currentGroups = (userSnapshot.get("groupIds") as? List<String>)?.toMutableList() ?: mutableListOf()
+            val user = userSnapshot.toObject(User::class.java)
+            val currentGroups = user?.groupIds?.toMutableList() ?: mutableListOf()
             
             currentGroups.remove(groupId)
             val nextGroupId = if (settings.getCurrentGroupId() == groupId) {
@@ -176,7 +198,8 @@ class GroupOperationsHelper(
         val sanitizedEmail = email.lowercase().trim()
         return try {
             val groupSnapshot = getGroupsColl().document(groupId).get().await()
-            val groupName = groupSnapshot.getString("name") ?: "Unknown Group"
+            val group = groupSnapshot.toObject(GroupInfo::class.java)
+            val groupName = group?.name ?: "Unknown Group"
             val inviteData = mapOf(
                 "groupId" to groupId,
                 "groupName" to groupName,
@@ -253,11 +276,8 @@ class GroupOperationsHelper(
         val listener = getGroupsColl().whereIn(FieldPath.documentId(), groupIds.take(30)).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 val map = snapshot.documents.associateBy({ it.id }, { doc ->
-                    GroupInfo(
-                        id = doc.id,
-                        name = doc.getString("name") ?: "Unknown",
-                        owner = doc.getString("ownerUid")
-                    )
+                    val group = doc.toObject(GroupInfo::class.java) ?: GroupInfo()
+                    group.copy(id = doc.id)
                 })
                 trySend(map)
             }

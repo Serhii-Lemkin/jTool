@@ -12,6 +12,7 @@ data class ShoppingUiState(
     val itemToDelete: ShoppingItem? = null,
     val remoteSuggestions: List<String> = emptyList(),
     val userNames: Map<String, String> = emptyMap(),
+    val selectedItem: ShoppingItem? = null,
     val isLoading: Boolean = false,
     val error: String? = null
 ) {

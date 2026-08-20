@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +23,9 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.TitleActionIcon
+import com.jtool.android.core.components.layout.UnifiedFAB
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -34,12 +40,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CleaningScreen(
     manager: CleaningManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
     groupSyncManager: GroupSyncManager,
+    onBack: () -> Unit,
     viewModel: CleaningViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -51,68 +59,62 @@ fun CleaningScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .padding(16.dp)
-            .imePadding(),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = if (uiState.showDisabledView) Loc.showDisabled else Loc.cleaning,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Center)
-            )
-            
-            var menuExpandedTop by remember { mutableStateOf(false) }
-            Box(Modifier.align(Alignment.CenterEnd)) {
-                IconButton(onClick = { menuExpandedTop = true }) {
-                    Icon(Icons.Default.MoreVert, null)
-                }
-                DropdownMenu(expanded = menuExpandedTop, onDismissRequest = { menuExpandedTop = false }) {
-                    DropdownMenuItem(
-                        text = { Text(Loc.addTask) },
-                        onClick = {
-                            viewModel.onEvent(CleaningEvent.ToggleAddDialog(true))
-                            menuExpandedTop = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(if (uiState.showDisabledView) Loc.activeTasks else Loc.showDisabled) },
-                        onClick = { 
-                            viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView))
-                            menuExpandedTop = false
-                        }
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            items(uiState.displayTasks, key = { it.id }) { task ->
-                CleaningTaskRow(
-                    task = task,
-                    onToggle = { checked ->
-                        viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
-                    },
-                    onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
-                    onDisable = { isEnabled ->
-                        viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
-                    },
-                    onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
-                    userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                GenericTitle(
+                    title = if (uiState.showDisabledView) Loc.cleaning_showDisabled else Loc.cleaning_cleaning,
+                    onBack = onBack,
+                    actions = {
+                        TitleActionIcon(
+                            icon = if (uiState.showDisabledView) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            onClick = { viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView)) },
+                            tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
+                    }
                 )
             }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .imePadding(),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    items(uiState.displayTasks, key = { it.id }) { task ->
+                        CleaningTaskRow(
+                            task = task,
+                            onToggle = { checked ->
+                                viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
+                            },
+                            onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
+                            onDisable = { isEnabled ->
+                                viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
+                            },
+                            onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
+                            userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
+                        )
+                    }
+                    
+                    item {
+                        Spacer(Modifier.height(100.dp))
+                    }
+                }
+            }
         }
+
+        UnifiedFAB(
+            onClick = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(true)) },
+            contentDescription = Loc.cleaning_addTask
+        )
     }
 
     if (uiState.showAddDialog) {
@@ -122,25 +124,25 @@ fun CleaningScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(false)) },
-            title = { Text(Loc.addTask) },
+            title = { Text(Loc.cleaning_addTask) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = addTitle,
                         onValueChange = { addTitle = it },
-                        label = { Text(Loc.taskTitle) },
+                        label = { Text(Loc.cleaning_taskTitle) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     OutlinedTextField(
                         value = addDays,
                         onValueChange = { if (it.all { c -> c.isDigit() }) addDays = it },
-                        label = { Text(Loc.everyXDays) },
+                        label = { Text(Loc.cleaning_everyXDays) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Loc.recurring)
+                        Text(Loc.cleaning_recurring)
                         Checkbox(checked = addRecurring, onCheckedChange = { addRecurring = it })
                     }
                 }
@@ -154,12 +156,12 @@ fun CleaningScreen(
                     },
                     enabled = addTitle.isNotBlank()
                 ) {
-                    Text(Loc.add)
+                    Text(Loc.general_add)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(false)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -168,18 +170,18 @@ fun CleaningScreen(
     if (uiState.taskToDelete != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(CleaningEvent.RequestDelete(null)) },
-            title = { Text(Loc.confirmDeleteTitle) },
-            text = { Text(Loc.confirmDeleteMsg) },
+            title = { Text(Loc.general_confirmDeleteTitle) },
+            text = { Text(Loc.general_confirmDeleteMsg) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.onEvent(CleaningEvent.ConfirmDelete)
                 }) {
-                    Text(Loc.delete, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(CleaningEvent.RequestDelete(null)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -192,13 +194,13 @@ fun CleaningScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(CleaningEvent.RequestEdit(null)) },
-            title = { Text(Loc.editTask) },
+            title = { Text(Loc.cleaning_editTask) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text(Loc.taskTitle) })
-                    OutlinedTextField(value = editDays, onValueChange = { editDays = it }, label = { Text(Loc.everyXDays) })
+                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text(Loc.cleaning_taskTitle) })
+                    OutlinedTextField(value = editDays, onValueChange = { editDays = it }, label = { Text(Loc.cleaning_everyXDays) })
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Loc.recurring)
+                        Text(Loc.cleaning_recurring)
                         Checkbox(checked = editRecurring, onCheckedChange = { editRecurring = it })
                     }
                 }
@@ -206,7 +208,7 @@ fun CleaningScreen(
             confirmButton = {
                 Button(onClick = {
                     viewModel.onEvent(CleaningEvent.SaveTask(editTitle, editDays.toIntOrNull() ?: 1, editRecurring))
-                }) { Text(Loc.save) }
+                }) { Text(Loc.general_save) }
             }
         )
     }
@@ -251,7 +253,7 @@ fun CleaningTaskRow(
                                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
                     Text(
-                        text = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.oneTime,
+                        text = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.cleaning_oneTime,
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -263,12 +265,12 @@ fun CleaningTaskRow(
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         if (task.isEnabled) {
-                            DropdownMenuItem(text = { Text(Loc.update) }, onClick = { onEdit(); menuExpanded = false })
-                            DropdownMenuItem(text = { Text(Loc.disable) }, onClick = { onDisable(false); menuExpanded = false })
-                            DropdownMenuItem(text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.general_update) }, onClick = { onEdit(); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.cleaning_disable) }, onClick = { onDisable(false); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
                         } else {
-                            DropdownMenuItem(text = { Text(Loc.restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
-                            DropdownMenuItem(text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.cleaning_restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
+                            DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
                         }
                     }
                 }
@@ -281,7 +283,7 @@ fun CleaningTaskRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${Loc.lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.by} $userName",
+                        text = "${Loc.cleaning_lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.general_by} $userName",
                         fontSize = 9.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
@@ -300,7 +302,8 @@ fun CleaningPreview() {
             manager = CleaningManager(context),
             backupManager = BackupManager(context),
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context)
+            groupSyncManager = GroupSyncManager(context),
+            onBack = {}
         )
     }
 }

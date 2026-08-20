@@ -14,13 +14,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.GenericTitle
 import kotlinx.coroutines.launch
 
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -52,28 +56,15 @@ fun AdminPanelScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        when(uiState.currentSubScreen) {
-                            "requests" -> Loc.requestsTitle
-                            "request_detail" -> Loc.requestDetails
-                            "users" -> Loc.users
-                            "groups" -> Loc.groups
-                            else -> Loc.adminPanel
-                        }
-                    ) 
+            GenericTitle(
+                title = when(uiState.currentSubScreen) {
+                    "users" -> Loc.admin_users
+                    "groups" -> Loc.settings_groups
+                    "migration" -> "System Data Migration"
+                    else -> Loc.admin_adminPanel
                 },
-                navigationIcon = {
-                    IconButton(onClick = { 
-                        when (uiState.currentSubScreen) {
-                            "main" -> onBack()
-                            "request_detail" -> viewModel.onEvent(AdminEvent.Navigate("requests"))
-                            else -> viewModel.onEvent(AdminEvent.Navigate("main"))
-                        }
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Loc.back)
-                    }
+                onBack = { 
+                    if (uiState.currentSubScreen == "main") onBack() else viewModel.onEvent(AdminEvent.Navigate("main"))
                 }
             )
         }
@@ -81,23 +72,6 @@ fun AdminPanelScreen(
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (uiState.currentSubScreen) {
                 "main" -> AdminMainScreen(onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) })
-                "requests" -> {
-                    RequestsTab(
-                        requests = uiState.requests,
-                        userNames = uiState.userNames,
-                        onSelectRequest = { 
-                            viewModel.onEvent(AdminEvent.SelectRequest(it))
-                        }
-                    )
-                }
-                "request_detail" -> uiState.selectedRequest?.let { req ->
-                    RequestDetailScreen(
-                        request = req,
-                        userName = uiState.userNames[req["userId"]] ?: (req["userId"] ?: "Unknown"),
-                        onDelete = { viewModel.onEvent(AdminEvent.DeleteRequest(it)) },
-                        onBack = { viewModel.onEvent(AdminEvent.Navigate("requests")) }
-                    )
-                }
                 "users" -> UsersTab(viewModel, uiState)
                 "groups" -> GroupsTab(viewModel, uiState)
                 "migration" -> MigrationTab(viewModel, uiState)
@@ -107,21 +81,60 @@ fun AdminPanelScreen(
 }
 
 @Composable
+fun MigrationTab(viewModel: AdminViewModel, uiState: AdminUiState) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text("System Data Migration", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp))
+        
+        if (uiState.isMigrating) {
+            CircularProgressIndicator()
+            Spacer(Modifier.height(8.dp))
+        }
+        
+        uiState.migrationStatus?.let {
+            Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+        Text("1. Legacy Support Migration", style = MaterialTheme.typography.titleMedium)
+        Text("Converts old 'suggestions' collection to the new Support Hub tickets.", fontSize = 12.sp)
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = { viewModel.onEvent(AdminEvent.StartLegacyMigration) },
+            enabled = !uiState.isMigrating,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Start Legacy Support Migration")
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        Text("2. User Data Migration", style = MaterialTheme.typography.titleMedium)
+        Text("Moves user settings (hours, theme, lang) from '/users/' to '/user_data/'.", fontSize = 12.sp)
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = { viewModel.onEvent(AdminEvent.StartUserDataMigration) },
+            enabled = !uiState.isMigrating,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Start User Data Migration")
+        }
+    }
+}
+
+@Composable
 fun AdminMainScreen(onNavigate: (String) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             AdminMenuItem(
-                title = Loc.requestsTitle,
-                subtitle = Loc.requestsSubtitleAdmin,
-                icon = Icons.Default.Feedback,
-                onClick = { onNavigate("requests") }
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-        }
-        item {
-            AdminMenuItem(
-                title = Loc.users,
-                subtitle = Loc.usersSubtitle,
+                title = Loc.admin_users,
+                subtitle = Loc.admin_usersSubtitle,
                 icon = Icons.Default.People,
                 onClick = { onNavigate("users") }
             )
@@ -129,8 +142,8 @@ fun AdminMainScreen(onNavigate: (String) -> Unit) {
         }
         item {
             AdminMenuItem(
-                title = Loc.groups,
-                subtitle = Loc.groupsSubtitle,
+                title = Loc.settings_groups,
+                subtitle = Loc.admin_groupsSubtitle,
                 icon = Icons.Default.GroupWork,
                 onClick = { onNavigate("groups") }
             )
@@ -138,10 +151,19 @@ fun AdminMainScreen(onNavigate: (String) -> Unit) {
         }
         item {
             AdminMenuItem(
-                title = Loc.migrateFromRTDB,
-                subtitle = Loc.migrationSubtitle,
-                icon = Icons.Default.Storage,
+                title = "Migrate Legacy Support",
+                subtitle = "Convert old suggestions to tickets",
+                icon = Icons.Default.Backup,
                 onClick = { onNavigate("migration") }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        }
+        item {
+            AdminMenuItem(
+                title = "Simulate Crash",
+                subtitle = "Triggers a fatal exception to test crash reporting",
+                icon = Icons.Default.BugReport,
+                onClick = { throw RuntimeException("Manual Crash Simulation") }
             )
         }
     }
@@ -167,56 +189,13 @@ fun AdminMenuItem(
             Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-    }
-}
-
-@Composable
-fun RequestsTab(
-    requests: List<Map<String, String>>, 
-    userNames: Map<String, String>,
-    onSelectRequest: (Map<String, String>) -> Unit
-) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(requests) { req ->
-            val uId = req["userId"] ?: ""
-            ListItem(
-                headlineContent = { 
-                    Text(
-                        text = req["text"] ?: "", 
-                        maxLines = 1, 
-                        overflow = TextOverflow.Ellipsis 
-                    ) 
-                },
-                supportingContent = { Text("${Loc.by}: ${userNames[uId] ?: uId}") },
-                modifier = Modifier.clickable { onSelectRequest(req) }
-            )
-            HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-fun RequestDetailScreen(
-    request: Map<String, String>, 
-    userName: String,
-    onDelete: (String) -> Unit, 
-    onBack: () -> Unit
-) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
-        Text(text = request["text"] ?: "", fontSize = 18.sp)
-        Spacer(Modifier.height(16.dp))
-        Text(text = "${Loc.by}: $userName", fontSize = 14.sp, color = MaterialTheme.colorScheme.secondary)
-        Spacer(Modifier.weight(1f))
-        Button(
-            onClick = {
-                onDelete(request["id"]!!)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-        ) {
-            Text(Loc.closeRequest)
-        }
+        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        Icon(
+            imageVector = Icons.Default.ChevronRight, 
+            contentDescription = null, 
+            modifier = Modifier.scale(if (isRtl) -1f else 1f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
     }
 }
 
@@ -230,14 +209,14 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             OutlinedTextField(
                 value = uiState.userSearchQuery,
                 onValueChange = { viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(it)) },
-                label = { Text(Loc.searchUsers) },
+                label = { Text(Loc.admin_searchUsers) },
                 modifier = Modifier.weight(1f),
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 singleLine = true
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = { viewModel.onEvent(AdminEvent.ApplyUserSearch) }) {
-                Text(Loc.search)
+                Text(Loc.general_search)
             }
         }
         
@@ -254,15 +233,19 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
 
             items(filtered) { user ->
                 val uid = user["uid"] as? String ?: ""
+                val isAdmin = user["isAdmin"] as? Boolean ?: false
                 var menuExpanded by remember { mutableStateOf(false) }
 
                 ListItem(
                     headlineContent = { 
-                        Text(uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.unknown) 
+                        Text(uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.general_unknown) 
                     },
                     supportingContent = { 
                         Column {
                             Text(user["email"] as? String ?: "")
+                            if (isAdmin) {
+                                Text("ADMIN", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                            }
                             Text(user["uid"] as? String ?: "", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                         }
                     },
@@ -276,7 +259,20 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                                 onDismissRequest = { menuExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text(Loc.delete, color = MaterialTheme.colorScheme.error) },
+                                    text = { Text(if (isAdmin) Loc.admin_removeAdmin else Loc.admin_makeAdmin) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.onEvent(AdminEvent.SetUserAdminStatus(uid, !isAdmin))
+                                    },
+                                    leadingIcon = { 
+                                        Icon(
+                                            if (isAdmin) Icons.Default.PersonOff else Icons.Default.AdminPanelSettings, 
+                                            null
+                                        ) 
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
                                     onClick = {
                                         menuExpanded = false
                                         viewModel.onEvent(AdminEvent.RequestDeleteUser(uid, 1))
@@ -295,8 +291,8 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     if (uiState.showUserDeleteConfirm1 != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 1)) },
-            title = { Text(Loc.delete) },
-            text = { Text(Loc.deleteUserPermanently) },
+            title = { Text(Loc.general_delete) },
+            text = { Text(Loc.admin_deleteUserPermanently) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -304,12 +300,12 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.delete)
+                    Text(Loc.general_delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 1)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -318,8 +314,8 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     if (uiState.showUserDeleteConfirm2 != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 2)) },
-            title = { Text(Loc.areYouSure) },
-            text = { Text(Loc.confirmDeleteMsg) },
+            title = { Text(Loc.general_areYouSure) },
+            text = { Text(Loc.general_confirmDeleteMsg) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -327,12 +323,12 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.delete)
+                    Text(Loc.general_delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 2)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -349,14 +345,14 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             OutlinedTextField(
                 value = uiState.groupSearchQuery,
                 onValueChange = { viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(it)) },
-                label = { Text(Loc.searchGroups) },
+                label = { Text(Loc.general_searchGroups) },
                 modifier = Modifier.weight(1f),
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 singleLine = true
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = { viewModel.onEvent(AdminEvent.ApplyGroupSearch) }) {
-                Text(Loc.search)
+                Text(Loc.general_search)
             }
         }
 
@@ -389,8 +385,8 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     if (uiState.showGroupDeleteConfirm1 != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 1)) },
-            title = { Text(Loc.deleteGroup) },
-            text = { Text(Loc.deleteGroupPermanently) },
+            title = { Text(Loc.admin_deleteGroup) },
+            text = { Text(Loc.admin_deleteGroupPermanently) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -398,12 +394,12 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.delete)
+                    Text(Loc.general_delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 1)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
@@ -412,8 +408,8 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     if (uiState.showGroupDeleteConfirm2 != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 2)) },
-            title = { Text(Loc.areYouSure) },
-            text = { Text(Loc.confirmDeleteMsg) },
+            title = { Text(Loc.general_areYouSure) },
+            text = { Text(Loc.general_confirmDeleteMsg) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -421,54 +417,14 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.delete)
+                    Text(Loc.general_delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 2)) }) {
-                    Text(Loc.cancel)
+                    Text(Loc.general_cancel)
                 }
             }
         )
-    }
-}
-
-@Composable
-fun MigrationTab(viewModel: AdminViewModel, uiState: AdminUiState) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (uiState.isMigrating) {
-            CircularProgressIndicator()
-            Spacer(Modifier.height(16.dp))
-        }
-        
-        Text(
-            text = uiState.migrationStatus ?: Loc.migrationReady,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge
-        )
-        
-        Spacer(Modifier.height(32.dp))
-        
-        Button(
-            onClick = { viewModel.onEvent(AdminEvent.StartRTDBMigration) },
-            enabled = !uiState.isMigrating,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(Loc.startMigration)
-        }
-        
-        if (!uiState.isMigrating && uiState.migrationStatus != null) {
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = { viewModel.onEvent(AdminEvent.Navigate("main")) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(Loc.back)
-            }
-        }
     }
 }
