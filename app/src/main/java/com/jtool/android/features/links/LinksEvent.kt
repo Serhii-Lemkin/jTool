@@ -11,4 +11,5 @@ sealed interface LinksEvent {
     object ConfirmDelete : LinksEvent
     data class ToggleMenu(val expanded: Boolean) : LinksEvent
     object AddLink : LinksEvent
+    object Refresh : LinksEvent
 }

@@ -1,5 +1,6 @@
 package com.jtool.android.features.settings.general
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -48,7 +49,13 @@ fun GeneralSettingsScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { 
+                    viewModel.onEvent(GeneralSettingsEvent.ToggleTheme)
+                    onThemeToggle()
+                }
+                .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -74,7 +81,10 @@ fun GeneralSettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { langMenuExpanded = true }
+                .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -90,12 +100,12 @@ fun GeneralSettingsScreen(
             }
             
             Box {
-                TextButton(onClick = { langMenuExpanded = true }) {
-                    Text(
-                        text = languages.find { it.locale == uiState.language }?.name ?: uiState.language,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
+                Text(
+                    text = languages.find { it.locale == uiState.language }?.name ?: uiState.language,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
                 DropdownMenu(
                     expanded = langMenuExpanded,
                     onDismissRequest = { langMenuExpanded = false }

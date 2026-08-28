@@ -102,7 +102,6 @@ fun TimeCalculatorScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Add, null)
-                    Text(Loc.general_add)
                 }
 
                 Button(
@@ -112,7 +111,6 @@ fun TimeCalculatorScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Remove, null)
-                    Text(Loc.timecalc_sub)
                 }
             }
 

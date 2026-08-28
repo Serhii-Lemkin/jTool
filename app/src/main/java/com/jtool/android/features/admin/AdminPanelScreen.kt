@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.TitleActionIcon
 import kotlinx.coroutines.launch
 
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,10 +48,22 @@ fun AdminPanelScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var draftSearchQuery by remember { mutableStateOf("") }
+    
+    LaunchedEffect(uiState.appliedUserSearchQuery, uiState.appliedGroupSearchQuery) {
+        if (uiState.currentSubScreen == "users") draftSearchQuery = uiState.appliedUserSearchQuery
+        if (uiState.currentSubScreen == "groups") draftSearchQuery = uiState.appliedGroupSearchQuery
+    }
 
     if (uiState.currentSubScreen != "main") {
         BackHandler { 
-            viewModel.onEvent(AdminEvent.Navigate(if (uiState.currentSubScreen == "request_detail") "requests" else "main"))
+            if (isSearchVisible) {
+                isSearchVisible = false
+            } else {
+                viewModel.onEvent(AdminEvent.Navigate(if (uiState.currentSubScreen == "request_detail") "requests" else "main"))
+            }
         }
     }
 
@@ -64,7 +78,43 @@ fun AdminPanelScreen(
                     else -> Loc.admin_adminPanel
                 },
                 onBack = { 
-                    if (uiState.currentSubScreen == "main") onBack() else viewModel.onEvent(AdminEvent.Navigate("main"))
+                    if (isSearchVisible) {
+                        isSearchVisible = false
+                    } else {
+                        if (uiState.currentSubScreen == "main") onBack() else viewModel.onEvent(AdminEvent.Navigate("main"))
+                    }
+                },
+                isLoading = uiState.isMigrating,
+                isSearchVisible = isSearchVisible,
+                searchQuery = draftSearchQuery,
+                onSearchQueryChange = { draftSearchQuery = it },
+                onSearchClose = {
+                    isSearchVisible = false
+                    if (uiState.currentSubScreen == "users") {
+                        viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(""))
+                        viewModel.onEvent(AdminEvent.ApplyUserSearch)
+                    } else if (uiState.currentSubScreen == "groups") {
+                        viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(""))
+                        viewModel.onEvent(AdminEvent.ApplyGroupSearch)
+                    }
+                },
+                onSearchTriggered = {
+                    if (uiState.currentSubScreen == "users") {
+                        viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(draftSearchQuery))
+                        viewModel.onEvent(AdminEvent.ApplyUserSearch)
+                    } else if (uiState.currentSubScreen == "groups") {
+                        viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(draftSearchQuery))
+                        viewModel.onEvent(AdminEvent.ApplyGroupSearch)
+                    }
+                },
+                onRefresh = if (uiState.currentSubScreen == "users" || uiState.currentSubScreen == "groups") {
+                    { viewModel.onEvent(AdminEvent.Refresh) }
+                } else null,
+                searchPlaceholder = if (uiState.currentSubScreen == "users") Loc.admin_searchUsers else Loc.general_searchGroups,
+                actions = {
+                    if (uiState.currentSubScreen == "users" || uiState.currentSubScreen == "groups") {
+                        TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
+                    }
                 }
             )
         }
@@ -102,28 +152,15 @@ fun MigrationTab(viewModel: AdminViewModel, uiState: AdminUiState) {
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-        Text("1. Legacy Support Migration", style = MaterialTheme.typography.titleMedium)
-        Text("Converts old 'suggestions' collection to the new Support Hub tickets.", fontSize = 12.sp)
+        Text("1. Legacy Fields Migration", style = MaterialTheme.typography.titleMedium)
+        Text("Updates legacy fields (edited, pending, checked, enabled, recurring) to new standardized names (isEdited, isPending, isChecked, isEnabled, isRecurring).", fontSize = 12.sp)
         Spacer(Modifier.height(8.dp))
         Button(
-            onClick = { viewModel.onEvent(AdminEvent.StartLegacyMigration) },
+            onClick = { viewModel.onEvent(AdminEvent.StartLegacyFieldsMigration) },
             enabled = !uiState.isMigrating,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Start Legacy Support Migration")
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Text("2. User Data Migration", style = MaterialTheme.typography.titleMedium)
-        Text("Moves user settings (hours, theme, lang) from '/users/' to '/user_data/'.", fontSize = 12.sp)
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = { viewModel.onEvent(AdminEvent.StartUserDataMigration) },
-            enabled = !uiState.isMigrating,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Start User Data Migration")
+            Text("Start Legacy Fields Migration")
         }
     }
 }
@@ -151,8 +188,8 @@ fun AdminMainScreen(onNavigate: (String) -> Unit) {
         }
         item {
             AdminMenuItem(
-                title = "Migrate Legacy Support",
-                subtitle = "Convert old suggestions to tickets",
+                title = "System Migration",
+                subtitle = "Standardize database field names",
                 icon = Icons.Default.Backup,
                 onClick = { onNavigate("migration") }
             )
@@ -176,78 +213,50 @@ fun AdminMenuItem(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    ActionListItem(
+        onClick = onClick,
+        headline = title,
+        supportingText = subtitle,
+        leadingContent = {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        },
+        trailingContent = {
+            val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+            Icon(
+                imageVector = Icons.Default.ChevronRight, 
+                contentDescription = null, 
+                modifier = Modifier.scale(if (isRtl) -1f else 1f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
         }
-        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-        Icon(
-            imageVector = Icons.Default.ChevronRight, 
-            contentDescription = null, 
-            modifier = Modifier.scale(if (isRtl) -1f else 1f),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        )
-    }
+    )
 }
 
 @Composable
 fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = uiState.userSearchQuery,
-                onValueChange = { viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(it)) },
-                label = { Text(Loc.admin_searchUsers) },
-                modifier = Modifier.weight(1f),
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                singleLine = true
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(onClick = { viewModel.onEvent(AdminEvent.ApplyUserSearch) }) {
-                Text(Loc.general_search)
-            }
-        }
-        
         LazyColumn(modifier = Modifier.weight(1f)) {
             val filtered = if (uiState.appliedUserSearchQuery.isEmpty()) {
                 emptyList()
             } else {
                 uiState.users.filter { 
-                    (it["email"] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
-                    (it["appUserId"] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
-                    (it["uid"] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true
+                    (it[com.jtool.android.core.models.User::email.name] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
+                    (it[com.jtool.android.core.models.UserData::appUserId.name] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
+                    (it[com.jtool.android.core.models.User::uid.name] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true
                 }
             }
 
             items(filtered) { user ->
-                val uid = user["uid"] as? String ?: ""
-                val isAdmin = user["isAdmin"] as? Boolean ?: false
+                val uid = user[com.jtool.android.core.models.User::uid.name] as? String ?: ""
+                val isAdmin = user[com.jtool.android.core.models.User::isAdmin.name] as? Boolean ?: false
                 var menuExpanded by remember { mutableStateOf(false) }
 
-                ListItem(
-                    headlineContent = { 
-                        Text(uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.general_unknown) 
-                    },
-                    supportingContent = { 
-                        Column {
-                            Text(user["email"] as? String ?: "")
-                            if (isAdmin) {
-                                Text("ADMIN", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                            }
-                            Text(user["uid"] as? String ?: "", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-                        }
+                ActionListItem(
+                    headline = uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.general_unknown,
+                    supportingText = user[com.jtool.android.core.models.User::email.name] as? String ?: "",
+                    metadataText = buildString {
+                        if (isAdmin) append("ADMIN • ")
+                        append(user[com.jtool.android.core.models.User::uid.name] as? String ?: "")
                     },
                     trailingContent = {
                         Box {
@@ -283,7 +292,7 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                         }
                     }
                 )
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
         }
     }
@@ -338,46 +347,28 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
 @Composable
 fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = uiState.groupSearchQuery,
-                onValueChange = { viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(it)) },
-                label = { Text(Loc.general_searchGroups) },
-                modifier = Modifier.weight(1f),
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                singleLine = true
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(onClick = { viewModel.onEvent(AdminEvent.ApplyGroupSearch) }) {
-                Text(Loc.general_search)
-            }
-        }
-
         LazyColumn(modifier = Modifier.weight(1f)) {
             val filtered = if (uiState.appliedGroupSearchQuery.isEmpty()) {
                 emptyList()
             } else {
                 uiState.groups.filter {
-                    (it["name"] as? String)?.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) == true ||
-                    (it["id"] as? String)?.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) == true
+                    (it[com.jtool.android.core.models.GroupInfo::name.name] as? String)?.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) == true ||
+                    (it[com.jtool.android.core.models.GroupInfo::id.name] as? String)?.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) == true
                 }
             }
 
             items(filtered) { group ->
-                val gid = group["id"] as? String ?: ""
-                ListItem(
-                    headlineContent = { Text(group["name"] as? String ?: "Unknown") },
-                    supportingContent = { Text(gid) },
+                val gid = group[com.jtool.android.core.models.GroupInfo::id.name] as? String ?: ""
+                ActionListItem(
+                    headline = group[com.jtool.android.core.models.GroupInfo::name.name] as? String ?: "Unknown",
+                    supportingText = gid,
                     trailingContent = {
                         IconButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(gid, 1)) }) {
                             Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 )
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
         }
     }

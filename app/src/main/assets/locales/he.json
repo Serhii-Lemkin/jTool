@@ -26,7 +26,6 @@
 
     "timecalc_baseDateTime": "תאריך/זמן בסיס",
     "timecalc_addSub": "הוסף/י / החסר/י",
-    "timecalc_sub": "החסר/י",
     "timecalc_history": "היסטוריה (הקש/י לשחזור)",
     "timecalc_subtracted": "הוחסר",
     "timecalc_resultedIn": "הניב",
@@ -49,7 +48,8 @@
     "shoplist_changeAisle": "שינוי מעבר",
     "shoplist_aisle_common": "כללי",
     "shoplist_aisle_veggies": "ירקות ופירות",
-    "shoplist_aisle_meat": "בשר ודגים",
+    "shoplist_aisle_meat": "בשר",
+    "shoplist_aisle_fish": "דגים",
     "shoplist_aisle_dairy": "מוצרי חלב",
     "shoplist_aisle_bakery": "מאפייה",
     "shoplist_aisle_drinks": "משקאות",
@@ -243,6 +243,10 @@
     "general_confirmDeleteTitle": "מחק/י פריט?",
     "general_confirmDeleteMsg": "האם בטוח שברצונך למחוק?",
     "general_unknown": "לא ידוע",
-    "general_areYouSure": "בטוח/ה?"
+    "general_areYouSure": "בטוח/ה?",
+    "general_refreshing": "מרענן...",
+    "general_pullToRefresh": "משוך/י לרענון",
+    "general_item": "פריט",
+    "general_items": "פריטים"
   }
 }

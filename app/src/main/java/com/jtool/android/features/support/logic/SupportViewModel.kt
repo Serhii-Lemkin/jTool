@@ -6,6 +6,11 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
 import com.jtool.android.core.utils.DeviceInfoProvider
+import com.jtool.android.core.sync.helpers.CommentRepository
+import com.jtool.android.core.components.comments.CommentController
+import com.jtool.android.core.utils.SyncUtils
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -19,6 +24,9 @@ class SupportViewModel(
 
     private val _uiState = MutableStateFlow(SupportUiState())
     val uiState: StateFlow<SupportUiState> = _uiState.asStateFlow()
+
+    private val commentController = CommentController(CommentRepository(), viewModelScope) { settings.getAppUserId() }
+    val comments = commentController.comments
 
     private var requestsListener: com.google.firebase.firestore.ListenerRegistration? = null
     private var syncJob: kotlinx.coroutines.Job? = null
@@ -66,19 +74,43 @@ class SupportViewModel(
                         syncJob?.cancel()
                         syncJob = viewModelScope.launch {
                             val list = snapshot.documents.mapNotNull { doc ->
-                                val req = doc.toObject(SupportRequest::class.java)?.copy(id = doc.id)
-                                if (req != null) {
-                                    val cSnap = doc.reference.collection("comments").get().await()
-                                    val allComments = cSnap.documents.mapNotNull { cDoc ->
-                                        cDoc.toObject(com.jtool.android.core.models.Comment::class.java)?.copy(id = cDoc.id)
-                                    }
-                                    req.copy(comments = buildCommentTree(allComments))
-                                } else null
+                                doc.toObject(SupportRequest::class.java)?.copy(id = doc.id)
                             }
                             
+                            // Fetch comment counts in parallel
+                            val listWithCounts = list.map { req ->
+                                async {
+                                    try {
+                                        val countSnap = syncManager.getSupportColl().document(req.id).collection("comments").count()
+                                            .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
+                                        req.apply { commentCount = countSnap.count.toInt() }
+                                    } catch (e: Exception) {
+                                        req
+                                    }
+                                }
+                            }.awaitAll()
+
                             _uiState.update { state ->
-                                val selected = list.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
-                                state.copy(requests = list, selectedRequest = selected, isLoading = false)
+                                val updatedList = listWithCounts.map { req ->
+                                    val existing = state.requests.find { it.id == req.id }
+                                    if (existing != null) {
+                                        // Preserve UI states, but use fresh server data for core fields
+                                        existing.copy(
+                                            status = req.status,
+                                            type = req.type,
+                                            text = req.text,
+                                            number = req.number,
+                                            pendingStatus = if (req.status != existing.pendingStatus) existing.pendingStatus else null,
+                                            pendingType = if (req.type != existing.pendingType) existing.pendingType else null
+                                        ).apply { 
+                                            // Real-time comment count from server aggregation
+                                            commentCount = req.commentCount
+                                        }
+                                    } else req
+                                }
+                                
+                                val selected = updatedList.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
+                                state.copy(requests = updatedList, selectedRequest = selected, isLoading = false)
                             }
                         }
                     } else {
@@ -89,27 +121,19 @@ class SupportViewModel(
             .launchIn(viewModelScope)
     }
 
-    private fun buildCommentTree(allComments: List<com.jtool.android.core.models.Comment>): List<com.jtool.android.core.models.Comment> {
-        val roots = mutableListOf<com.jtool.android.core.models.Comment>()
-        val children = mutableMapOf<String, MutableList<com.jtool.android.core.models.Comment>>()
-
-        allComments.forEach { comment ->
-            val pId = comment.parentId
-            if (pId == null) {
-                roots.add(comment)
-            } else {
-                children.getOrPut(pId) { mutableListOf() }.add(comment)
+    private fun observeCommentsState() {
+        commentController.comments.onEach { updatedComments ->
+            _uiState.update { state ->
+                val selectedId = state.selectedRequest?.id
+                val updatedRequests = state.requests.map { 
+                    if (it.id == selectedId) {
+                        it.copy(comments = updatedComments).apply { commentCount = updatedComments.size }
+                    } else it
+                }
+                val updatedSelected = updatedRequests.find { it.id == selectedId } ?: state.selectedRequest
+                state.copy(selectedRequest = updatedSelected, requests = updatedRequests)
             }
-        }
-
-        fun assemble(comment: com.jtool.android.core.models.Comment): com.jtool.android.core.models.Comment {
-            val replies = children[comment.id]
-                ?.map { assemble(it) }
-                ?.sortedBy { it.timestamp } ?: emptyList()
-            return comment.copy(replies = replies)
-        }
-
-        return roots.map { assemble(it) }.sortedByDescending { it.timestamp }
+        }.launchIn(viewModelScope)
     }
 
     fun onEvent(event: SupportEvent) {
@@ -122,41 +146,67 @@ class SupportViewModel(
             is SupportEvent.UpdateRequestText -> _uiState.update { it.copy(requestText = event.text) }
             is SupportEvent.SubmitRequest -> submitRequest(event.type, event.context)
             is SupportEvent.OpenRequest -> openRequest(event.request)
-            is SupportEvent.UpdateStatus -> viewModelScope.launch { syncManager.updateSupportStatus(event.requestId, event.status) }
-            is SupportEvent.UpdateType -> viewModelScope.launch { syncManager.updateSupportType(event.requestId, event.type) }
+            is SupportEvent.UpdateStatus -> updateStatus(event.requestId, event.status)
+            is SupportEvent.UpdateType -> updateType(event.requestId, event.type)
             
-            is SupportEvent.AddComment -> addComment(event.requestId, event.text, event.parentId)
-            is SupportEvent.EditComment -> editComment(event.requestId, event.commentId, event.newContent)
-            is SupportEvent.DeleteComment -> deleteComment(event.requestId, event.commentId)
+            is SupportEvent.AddComment -> commentController.addComment(event.text, event.parentId)
+            is SupportEvent.EditComment -> commentController.editComment(event.commentId, event.newContent)
+            is SupportEvent.DeleteComment -> commentController.deleteComment(event.commentId)
             
             is SupportEvent.DeleteRequest -> viewModelScope.launch { 
                 syncManager.deleteSupportRequest(event.requestId)
+                commentController.stop()
                 _uiState.update { it.copy(currentSubScreen = SupportScreenType.HUB, selectedRequest = null) }
             }
             SupportEvent.ResetStatus -> _uiState.update { it.copy(isSuccess = false) }
-            SupportEvent.Refresh -> _uiState.update { 
-                it.copy(
-                    filterType = null,
-                    searchQuery = "",
-                    isSearchVisible = false,
-                    showArchived = false,
-                    pagingLimit = 15,
-                    isLoading = true
-                )
+            SupportEvent.Refresh -> {
+                viewModelScope.launch {
+                    SyncUtils.performRefresh(
+                        onLoading = { loading -> 
+                            _uiState.update { it.copy(isLoading = loading) }
+                        }
+                    ) {
+                        _uiState.update { 
+                            it.copy(
+                                filterType = null,
+                                searchQuery = "",
+                                isSearchVisible = false,
+                                showArchived = false,
+                                pagingLimit = 15
+                            )
+                        }
+                        
+                        val isAdmin = _uiState.value.isAdmin
+                        val query = if (isAdmin) {
+                            syncManager.getSupportColl().orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                        } else {
+                            syncManager.getSupportColl().whereEqualTo("userId", settings.getAppUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                        }
+                        
+                        val snapshot = query.get().await()
+                        val list = snapshot.documents.mapNotNull { it.toObject(SupportRequest::class.java)?.copy(id = it.id) }
+                        
+                        // Fetch comment counts in parallel for the refreshed list
+                        val listWithCounts = list.map { req ->
+                            async {
+                                try {
+                                    val countSnap = syncManager.getSupportColl().document(req.id).collection("comments").count()
+                                        .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
+                                    req.apply { commentCount = countSnap.count.toInt() }
+                                } catch (e: Exception) {
+                                    req
+                                }
+                            }
+                        }.awaitAll()
+                        
+                        _uiState.update { it.copy(requests = listWithCounts) }
+                    }
+                }
             }
             is SupportEvent.Navigate -> {
+                if (event.screen == SupportScreenType.HUB) commentController.stop()
                 _uiState.update { 
-                    val newState = it.copy(currentSubScreen = event.screen)
-                    if (event.screen == SupportScreenType.HUB) {
-                        newState.copy(
-                            filterType = null,
-                            searchQuery = "",
-                            isSearchVisible = false,
-                            showArchived = false,
-                            pagingLimit = 15,
-                            isLoading = true
-                        )
-                    } else newState
+                    it.copy(currentSubScreen = event.screen)
                 }
             }
         }
@@ -164,100 +214,63 @@ class SupportViewModel(
 
     private fun openRequest(request: SupportRequest) {
         _uiState.update { it.copy(selectedRequest = request, currentSubScreen = SupportScreenType.DETAIL) }
+        commentController.observe(syncManager.getSupportColl().document(request.id).collection("comments"))
     }
 
-    private fun addComment(requestId: String, content: String, parentId: String?) {
-        val currentUserId = settings.getAppUserId()
-        val tempId = "temp_${UUID.randomUUID()}"
-        val ghostComment = com.jtool.android.core.models.Comment(
-            id = tempId,
-            content = content,
-            userId = currentUserId,
-            timestamp = System.currentTimeMillis(),
-            parentId = parentId,
-            isPending = true
-        )
-
-        // Optimistic UI Update for detail view
+    private fun updateStatus(requestId: String, status: SupportStatus) {
         _uiState.update { state ->
-            val updatedSelected = state.selectedRequest?.let { req ->
-                if (req.id == requestId) {
-                    val updatedComments = if (parentId == null) {
-                        listOf(ghostComment) + req.comments
-                    } else {
-                        fun updateReplies(list: List<com.jtool.android.core.models.Comment>): List<com.jtool.android.core.models.Comment> = list.map { c ->
-                            if (c.id == parentId) {
-                                c.copy(replies = listOf(ghostComment) + c.replies)
-                            } else {
-                                c.copy(replies = updateReplies(c.replies))
-                            }
-                        }
-                        updateReplies(req.comments)
-                    }
-                    req.copy(comments = updatedComments)
-                } else req
+            val updatedRequests = state.requests.map { 
+                if (it.id == requestId) it.copy(pendingStatus = status) else it
             }
-            
-            state.copy(selectedRequest = updatedSelected)
+            val updatedSelected = state.selectedRequest?.let { 
+                if (it.id == requestId) it.copy(pendingStatus = status) else it
+            }
+            state.copy(requests = updatedRequests, selectedRequest = updatedSelected)
         }
-
+        
         viewModelScope.launch {
             try {
-                val realComment = ghostComment.copy(id = UUID.randomUUID().toString(), isPending = false)
-                syncManager.addSupportComment(requestId, realComment)
+                syncManager.updateSupportStatus(requestId, status)
             } catch (e: Exception) {
-                android.util.Log.e("SupportVM", "Failed to add comment", e)
+                // Revert ghost on error
+                _uiState.update { state ->
+                    val updatedRequests = state.requests.map { 
+                        if (it.id == requestId) it.copy(pendingStatus = null) else it
+                    }
+                    val updatedSelected = state.selectedRequest?.let { 
+                        if (it.id == requestId) it.copy(pendingStatus = null) else it
+                    }
+                    state.copy(requests = updatedRequests, selectedRequest = updatedSelected)
+                }
             }
         }
     }
 
-    private fun editComment(requestId: String, commentId: String, newContent: String) {
-        // Optimistic update for edit
+    private fun updateType(requestId: String, type: SupportType) {
         _uiState.update { state ->
-            val updatedSelected = state.selectedRequest?.let { req ->
-                if (req.id == requestId) {
-                    fun updateContent(list: List<com.jtool.android.core.models.Comment>): List<com.jtool.android.core.models.Comment> = list.map { c ->
-                        if (c.id == commentId) {
-                            c.copy(content = newContent, isEdited = true)
-                        } else {
-                            c.copy(replies = updateContent(c.replies))
-                        }
-                    }
-                    req.copy(comments = updateContent(req.comments))
-                } else req
+            val updatedRequests = state.requests.map { 
+                if (it.id == requestId) it.copy(pendingType = type) else it
             }
-            state.copy(selectedRequest = updatedSelected)
+            val updatedSelected = state.selectedRequest?.let { 
+                if (it.id == requestId) it.copy(pendingType = type) else it
+            }
+            state.copy(requests = updatedRequests, selectedRequest = updatedSelected)
         }
-
+        
         viewModelScope.launch {
             try {
-                syncManager.editSupportComment(requestId, commentId, newContent)
+                syncManager.updateSupportType(requestId, type)
             } catch (e: Exception) {
-                android.util.Log.e("SupportVM", "Failed to edit comment", e)
-            }
-        }
-    }
-
-    private fun deleteComment(requestId: String, commentId: String) {
-        // Optimistic update for delete
-        _uiState.update { state ->
-            val updatedSelected = state.selectedRequest?.let { req ->
-                if (req.id == requestId) {
-                    fun removeComment(list: List<com.jtool.android.core.models.Comment>): List<com.jtool.android.core.models.Comment> = list.filter { it.id != commentId }.map { 
-                        it.copy(replies = removeComment(it.replies))
+                // Revert ghost on error
+                _uiState.update { state ->
+                    val updatedRequests = state.requests.map { 
+                        if (it.id == requestId) it.copy(pendingType = null) else it
                     }
-                    req.copy(comments = removeComment(req.comments))
-                } else req
-            }
-            
-            state.copy(selectedRequest = updatedSelected)
-        }
-
-        viewModelScope.launch {
-            try {
-                syncManager.deleteSupportComment(requestId, commentId)
-            } catch (e: Exception) {
-                android.util.Log.e("SupportVM", "Failed to delete comment", e)
+                    val updatedSelected = state.selectedRequest?.let { 
+                        if (it.id == requestId) it.copy(pendingType = null) else it
+                    }
+                    state.copy(requests = updatedRequests, selectedRequest = updatedSelected)
+                }
             }
         }
     }
@@ -312,5 +325,6 @@ class SupportViewModel(
     override fun onCleared() {
         super.onCleared()
         requestsListener?.remove()
+        commentController.stop()
     }
 }

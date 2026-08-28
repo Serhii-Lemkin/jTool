@@ -63,20 +63,29 @@ fun SupportDetailCard(
                 // Number removed from here as it is in the TopBar
                 if (isAdmin) {
                     Box {
+                        val displayType = request.pendingType ?: request.type
+                        val isPending = request.pendingType != null
                         TextButton(
                             onClick = { typeMenuExpanded = true },
-                            contentPadding = PaddingValues(0.dp)
+                            contentPadding = PaddingValues(0.dp),
+                            enabled = !isPending
                         ) {
                             Text(
-                                text = when (request.type) {
+                                text = when (displayType) {
                                     SupportType.BUG -> Loc.support_type_bug
                                     SupportType.CRASH -> Loc.support_type_crash
                                     SupportType.FEATURE -> Loc.support_type_feature
                                     SupportType.CHANGE -> Loc.support_type_change
                                 },
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isPending) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
                             )
-                            Icon(Icons.Default.ArrowDropDown, null)
+                            if (isPending) {
+                                Spacer(Modifier.width(4.dp))
+                                CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.dp)
+                            } else {
+                                Icon(Icons.Default.ArrowDropDown, null)
+                            }
                         }
                         DropdownMenu(
                             expanded = typeMenuExpanded,
@@ -103,15 +112,16 @@ fun SupportDetailCard(
                         }
                     }
                 } else {
+                    val displayType = request.pendingType ?: request.type
                     Text(
-                        text = when (request.type) {
+                        text = when (displayType) {
                             SupportType.BUG -> Loc.support_type_bug
                             SupportType.CRASH -> Loc.support_type_crash
                             SupportType.FEATURE -> Loc.support_type_feature
                             SupportType.CHANGE -> Loc.support_type_change
                         },
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = if (request.pendingType != null) MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondary
                     )
                 }
             }
@@ -119,11 +129,13 @@ fun SupportDetailCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isAdmin) {
                     Box {
+                        val displayStatus = request.pendingStatus ?: request.status
+                        val isPending = request.pendingStatus != null
                         AssistChip(
                             onClick = { statusMenuExpanded = true },
                             label = {
                                 Text(
-                                    when (request.status) {
+                                    when (displayStatus) {
                                         SupportStatus.OPENED -> Loc.support_status_opened
                                         SupportStatus.IN_PROGRESS -> Loc.support_status_in_progress
                                         SupportStatus.CLOSED -> Loc.support_status_closed
@@ -131,7 +143,14 @@ fun SupportDetailCard(
                                     }
                                 )
                             },
-                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) }
+                            trailingIcon = { 
+                                if (isPending) {
+                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.dp)
+                                } else {
+                                    Icon(Icons.Default.ArrowDropDown, null)
+                                }
+                            },
+                            enabled = !isPending
                         )
                         DropdownMenu(
                             expanded = statusMenuExpanded,
@@ -158,7 +177,10 @@ fun SupportDetailCard(
                         }
                     }
                 } else {
-                    StatusBadge(request.status)
+                    StatusBadge(
+                        status = request.pendingStatus ?: request.status,
+                        isPending = request.pendingStatus != null
+                    )
                 }
 
                 Box {

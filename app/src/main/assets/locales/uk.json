@@ -28,8 +28,6 @@
 
     "timecalc_baseDateTime": "Базовий Час/Дата",
     "timecalc_addSub": "Додати / Відняти",
-    "timecalc_add": "Додати",
-    "timecalc_sub": "Відняти",
     "timecalc_history": "Історія (Натисніть для відновлення)",
     "timecalc_added": "Додано",
     "timecalc_subtracted": "Віднято",
@@ -60,7 +58,8 @@
     "shoplist_changeAisle": "Змінити відділ",
     "shoplist_aisle_common": "Загальне",
     "shoplist_aisle_veggies": "Овочі та фрукти",
-    "shoplist_aisle_meat": "М'ясо та риба",
+    "shoplist_aisle_meat": "М'ясо",
+    "shoplist_aisle_fish": "Риба",
     "shoplist_aisle_dairy": "Молочні продукти",
     "shoplist_aisle_bakery": "Випічка",
     "shoplist_aisle_drinks": "Напої",
@@ -260,6 +259,10 @@
     "general_unknown": "Невідомо",
     "general_areYouSure": "підтверджуєте?",
     "general_search": "Пошук",
-    "general_searchGroups": "Пошук груп"
+    "general_searchGroups": "Пошук груп",
+    "general_refreshing": "Оновлення...",
+    "general_pullToRefresh": "Потягніть, щоб оновити",
+    "general_item": "елемент",
+    "general_items": "елементів"
   }
 }

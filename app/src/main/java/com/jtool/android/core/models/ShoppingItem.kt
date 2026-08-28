@@ -8,6 +8,7 @@ data class ShoppingItem(
     val id: String = "",
     val text: String = "",
     @get:PropertyName("isChecked")
+    @PropertyName("isChecked")
     val isChecked: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(),
     val lastUpdatedBy: String = "",

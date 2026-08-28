@@ -12,7 +12,12 @@ import com.jtool.android.core.models.NoteType
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.helpers.CommentRepository
+import com.jtool.android.core.components.comments.CommentController
+import com.jtool.android.core.utils.SyncUtils
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -27,6 +32,9 @@ class NotesViewModel(
     private val _uiState = MutableStateFlow(NotesUiState())
     val uiState: StateFlow<NotesUiState> = _uiState.asStateFlow()
 
+    private val commentController = CommentController(CommentRepository(), viewModelScope) { settingsManager.getAppUserId() }
+    val comments = commentController.comments
+
     private var notesListener: ListenerRegistration? = null
     private var syncJob: Job? = null
 
@@ -40,7 +48,8 @@ class NotesViewModel(
             .onEach { gid ->
                 _uiState.update { it.copy(notes = emptyList(), editingNote = null) }
                 notesListener?.remove()
-                val localNotes = manager.loadNotes()
+                commentController.stop()
+                val localNotes = manager.loadNotes(gid)
                 _uiState.update { it.copy(notes = localNotes) }
                 if (gid != null) {
                     observeFirestoreNotes(gid)
@@ -57,58 +66,73 @@ class NotesViewModel(
                 if (snapshot != null) {
                     syncJob?.cancel()
                     syncJob = viewModelScope.launch {
-                        val notesList = snapshot.documents.mapNotNull { doc ->
-                            val note = doc.toObject(NoteItem::class.java)?.copy(id = doc.id)
-                            if (note != null) {
-                                val checklist = doc.reference.collection("checklist")
-                                    .orderBy("timestamp").get().await()
-                                    .toObjects(ChecklistItem::class.java)
-                                
-                                val commentsSnapshot = doc.reference.collection("comments")
-                                    .orderBy("timestamp").get().await()
-                                
-                                val allComments = commentsSnapshot.documents.mapNotNull { cDoc ->
-                                    cDoc.toObject(Comment::class.java)?.copy(id = cDoc.id)
+                        _uiState.update { it.copy(isLoading = true) }
+                        val notesList = snapshot.documents.map { doc ->
+                            async {
+                                val note = doc.toObject(NoteItem::class.java)?.copy(id = doc.id)
+                                if (note != null) {
+                                    try {
+                                        if (note.type == NoteType.CHECKLIST) {
+                                            val clCountSnap = doc.reference.collection("checklist").count()
+                                                .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
+                                            note.checklistCount = clCountSnap.count.toInt()
+                                        }
+                                        val cCountSnap = doc.reference.collection("comments").count()
+                                            .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
+                                        note.commentCount = cCountSnap.count.toInt()
+                                    } catch (e: Exception) { }
                                 }
-                                
-                                note.copy(checklist = checklist, comments = buildCommentTree(allComments))
-                            } else null
-                        }
+                                note
+                            }
+                        }.awaitAll().filterNotNull()
+
                         _uiState.update { state ->
                             val updatedEditingNote = state.editingNote?.let { editing ->
-                                notesList.find { it.id == editing.id }
+                                notesList.find { it.id == editing.id }?.let { fresh ->
+                                    // PRESERVE only the checklist as it's separate
+                                    fresh.copy(
+                                        checklist = if (editing.checklist.isNotEmpty()) editing.checklist else fresh.checklist
+                                    ).apply { 
+                                        checklistCount = if (editing.checklist.isNotEmpty()) editing.checklist.size else fresh.checklistCount
+                                        commentCount = fresh.commentCount
+                                    }
+                                }
                             }
                             state.copy(
                                 notes = notesList,
-                                editingNote = updatedEditingNote ?: state.editingNote
+                                editingNote = updatedEditingNote ?: state.editingNote,
+                                isLoading = false
                             )
                         }
-                        manager.saveNotes(notesList)
+                        manager.saveNotes(notesList, gid)
                     }
                 }
             }
     }
 
-    private fun buildCommentTree(allComments: List<Comment>): List<Comment> {
-        val roots = mutableListOf<Comment>()
-        val children = mutableMapOf<String, MutableList<Comment>>()
-
-        allComments.forEach { comment ->
-            if (comment.parentId == null) {
-                roots.add(comment)
-            } else {
-                children.getOrPut(comment.parentId) { mutableListOf() }.add(comment)
+    private fun observeCommentsState() {
+        combine(commentController.comments, commentController.isLoading) { comments, loading ->
+            comments to loading
+        }.onEach { (updatedComments, loading) ->
+            _uiState.update { state ->
+                val updatedNote = state.editingNote?.copy(comments = updatedComments)
+                updatedNote?.apply { 
+                    commentCount = updatedComments.size 
+                }
+                
+                // Also update the note in the main list so the count updates immediately
+                val updatedNotes = state.notes.map { 
+                    if (it.id == state.editingNote?.id) {
+                        it.copy().apply { 
+                            commentCount = updatedComments.size
+                            checklistCount = state.editingNote.checklist.size
+                        }
+                    } else it
+                }
+                
+                state.copy(editingNote = updatedNote, notes = updatedNotes, isLoading = loading)
             }
-        }
-
-        fun assemble(comment: Comment): Comment {
-            val replies = children[comment.id]
-                ?.map { assemble(it) }
-                ?.sortedByDescending { it.timestamp } ?: emptyList()
-            return comment.copy(replies = replies)
-        }
-
-        return roots.map { assemble(it) }.sortedByDescending { it.timestamp }
+        }.launchIn(viewModelScope)
     }
 
     private fun observeUserNames() {
@@ -131,12 +155,55 @@ class NotesViewModel(
             is NotesEvent.ToggleChecklistItem -> toggleChecklistItem(event.id)
             is NotesEvent.RemoveChecklistItem -> removeChecklistItem(event.id)
             NotesEvent.SaveNote -> saveNote()
-            NotesEvent.NavigateBack -> _uiState.update { it.copy(currentScreen = NotesScreenType.LIST, editingNote = null) }
+            NotesEvent.NavigateBack -> {
+                commentController.stop()
+                _uiState.update { it.copy(currentScreen = NotesScreenType.LIST, editingNote = null) }
+            }
             NotesEvent.ToggleEditMode -> _uiState.update { it.copy(isEditMode = !it.isEditMode) }
             
-            is NotesEvent.AddComment -> addComment(event.content, event.parentId)
-            is NotesEvent.EditComment -> editComment(event.commentId, event.newContent)
-            is NotesEvent.DeleteComment -> deleteComment(event.commentId)
+            is NotesEvent.AddComment -> commentController.addComment(event.content, event.parentId)
+            is NotesEvent.EditComment -> commentController.editComment(event.commentId, event.newContent)
+            is NotesEvent.DeleteComment -> commentController.deleteComment(event.commentId)
+            NotesEvent.Refresh -> refresh()
+            
+            NotesEvent.ToggleSearch -> _uiState.update { it.copy(isSearchVisible = !it.isSearchVisible, searchQuery = "") }
+            is NotesEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
+            is NotesEvent.SetFilterType -> _uiState.update { it.copy(filterType = event.type) }
+        }
+    }
+
+    private fun refresh() {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        viewModelScope.launch {
+            SyncUtils.performRefresh(
+                onLoading = { loading -> _uiState.update { it.copy(isRefreshing = loading, isLoading = loading) } }
+            ) {
+                manager.saveNotes(emptyList(), gid) // Clear local cache
+                _uiState.update { it.copy(notes = emptyList()) }
+                
+                val snapshot = getNotesColl(gid).orderBy("timestamp", Query.Direction.DESCENDING).get().await()
+                val list = snapshot.documents.map { doc ->
+                    async {
+                        val note = doc.toObject(NoteItem::class.java)?.copy(id = doc.id)
+                        if (note != null) {
+                            try {
+                                if (note.type == NoteType.CHECKLIST) {
+                                    val clCountSnap = doc.reference.collection("checklist").count()
+                                        .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
+                                    note.checklistCount = clCountSnap.count.toInt()
+                                }
+                                val cCountSnap = doc.reference.collection("comments").count()
+                                    .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
+                                note.commentCount = cCountSnap.count.toInt()
+                            } catch (e: Exception) { }
+                        }
+                        note
+                    }
+                }.awaitAll().filterNotNull()
+                
+                _uiState.update { it.copy(notes = list) }
+                manager.saveNotes(list, gid)
+            }
         }
     }
 
@@ -177,8 +244,31 @@ class NotesViewModel(
             isEditMode = editMode,
             draftTitle = note.title,
             draftContent = note.content,
-            checklistInput = ""
+            checklistInput = "",
+            isLoading = true
         ) }
+
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        val noteRef = getNotesColl(gid).document(note.id)
+
+        // Real-time Checklist Listener (Manual for now as it's separate from comments)
+        viewModelScope.launch {
+            try {
+                val checklist = noteRef.collection("checklist")
+                    .orderBy("timestamp").get().await()
+                    .toObjects(ChecklistItem::class.java)
+                
+                _uiState.update { state ->
+                    val updatedNote = state.editingNote?.let { 
+                        if (it.id == note.id) it.copy(checklist = checklist) else it
+                    }
+                    state.copy(editingNote = updatedNote)
+                }
+            } catch (e: Exception) { }
+        }
+
+        // Real-time Comments via Unified Controller
+        commentController.observe(noteRef.collection("comments"))
     }
 
     private fun addChecklistItem() {
@@ -190,11 +280,23 @@ class NotesViewModel(
             val editingNote = _uiState.value.editingNote
             
             if (editingNote != null) {
+                // Optimistic UI update
+                _uiState.update { state ->
+                    val updatedNote = state.editingNote?.copy(
+                        checklist = state.editingNote.checklist + newItem
+                    )
+                    state.copy(editingNote = updatedNote, checklistInput = "", isLoading = true)
+                }
+
                 viewModelScope.launch {
-                    val noteRef = getNotesColl(gid).document(editingNote.id)
-                    noteRef.collection("checklist").document(id).set(newItem).await()
-                    noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
-                    _uiState.update { it.copy(checklistInput = "") }
+                    try {
+                        val noteRef = getNotesColl(gid).document(editingNote.id)
+                        noteRef.collection("checklist").document(id).set(newItem).await()
+                        noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
+                        _uiState.update { it.copy(isLoading = false) }
+                    } catch (e: Exception) {
+                        _uiState.update { it.copy(isLoading = false) }
+                    }
                 }
             } else {
                 _uiState.update { it.copy(checklistInput = "") }
@@ -207,20 +309,44 @@ class NotesViewModel(
         val note = _uiState.value.editingNote ?: return
         val item = note.checklist.find { it.id == id } ?: return
         val updatedItem = item.copy(isChecked = !item.isChecked, timestamp = System.currentTimeMillis())
+        
+        // Optimistic UI update
+        _uiState.update { state ->
+            val updatedList = state.editingNote?.checklist?.map { if (it.id == id) updatedItem else it } ?: emptyList()
+            state.copy(editingNote = state.editingNote?.copy(checklist = updatedList), isLoading = true)
+        }
+
         viewModelScope.launch {
-            val noteRef = getNotesColl(gid).document(note.id)
-            noteRef.collection("checklist").document(id).set(updatedItem).await()
-            noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
+            try {
+                val noteRef = getNotesColl(gid).document(note.id)
+                noteRef.collection("checklist").document(id).set(updatedItem).await()
+                noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
+                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 
     private fun removeChecklistItem(id: String) {
         val gid = settingsManager.getCurrentGroupId() ?: return
         val note = _uiState.value.editingNote ?: return
+        
+        // Optimistic UI update
+        _uiState.update { state ->
+            val updatedList = state.editingNote?.checklist?.filter { it.id != id } ?: emptyList()
+            state.copy(editingNote = state.editingNote?.copy(checklist = updatedList), isLoading = true)
+        }
+
         viewModelScope.launch {
-            val noteRef = getNotesColl(gid).document(note.id)
-            noteRef.collection("checklist").document(id).delete().await()
-            noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
+            try {
+                val noteRef = getNotesColl(gid).document(note.id)
+                noteRef.collection("checklist").document(id).delete().await()
+                noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
+                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 
@@ -236,125 +362,32 @@ class NotesViewModel(
             return
         }
         
+        _uiState.update { it.copy(isLoading = true) }
+        
         val noteData = mapOf(
-            "title" to title,
-            "content" to state.draftContent.trim(),
-            "type" to note.type.name,
-            "timestamp" to System.currentTimeMillis(),
-            "lastUpdatedBy" to settingsManager.getAppUserId()
+            com.jtool.android.core.models.NoteItem::title.name to title,
+            com.jtool.android.core.models.NoteItem::content.name to state.draftContent.trim(),
+            com.jtool.android.core.models.NoteItem::type.name to note.type.name,
+            com.jtool.android.core.models.NoteItem::timestamp.name to System.currentTimeMillis(),
+            com.jtool.android.core.models.NoteItem::lastUpdatedBy.name to settingsManager.getAppUserId()
         )
         
         viewModelScope.launch {
-            getNotesColl(gid).document(note.id).set(noteData, com.google.firebase.firestore.SetOptions.merge()).await()
-            _uiState.update { it.copy(isEditMode = false) }
+            try {
+                getNotesColl(gid).document(note.id).set(noteData, com.google.firebase.firestore.SetOptions.merge()).await()
+                _uiState.update { it.copy(isEditMode = false, isLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 
     fun getAppUserId(): String = settingsManager.getAppUserId()
     fun getAuthUserId(): String = settingsManager.getUserId()
 
-    // --- Comment Handling ---
-
-    private fun addComment(content: String, parentId: String?) {
-        val note = _uiState.value.editingNote ?: return
-        val gid = settingsManager.getCurrentGroupId() ?: return
-        val id = "temp_${System.currentTimeMillis()}"
-        val comment = Comment(
-            id = id,
-            content = content,
-            userId = getAppUserId(),
-            timestamp = System.currentTimeMillis(),
-            parentId = parentId,
-            isPending = true
-        )
-
-        // Optimistic UI Update
-        _uiState.update { state ->
-            val updatedNote = state.editingNote?.let { n ->
-                if (parentId == null) {
-                    n.copy(comments = (listOf(comment) + n.comments))
-                } else {
-                    // Update the parent comment's replies optimistically
-                    fun updateReplies(comments: List<Comment>): List<Comment> = comments.map { c ->
-                        if (c.id == parentId) {
-                            c.copy(replies = (listOf(comment) + c.replies))
-                        } else {
-                            c.copy(replies = updateReplies(c.replies))
-                        }
-                    }
-                    n.copy(comments = updateReplies(n.comments))
-                }
-            }
-            state.copy(editingNote = updatedNote ?: state.editingNote)
-        }
-
-        viewModelScope.launch {
-            try {
-                val realId = System.currentTimeMillis().toString()
-                val realComment = comment.copy(id = realId, isPending = false)
-                val noteRef = getNotesColl(gid).document(note.id)
-                noteRef.collection("comments").document(realId).set(realComment).await()
-                noteRef.update("timestamp", System.currentTimeMillis()).await()
-            } catch (e: Exception) {
-                // Rollback optimistic update on failure
-                // (In a full implementation we'd handle this more gracefully)
-                android.util.Log.e("NotesVM", "Failed to add comment", e)
-            }
-        }
-    }
-
-    private fun editComment(commentId: String, newContent: String) {
-        val note = _uiState.value.editingNote ?: return
-        val gid = settingsManager.getCurrentGroupId() ?: return
-        
-        // Find existing comment to preserve other properties
-        fun findComment(comments: List<Comment>): Comment? {
-            for (c in comments) {
-                if (c.id == commentId) return c
-                val found = findComment(c.replies)
-                if (found != null) return found
-            }
-            return null
-        }
-        
-        val existing = findComment(note.comments) ?: return
-        val updatedComment = existing.copy(content = newContent, isEdited = true, timestamp = System.currentTimeMillis())
-
-        viewModelScope.launch {
-            val noteRef = getNotesColl(gid).document(note.id)
-            noteRef.collection("comments").document(commentId).set(updatedComment).await()
-            noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
-        }
-    }
-
-    private fun deleteComment(commentId: String) {
-        val note = _uiState.value.editingNote ?: return
-        val gid = settingsManager.getCurrentGroupId() ?: return
-
-        // Optimistic UI Update
-        _uiState.update { state ->
-            val updatedNote = state.editingNote?.let { n ->
-                fun removeComment(list: List<Comment>): List<Comment> = list.filter { it.id != commentId }.map { 
-                    it.copy(replies = removeComment(it.replies))
-                }
-                n.copy(comments = removeComment(n.comments))
-            }
-            state.copy(editingNote = updatedNote ?: state.editingNote)
-        }
-
-        viewModelScope.launch {
-            try {
-                val noteRef = getNotesColl(gid).document(note.id)
-                noteRef.collection("comments").document(commentId).delete().await()
-                noteRef.set(mapOf("timestamp" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
-            } catch (e: Exception) {
-                android.util.Log.e("NotesVM", "Failed to delete comment", e)
-            }
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         notesListener?.remove()
+        commentController.stop()
     }
 }

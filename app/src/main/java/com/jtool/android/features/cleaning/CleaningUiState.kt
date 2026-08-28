@@ -18,7 +18,7 @@ data class CleaningUiState(
         } else {
             tasks.filter { it.isEnabled }.sortedWith(
                 compareBy<CleaningTask> { it.isChecked }
-                    .thenBy { it.title }
+                    .thenByDescending { it.lastDoneTimestamp.coerceAtLeast(it.timestamp) }
             )
         }
 }

@@ -7,6 +7,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.jtool.android.core.models.LinkItem
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.utils.SyncUtils
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -33,7 +34,7 @@ class LinksViewModel(
             .onEach { gid ->
                 _uiState.update { it.copy(links = emptyList()) }
                 linksListener?.remove()
-                val localLinks = manager.loadLinks()
+                val localLinks = manager.loadLinks(gid)
                 _uiState.update { it.copy(links = localLinks) }
                 if (gid != null) {
                     observeFirestoreLinks(gid)
@@ -47,11 +48,12 @@ class LinksViewModel(
     private fun observeFirestoreLinks(gid: String) {
         linksListener = getLinksColl(gid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
+                _uiState.update { it.copy(isLoading = true) }
                 val list = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(LinkItem::class.java)?.copy(id = doc.id)
                 }
-                _uiState.update { it.copy(links = list) }
-                manager.saveLinks(list)
+                _uiState.update { it.copy(links = list, isLoading = false) }
+                manager.saveLinks(list, gid)
             }
         }
     }
@@ -72,6 +74,23 @@ class LinksViewModel(
             LinksEvent.ConfirmDelete -> confirmDelete()
             is LinksEvent.ToggleMenu -> _uiState.update { it.copy(menuExpanded = event.expanded) }
             LinksEvent.AddLink -> addLink()
+            LinksEvent.Refresh -> refresh()
+        }
+    }
+
+    private fun refresh() {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        viewModelScope.launch {
+            SyncUtils.performRefresh(
+                onLoading = { loading -> _uiState.update { it.copy(isLoading = loading) } }
+            ) {
+                manager.saveLinks(emptyList(), gid) // Clear local cache
+                _uiState.update { it.copy(links = emptyList()) }
+                val snapshot = getLinksColl(gid).get().await()
+                val list = snapshot.documents.mapNotNull { it.toObject(LinkItem::class.java)?.copy(id = it.id) }
+                _uiState.update { it.copy(links = list) }
+                manager.saveLinks(list, gid)
+            }
         }
     }
 

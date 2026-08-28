@@ -136,6 +136,7 @@ object Loc {
             "Common" -> s("shoplist_aisle_common", "Common")
             "Veggies" -> s("shoplist_aisle_veggies", "Veggies")
             "Meat" -> s("shoplist_aisle_meat", "Meat")
+            "Fish" -> s("shoplist_aisle_fish", "Fish")
             "Dairy" -> s("shoplist_aisle_dairy", "Dairy")
             "Bakery" -> s("shoplist_aisle_bakery", "Bakery")
             "Drinks" -> s("shoplist_aisle_drinks", "Drinks")
@@ -353,4 +354,8 @@ object Loc {
     val general_search get() = s("general_search", "Search")
     val general_searchGroups get() = s("general_searchGroups", "Search Groups")
     val general_areYouSure get() = s("general_areYouSure", "Are you sure?")
+    val general_refreshing get() = s("general_refreshing", "Refreshing...")
+    val general_pullToRefresh get() = s("general_pullToRefresh", "Pull to refresh")
+    val general_item get() = s("general_item", "item")
+    val general_items get() = s("general_items", "items")
 }

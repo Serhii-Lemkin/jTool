@@ -4,17 +4,18 @@ import android.content.Context
 import com.jtool.android.core.models.CleaningTask
 
 class CleaningManager(context: Context) {
-    private val prefs = context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE)
+    private val context = context
+    private fun getPrefs(groupId: String?) = context.getSharedPreferences("jtool_cleaning_${groupId ?: "none"}", Context.MODE_PRIVATE)
 
-    fun saveTasks(tasks: List<CleaningTask>) {
+    fun saveTasks(tasks: List<CleaningTask>, groupId: String?) {
         val encoded = tasks.joinToString(";") { 
             "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.frequencyDays}|${it.isRecurring}|${it.lastDoneTimestamp}|${it.isChecked}|${it.isEnabled}|${it.lastUpdatedBy}|${it.timestamp}" 
         }
-        prefs.edit().putString("tasks", encoded).apply()
+        getPrefs(groupId).edit().putString("tasks", encoded).apply()
     }
 
-    fun loadTasks(): List<CleaningTask> {
-        val encoded = prefs.getString("tasks", "") ?: ""
+    fun loadTasks(groupId: String?): List<CleaningTask> {
+        val encoded = getPrefs(groupId).getString("tasks", "") ?: ""
         if (encoded.isEmpty()) return emptyList()
         
         return encoded.split(";").mapNotNull {

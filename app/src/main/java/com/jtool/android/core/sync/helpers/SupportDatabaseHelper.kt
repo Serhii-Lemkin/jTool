@@ -48,7 +48,7 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
                 val isAdmin = if (bypassLimit) true else {
                     val userRef = firestore.collection("users").document(uid)
                     val userSnapshot = transaction.get(userRef)
-                    userSnapshot.getBoolean("isAdmin") ?: false
+                    userSnapshot.toObject(com.jtool.android.core.models.User::class.java)?.isAdmin ?: false
                 }
 
                 // Check Rate Limit (Skip for Admin or Bypass)
@@ -114,11 +114,11 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
     }
 
     suspend fun updateStatus(requestId: String, status: SupportStatus) {
-        getSupportColl().document(requestId).update("status", status.name).await()
+        getSupportColl().document(requestId).update(SupportRequest::status.name, status.name).await()
     }
 
     suspend fun updateType(requestId: String, type: SupportType) {
-        getSupportColl().document(requestId).update("type", type.name).await()
+        getSupportColl().document(requestId).update(SupportRequest::type.name, type.name).await()
     }
 
     fun getCommentsFlow(requestId: String): Flow<List<com.jtool.android.core.models.Comment>> = callbackFlow {
@@ -158,57 +158,27 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
     suspend fun addComment(requestId: String, comment: com.jtool.android.core.models.Comment) {
         val docRef = getSupportColl().document(requestId)
         docRef.collection("comments").document(comment.id).set(comment).await()
-        docRef.update("timestamp", System.currentTimeMillis()).await()
+        docRef.update(SupportRequest::timestamp.name, System.currentTimeMillis()).await()
     }
 
     suspend fun editComment(requestId: String, commentId: String, newContent: String) {
         val docRef = getSupportColl().document(requestId)
         docRef.collection("comments").document(commentId)
-            .update("content", newContent, "isEdited", true, "timestamp", System.currentTimeMillis()).await()
-        docRef.update("timestamp", System.currentTimeMillis()).await()
+            .update(
+                com.jtool.android.core.models.Comment::content.name, newContent,
+                com.jtool.android.core.models.Comment::isEdited.name, true,
+                com.jtool.android.core.models.Comment::timestamp.name, System.currentTimeMillis()
+            ).await()
+        docRef.update(SupportRequest::timestamp.name, System.currentTimeMillis()).await()
     }
 
     suspend fun deleteComment(requestId: String, commentId: String) {
         val docRef = getSupportColl().document(requestId)
         docRef.collection("comments").document(commentId).delete().await()
-        docRef.update("timestamp", System.currentTimeMillis()).await()
+        docRef.update(SupportRequest::timestamp.name, System.currentTimeMillis()).await()
     }
 
     suspend fun deleteRequest(requestId: String) {
         getSupportColl().document(requestId).delete().await()
-    }
-
-    suspend fun migrateLegacyRequests(onProgress: (String) -> Unit): Boolean {
-        return try {
-            val suggestionsColl = firestore.collection("suggestions")
-            val snapshot = suggestionsColl.get().await()
-            val total = snapshot.size()
-            var count = 0
-            
-            snapshot.documents.forEach { doc ->
-                val text = doc.getString("text") ?: ""
-                val userId = doc.getString("userId") ?: "unknown"
-                val timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
-                
-                val request = SupportRequest(
-                    type = SupportType.BUG, // Fallback
-                    status = SupportStatus.CLOSED, // Old ones probably done
-                    text = text,
-                    userId = userId,
-                    userName = "Migrated Legacy",
-                    timestamp = timestamp,
-                    deviceInfo = mapOf("migrated" to "true")
-                )
-                
-                submitRequest(request, userId, bypassLimit = true)
-                suggestionsColl.document(doc.id).delete().await()
-                count++
-                onProgress("Migrated $count/$total")
-            }
-            true
-        } catch (e: Exception) {
-            android.util.Log.e("SupportDB", "Migration failed", e)
-            false
-        }
     }
 }

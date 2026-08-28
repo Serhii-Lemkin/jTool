@@ -31,6 +31,7 @@ import com.jtool.android.features.settings.general.GeneralSettingsScreen
 import com.jtool.android.features.settings.updates.AppUpdatesScreen
 import com.jtool.android.features.settings.visibility.AppVisibilityScreen
 import com.jtool.android.features.support.screens.SupportHubScreen
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,11 +72,10 @@ fun SettingsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
-            if (uiState.currentSubScreen != "requests") {
+            if (uiState.currentSubScreen != "requests" && uiState.currentSubScreen != "groups") {
                 GenericTitle(
                     title = when(uiState.currentSubScreen) {
                         "account" -> Loc.settings_account
-                        "groups" -> Loc.settings_groups
                         "general" -> Loc.settings_generalSettings
                         "app_updates" -> Loc.settings_appUpdates
                         "visibility" -> Loc.settings_visibilityTitle
@@ -88,7 +88,7 @@ fun SettingsScreen(
             }
         }
     ) { padding ->
-        val boxModifier = if (uiState.currentSubScreen == "requests") {
+        val boxModifier = if (uiState.currentSubScreen == "requests" || uiState.currentSubScreen == "groups") {
             Modifier.fillMaxSize()
         } else {
             Modifier.padding(padding).fillMaxSize()
@@ -115,6 +115,7 @@ fun SettingsScreen(
                 "groups" -> GroupsScreen(
                     groupSyncManager = groupSyncManager,
                     settingsManager = settingsManager,
+                    onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) },
                     onGroupChanged = onGroupChanged,
                     onGroupsUpdated = onGroupsUpdated
                 )
@@ -149,33 +150,29 @@ fun SettingsMenuItem(
     onClick: () -> Unit,
     hasBadge: Boolean = false
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        BadgedBox(
-            badge = {
-                if (hasBadge) {
-                    Badge(containerColor = MaterialTheme.colorScheme.error)
+    ActionListItem(
+        onClick = onClick,
+        headline = title,
+        supportingText = subtitle,
+        leadingContent = {
+            BadgedBox(
+                badge = {
+                    if (hasBadge) {
+                        Badge(containerColor = MaterialTheme.colorScheme.error)
+                    }
                 }
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        },
+        trailingContent = {
+            val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+            Icon(
+                imageVector = Icons.Default.ChevronRight, 
+                contentDescription = null, 
+                modifier = Modifier.scale(if (isRtl) -1f else 1f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
         }
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(text = subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-        Icon(
-            imageVector = Icons.Default.ChevronRight, 
-            contentDescription = null, 
-            modifier = Modifier.scale(if (isRtl) -1f else 1f),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        )
-    }
+    )
 }

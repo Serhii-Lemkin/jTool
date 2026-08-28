@@ -16,5 +16,13 @@ data class NoteItem(
     val checklist: List<ChecklistItem> = emptyList(),
     val comments: List<Comment> = emptyList(),
     val timestamp: Long = System.currentTimeMillis(),
-    val lastUpdatedBy: String = ""
+    val lastUpdatedBy: String = "",
+    
+    @get:com.google.firebase.firestore.Exclude
+    @set:com.google.firebase.firestore.Exclude
+    var checklistCount: Int = 0,
+    
+    @get:com.google.firebase.firestore.Exclude
+    @set:com.google.firebase.firestore.Exclude
+    var commentCount: Int = 0
 )

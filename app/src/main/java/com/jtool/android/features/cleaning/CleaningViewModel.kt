@@ -7,6 +7,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.jtool.android.core.models.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.utils.SyncUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -39,7 +40,7 @@ class CleaningViewModel(
             .onEach { gid ->
                 _uiState.update { it.copy(tasks = emptyList()) }
                 tasksListener?.remove()
-                val localTasks = manager.loadTasks()
+                val localTasks = manager.loadTasks(gid)
                 _uiState.update { it.copy(tasks = localTasks) }
                 if (gid != null) {
                     observeFirestoreTasks(gid)
@@ -61,7 +62,7 @@ class CleaningViewModel(
                     updated.forEach { task -> saveTaskToFirestore(task) }
                 }
                 _uiState.update { it.copy(tasks = updated) }
-                manager.saveTasks(updated)
+                manager.saveTasks(updated, gid)
             }
         }
     }
@@ -114,6 +115,23 @@ class CleaningViewModel(
             is CleaningEvent.RequestEdit -> _uiState.update { it.copy(editingTask = event.task) }
             is CleaningEvent.SaveTask -> saveEditedTask(event.title, event.days, event.isRecurring)
             is CleaningEvent.AddTask -> addTask(event.title, event.days, event.isRecurring)
+            CleaningEvent.Refresh -> refresh()
+        }
+    }
+
+    private fun refresh() {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        viewModelScope.launch {
+            SyncUtils.performRefresh(
+                onLoading = { loading -> _uiState.update { it.copy(isLoading = loading) } }
+            ) {
+                manager.saveTasks(emptyList(), gid) // Clear local cache
+                _uiState.update { it.copy(tasks = emptyList()) }
+                val snapshot = getCleaningColl(gid).get().await()
+                val list = snapshot.documents.mapNotNull { it.toObject(CleaningTask::class.java)?.copy(id = it.id) }
+                _uiState.update { it.copy(tasks = list) }
+                manager.saveTasks(list, gid)
+            }
         }
     }
 

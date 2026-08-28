@@ -7,6 +7,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.jtool.android.core.models.ShoppingItem
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.utils.SyncUtils
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -36,7 +37,7 @@ class ShoppingViewModel(
                 itemsListener?.remove()
                 
                 // Load from local (which may be empty if clearLocalCache was called)
-                val localItems = manager.loadItems()
+                val localItems = manager.loadItems(gid)
                 _uiState.update { it.copy(items = localItems) }
                 
                 if (gid != null) {
@@ -55,7 +56,7 @@ class ShoppingViewModel(
                     doc.toObject(ShoppingItem::class.java)?.copy(id = doc.id)
                 }
                 _uiState.update { it.copy(items = list) }
-                manager.saveItems(list)
+                manager.saveItems(list, gid)
             }
         }
     }
@@ -85,6 +86,22 @@ class ShoppingViewModel(
             is ShoppingEvent.ToggleItem -> toggleItem(event.item, event.isChecked)
             is ShoppingEvent.RestoreItem -> restoreItem(event.text)
             is ShoppingEvent.SelectItem -> _uiState.update { it.copy(selectedItem = event.item) }
+            ShoppingEvent.Refresh -> refresh()
+        }
+    }
+
+    private fun refresh() {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        viewModelScope.launch {
+            SyncUtils.performRefresh(
+                onLoading = { loading -> _uiState.update { it.copy(isLoading = loading) } }
+            ) {
+                manager.saveItems(emptyList(), gid) // Clear local cache
+                val snapshot = getShoppingColl(gid).get().await()
+                val list = snapshot.documents.mapNotNull { it.toObject(ShoppingItem::class.java)?.copy(id = it.id) }
+                _uiState.update { it.copy(items = list) }
+                manager.saveItems(list, gid)
+            }
         }
     }
 
@@ -93,7 +110,7 @@ class ShoppingViewModel(
         if (selectedItem != null) {
             val gid = settingsManager.getCurrentGroupId() ?: return
             viewModelScope.launch {
-                getShoppingColl(gid).document(selectedItem.id).update("aisle", aisle).await()
+                getShoppingColl(gid).document(selectedItem.id).update(com.jtool.android.core.models.ShoppingItem::aisle.name, aisle).await()
                 _uiState.update { it.copy(selectedItem = null, showAislePicker = false) }
             }
         } else {
@@ -140,9 +157,9 @@ class ShoppingViewModel(
         val gid = settingsManager.getCurrentGroupId() ?: return
         viewModelScope.launch {
             getShoppingColl(gid).document(item.id).update(
-                "isChecked", isChecked,
-                "timestamp", System.currentTimeMillis(),
-                "lastUpdatedBy", settingsManager.getAppUserId()
+                com.jtool.android.core.models.ShoppingItem::isChecked.name, isChecked,
+                com.jtool.android.core.models.ShoppingItem::timestamp.name, System.currentTimeMillis(),
+                com.jtool.android.core.models.ShoppingItem::lastUpdatedBy.name, settingsManager.getAppUserId()
             ).await()
         }
     }

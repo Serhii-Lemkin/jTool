@@ -24,6 +24,7 @@ class UserAdminHelper(
     private fun getGroupsColl() = firestore.collection("groups")
     private fun getPublicProfilesColl() = firestore.collection("public_profiles")
     private fun getUserDataColl() = firestore.collection("user_data")
+    private fun getSupportColl() = firestore.collection("support_requests")
 
     suspend fun pushUserSettings(): Boolean {
         val uid = auth.currentUser?.uid ?: return false
@@ -35,29 +36,25 @@ class UserAdminHelper(
             val userOnServer = snapshot.toObject(User::class.java)
             val isAdmin = userOnServer?.isAdmin ?: false
             
-            // Core identity in /users/
-            val localGroupIds = settings.getGroupIds()
-            val serverGroupIds = userOnServer?.groupIds ?: emptyList()
-            val mergedGroupIds = (localGroupIds + serverGroupIds).distinct()
+            // Core identity in /users/ (groupIds are managed by dedicated join/leave functions)
             val coreData = mapOf(
-                "email" to auth.currentUser?.email,
-                "groupIds" to mergedGroupIds,
-                "isAdmin" to isAdmin
+                User::email.name to auth.currentUser?.email,
+                User::isAdmin.name to isAdmin
             )
             userDoc.set(coreData, SetOptions.merge()).await()
             
             // Stats and settings in /user_data/
             val hoursMap = settings.getAllWeeklyHours().mapKeys { it.key.name }
             val statsData = mapOf(
-                "appUserId" to appUserId,
-                "currentGroupId" to settings.getCurrentGroupId(),
-                "isDarkMode" to settings.isDarkMode(),
-                "language" to settings.getLanguage(),
-                "hours" to hoursMap
+                UserData::appUserId.name to appUserId,
+                UserData::currentGroupId.name to settings.getCurrentGroupId(),
+                UserData::isDarkMode.name to settings.isDarkMode(),
+                UserData::language.name to settings.getLanguage(),
+                UserData::hours.name to hoursMap
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
-            val profile = mapOf("displayName" to globalUserName)
+            val profile = mapOf(com.jtool.android.core.models.PublicProfile::displayName.name to globalUserName)
             getPublicProfilesColl().document(uid).set(profile, SetOptions.merge()).await()
             true
         } catch (e: Exception) {
@@ -85,7 +82,7 @@ class UserAdminHelper(
                     finalGroupsMap[doc.id] = GroupInfo(
                         id = doc.id,
                         name = group?.name ?: "Unknown Group",
-                        owner = group?.owner
+                        ownerUid = group?.ownerUid
                     )
                 }
             }
@@ -93,14 +90,18 @@ class UserAdminHelper(
             
             val localCurrentGroupId = settings.getCurrentGroupId()
             val remoteCurrentGroupId = stats.currentGroupId
-            if (localCurrentGroupId == null && groupIds.isNotEmpty()) {
+            
+            if (localCurrentGroupId != null && remoteCurrentGroupId == null) {
+                // Phone knows more than server - sync up
+                pushUserSettings()
+            } else if (localCurrentGroupId == null && groupIds.isNotEmpty()) {
                 settings.setCurrentGroupId(remoteCurrentGroupId ?: groupIds.first())
             } else if (localCurrentGroupId != null && !groupIds.contains(localCurrentGroupId)) {
                 settings.setCurrentGroupId(groupIds.firstOrNull())
             }
             
             val pSnap = getPublicProfilesColl().document(uid).get().await()
-            pSnap.getString("displayName")?.let { settings.saveUserName(it) }
+            pSnap.getString(com.jtool.android.core.models.PublicProfile::displayName.name)?.let { settings.saveUserName(it) }
             
             if (stats.appUserId.isNotEmpty()) settings.saveAppUserId(stats.appUserId)
             settings.setDarkMode(stats.isDarkMode)
@@ -135,9 +136,9 @@ class UserAdminHelper(
                 val list = snapshot.documents.map { doc ->
                     val user = doc.toObject(User::class.java)
                     val data = mutableMapOf<String, Any>(
-                        "uid" to doc.id,
-                        "email" to (user?.email ?: ""),
-                        "isAdmin" to (user?.isAdmin ?: false)
+                        User::uid.name to doc.id,
+                        User::email.name to (user?.email ?: ""),
+                        User::isAdmin.name to (user?.isAdmin ?: false)
                     )
                     data
                 }
@@ -148,7 +149,7 @@ class UserAdminHelper(
     }
 
     suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) {
-        getUsersColl().document(uid).set(mapOf("isAdmin" to isAdmin), SetOptions.merge()).await()
+        getUsersColl().document(uid).set(mapOf(User::isAdmin.name to isAdmin), SetOptions.merge()).await()
     }
 
     fun allGroupsFlow(): Flow<List<Map<String, Any>>> = callbackFlow {
@@ -158,9 +159,9 @@ class UserAdminHelper(
                     val group = doc.toObject(GroupInfo::class.java)
                     group?.let {
                         mapOf(
-                            "id" to doc.id,
-                            "name" to it.name,
-                            "ownerUid" to (it.owner ?: "")
+                            GroupInfo::id.name to doc.id,
+                            GroupInfo::name.name to it.name,
+                            GroupInfo::ownerUid.name to (it.ownerUid ?: "")
                         )
                     }
                 }
@@ -174,13 +175,24 @@ class UserAdminHelper(
         try {
             val groupDoc = getGroupsColl().document(groupId)
             val members = groupDoc.collection("members").get().await()
-            members.documents.forEach { it.reference.delete() }
+            
+            val arrayRemove = com.google.firebase.firestore.FieldValue.arrayRemove(groupId)
+            members.documents.forEach { memberDoc ->
+                val uid = memberDoc.id
+                getUsersColl().document(uid).update("groupIds", arrayRemove).await()
+            }
+            
+            members.documents.forEach { it.reference.delete().await() }
+            
             groupDoc.delete().await()
+            
             if (settings.getCurrentGroupId() == groupId) {
                 settings.setCurrentGroupId(null)
             }
             settings.removeGroup(groupId)
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("UserAdmin", "Delete group failed", e)
+        }
     }
 
     suspend fun deleteUserPermanently(uid: String) {
@@ -230,7 +242,7 @@ class UserAdminHelper(
         val listener = getPublicProfilesColl().addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 val map = snapshot.documents.associateBy({ it.id }, { doc ->
-                    doc.getString("displayName") ?: "Unknown"
+                    doc.getString(com.jtool.android.core.models.PublicProfile::displayName.name) ?: "Unknown"
                 })
                 trySend(map)
             }
@@ -238,56 +250,173 @@ class UserAdminHelper(
         awaitClose { listener.remove() }
     }
 
-    suspend fun migrateAllUsersToUserData(onProgress: (String) -> Unit): Boolean {
+    suspend fun migrateLegacyFields(onProgress: (String) -> Unit): Boolean {
         return try {
-            val usersSnapshot = getUsersColl().get().await()
-            val total = usersSnapshot.size()
             var count = 0
             
-            usersSnapshot.documents.forEach { doc ->
-                val uid = doc.id
-                val data = doc.data ?: return@forEach
-                
-                // Extract settings fields from /users/
-                val hoursMap = mutableMapOf<String, Double>()
-                data.forEach { (key, value) ->
-                    if (key.startsWith("hours_")) {
-                        val hours = (value as? Number)?.toDouble() ?: 0.0
-                        hoursMap[key.removePrefix("hours_")] = hours
-                    }
+            // 1. Users
+
+            val usersSnapshot = getUsersColl().get().await()
+            val totalUsersRoot = usersSnapshot.size()
+            usersSnapshot.documents.forEachIndexed { index, doc ->
+                val data = doc.data ?: return@forEachIndexed
+                val updates = mutableMapOf<String, Any>()
+                if (data.containsKey("admin")) {
+                    updates["isAdmin"] = data["admin"]!!
+                    updates["admin"] = com.google.firebase.firestore.FieldValue.delete()
                 }
-                
-                val statsData = mapOf(
-                    "appUserId" to (data["appUserId"] as? String ?: ""),
-                    "currentGroupId" to (data["currentGroupId"] as? String),
-                    "isDarkMode" to (data["isDarkMode"] as? Boolean ?: true),
-                    "language" to (data["language"] as? String ?: "en"),
-                    "hours" to hoursMap,
-                    "lastSupportDate" to (data["lastSupportDate"] as? String ?: ""),
-                    "dailySupportCount" to ((data["dailySupportCount"] as? Long)?.toInt() ?: 0)
-                )
-                
-                // Save to /user_data/
-                getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
-                
-                // Cleanup /users/ document (Remove moved fields)
-                val coreKeys = listOf("email", "groupIds", "isAdmin")
-                val cleanupMap = mutableMapOf<String, Any>()
-                data.keys.forEach { key ->
-                    if (!coreKeys.contains(key)) {
-                        cleanupMap[key] = com.google.firebase.firestore.FieldValue.delete()
-                    }
+                if (updates.isNotEmpty()) {
+                    doc.reference.update(updates).await()
+                    count++
                 }
-                if (cleanupMap.isNotEmpty()) {
-                    getUsersColl().document(uid).update(cleanupMap).await()
-                }
-                
-                count++
-                onProgress("Migrated $count/$total")
+                onProgress("Users: ${index + 1}/$totalUsersRoot (Updates: $count)")
             }
+
+            // 2. Support Requests Comments
+            val supportSnapshot = getSupportColl().get().await()
+            val totalSupport = supportSnapshot.size()
+            supportSnapshot.documents.forEachIndexed { index, doc ->
+                val commentsColl = doc.reference.collection("comments")
+                val commentsSnapshot = commentsColl.get().await()
+                commentsSnapshot.documents.forEach { cDoc ->
+                    val data = cDoc.data ?: return@forEach
+                    val updates = mutableMapOf<String, Any>()
+                    if (data.containsKey("edited")) {
+                        updates["isEdited"] = data["edited"]!!
+                        updates["edited"] = com.google.firebase.firestore.FieldValue.delete()
+                    }
+                    if (data.containsKey("pending")) {
+                        updates["isPending"] = data["pending"]!!
+                        updates["pending"] = com.google.firebase.firestore.FieldValue.delete()
+                    }
+                    if (updates.isNotEmpty()) {
+                        cDoc.reference.update(updates).await()
+                        count++
+                    }
+                }
+                onProgress("Support Comments: ${index + 1}/$totalSupport (Updates: $count)")
+            }
+
+            // 2. User Data
+            val userDataSnapshot = getUserDataColl().get().await()
+            val totalUsers = userDataSnapshot.size()
+            userDataSnapshot.documents.forEachIndexed { index, doc ->
+                val data = doc.data ?: return@forEachIndexed
+                val updates = mutableMapOf<String, Any>()
+                if (data.containsKey("darkMode")) {
+                    updates["isDarkMode"] = data["darkMode"]!!
+                    updates["darkMode"] = com.google.firebase.firestore.FieldValue.delete()
+                }
+                if (updates.isNotEmpty()) {
+                    doc.reference.update(updates).await()
+                    count++
+                }
+                onProgress("User Data: ${index + 1}/$totalUsers (Updates: $count)")
+            }
+
+            // 3. Groups (Notes, Cleaning, Shopping, and Group Metadata)
+            val groupsSnapshot = getGroupsColl().get().await()
+            val totalGroups = groupsSnapshot.size()
+            groupsSnapshot.documents.forEachIndexed { gIndex, gDoc ->
+                // Group Metadata Migration (owner -> ownerUid)
+                val groupData = gDoc.data ?: emptyMap()
+                val gUpdates = mutableMapOf<String, Any>()
+                if (groupData.containsKey("owner")) {
+                    gUpdates["ownerUid"] = groupData["owner"]!!
+                    gUpdates["owner"] = com.google.firebase.firestore.FieldValue.delete()
+                }
+                if (gUpdates.isNotEmpty()) {
+                    gDoc.reference.update(gUpdates).await()
+                }
+
+                // Notes (Comments and Checklist)
+                val notesColl = gDoc.reference.collection("notes")
+                val notesSnapshot = notesColl.get().await()
+                notesSnapshot.documents.forEach { nDoc ->
+                    // Comments
+                    val commentsColl = nDoc.reference.collection("comments")
+                    val commentsSnapshot = commentsColl.get().await()
+                    commentsSnapshot.documents.forEach { cDoc ->
+                        val data = cDoc.data ?: return@forEach
+                        val updates = mutableMapOf<String, Any>()
+                        if (data.containsKey("edited")) {
+                            updates["isEdited"] = data["edited"]!!
+                            updates["edited"] = com.google.firebase.firestore.FieldValue.delete()
+                        }
+                        if (data.containsKey("pending")) {
+                            updates["isPending"] = data["pending"]!!
+                            updates["pending"] = com.google.firebase.firestore.FieldValue.delete()
+                        }
+                        if (updates.isNotEmpty()) {
+                            cDoc.reference.update(updates).await()
+                            count++
+                        }
+                    }
+
+                    // Checklist
+                    val checklistColl = nDoc.reference.collection("checklist")
+                    val checklistSnapshot = checklistColl.get().await()
+                    checklistSnapshot.documents.forEach { clDoc ->
+                        val data = clDoc.data ?: return@forEach
+                        val updates = mutableMapOf<String, Any>()
+                        if (data.containsKey("checked")) {
+                            updates["isChecked"] = data["checked"]!!
+                            updates["checked"] = com.google.firebase.firestore.FieldValue.delete()
+                        }
+                        if (updates.isNotEmpty()) {
+                            clDoc.reference.update(updates).await()
+                            count++
+                        }
+                    }
+                }
+
+                // Cleaning Tasks
+                val cleaningColl = gDoc.reference.collection("cleaning")
+                val cleaningSnapshot = cleaningColl.get().await()
+                cleaningSnapshot.documents.forEach { tDoc ->
+                    val data = tDoc.data ?: return@forEach
+                    val updates = mutableMapOf<String, Any>()
+                    if (data.containsKey("checked")) {
+                        updates["isChecked"] = data["checked"]!!
+                        updates["checked"] = com.google.firebase.firestore.FieldValue.delete()
+                    }
+                    if (data.containsKey("enabled")) {
+                        updates["isEnabled"] = data["enabled"]!!
+                        updates["enabled"] = com.google.firebase.firestore.FieldValue.delete()
+                    }
+                    if (data.containsKey("recurring")) {
+                        updates["isRecurring"] = data["recurring"]!!
+                        updates["recurring"] = com.google.firebase.firestore.FieldValue.delete()
+                    }
+                    if (updates.isNotEmpty()) {
+                        tDoc.reference.update(updates).await()
+                        count++
+                    }
+                }
+
+                // Shopping Items
+                val shoppingColl = gDoc.reference.collection("shopping")
+                val shoppingSnapshot = shoppingColl.get().await()
+                shoppingSnapshot.documents.forEach { sDoc ->
+                    val data = sDoc.data ?: return@forEach
+                    val updates = mutableMapOf<String, Any>()
+                    if (data.containsKey("checked")) {
+                        updates["isChecked"] = data["checked"]!!
+                        updates["checked"] = com.google.firebase.firestore.FieldValue.delete()
+                    }
+                    if (updates.isNotEmpty()) {
+                        sDoc.reference.update(updates).await()
+                        count++
+                    }
+                }
+                
+                onProgress("Groups: ${gIndex + 1}/$totalGroups (Updates: $count)")
+            }
+            
+            onProgress("Migration Finished. Total updates: $count")
             true
         } catch (e: Exception) {
-            android.util.Log.e("UserAdmin", "Migration failed", e)
+            android.util.Log.e("UserAdmin", "Fields migration failed", e)
             false
         }
     }

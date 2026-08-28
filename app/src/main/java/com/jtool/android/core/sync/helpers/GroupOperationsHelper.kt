@@ -23,10 +23,11 @@ class GroupOperationsHelper(
     private fun getUsersColl() = firestore.collection("users")
     private fun getGroupsColl() = firestore.collection("groups")
     private fun getInvitesColl() = firestore.collection("invites")
+    private fun getUserDataColl() = firestore.collection("user_data")
 
     fun currentGroupIdFlow(): Flow<String?> = callbackFlow {
         val uid = auth.currentUser?.uid ?: run { trySend(null); close(); return@callbackFlow }
-        val listener = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
+        val listener = getUserDataColl().document(uid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 val data = snapshot.toObject(com.jtool.android.core.models.UserData::class.java)
                 trySend(data?.currentGroupId)
@@ -46,8 +47,8 @@ class GroupOperationsHelper(
         val uid = auth.currentUser?.uid ?: return null
         
         val groupData = mapOf(
-            "name" to groupName,
-            "ownerUid" to uid,
+            GroupInfo::name.name to groupName,
+            GroupInfo::ownerUid.name to uid,
             "createdAt" to System.currentTimeMillis()
         )
         
@@ -65,12 +66,10 @@ class GroupOperationsHelper(
                 currentGroups.add(groupId)
             }
             
-            userRef.set(mapOf(
-                "groupIds" to currentGroups,
-                "currentGroupId" to groupId
-            ), SetOptions.merge()).await()
+            userRef.set(mapOf(User::groupIds.name to currentGroups), SetOptions.merge()).await()
+            getUserDataColl().document(uid).update(com.jtool.android.core.models.UserData::currentGroupId.name, groupId).await()
             
-            settings.addGroup(GroupInfo(id = groupId, name = groupName, owner = uid))
+            settings.addGroup(GroupInfo(id = groupId, name = groupName, ownerUid = uid))
             settings.setCurrentGroupId(groupId)
             
             userAdminHelperProvider().pushUserSettings()
@@ -83,7 +82,7 @@ class GroupOperationsHelper(
 
     suspend fun updateGroupName(groupId: String, newName: String): Boolean {
         return try {
-            getGroupsColl().document(groupId).update("name", newName).await()
+            getGroupsColl().document(groupId).update(GroupInfo::name.name, newName).await()
             val groups = settings.getGroups().toMutableMap()
             groups[groupId]?.let {
                 groups[groupId] = it.copy(name = newName)
@@ -106,7 +105,7 @@ class GroupOperationsHelper(
             val groupSnapshot = getGroupsColl().document(groupId).get().await()
             val group = groupSnapshot.toObject(GroupInfo::class.java)?.copy(id = groupSnapshot.id)
             val groupName = group?.name ?: "New Group"
-            val owner = group?.owner
+            val ownerUid = group?.ownerUid
             
             val userRef = getUsersColl().document(uid)
             val userSnapshot = userRef.get().await()
@@ -117,12 +116,10 @@ class GroupOperationsHelper(
                 currentGroups.add(groupId)
             }
             
-            userRef.set(mapOf(
-                "groupIds" to currentGroups,
-                "currentGroupId" to groupId
-            ), SetOptions.merge()).await()
+            userRef.set(mapOf(User::groupIds.name to currentGroups), SetOptions.merge()).await()
+            getUserDataColl().document(uid).update(com.jtool.android.core.models.UserData::currentGroupId.name, groupId).await()
             
-            settings.addGroup(GroupInfo(id = groupId, name = groupName, owner = owner))
+            settings.addGroup(GroupInfo(id = groupId, name = groupName, ownerUid = ownerUid))
             settings.setCurrentGroupId(groupId)
             
             userAdminHelperProvider().pushUserSettings()
@@ -144,10 +141,10 @@ class GroupOperationsHelper(
             } else {
                 val groupSnapshot = groupDoc.get().await()
                 val group = groupSnapshot.toObject(GroupInfo::class.java)
-                val ownerUid = group?.owner
-                if (ownerUid == uid) {
+                val currentOwnerUid = group?.ownerUid
+                if (currentOwnerUid == uid) {
                     val nextOwner = memberIds.filter { it != uid }.random()
-                    groupDoc.update("ownerUid", nextOwner).await()
+                    groupDoc.update(GroupInfo::ownerUid.name, nextOwner).await()
                 }
                 groupDoc.collection("members").document(uid).delete().await()
             }
@@ -164,10 +161,8 @@ class GroupOperationsHelper(
                 settings.getCurrentGroupId()
             }
 
-            userRef.set(mapOf(
-                "groupIds" to currentGroups,
-                "currentGroupId" to nextGroupId
-            ), SetOptions.merge()).await()
+            userRef.set(mapOf(User::groupIds.name to currentGroups), SetOptions.merge()).await()
+            getUserDataColl().document(uid).update(com.jtool.android.core.models.UserData::currentGroupId.name, nextGroupId).await()
             
             clearLocalCache()
             settings.removeGroup(groupId)
@@ -182,7 +177,7 @@ class GroupOperationsHelper(
     suspend fun switchGroup(groupId: String) {
         val uid = auth.currentUser?.uid ?: return
         clearLocalCache()
-        getUsersColl().document(uid).update("currentGroupId", groupId).await()
+        getUserDataColl().document(uid).update(com.jtool.android.core.models.UserData::currentGroupId.name, groupId).await()
         settings.setCurrentGroupId(groupId)
         userAdminHelperProvider().pushUserSettings()
     }
@@ -201,10 +196,10 @@ class GroupOperationsHelper(
             val group = groupSnapshot.toObject(GroupInfo::class.java)
             val groupName = group?.name ?: "Unknown Group"
             val inviteData = mapOf(
-                "groupId" to groupId,
-                "groupName" to groupName,
-                "fromEmail" to (auth.currentUser?.email ?: "Unknown"),
-                "timestamp" to System.currentTimeMillis()
+                com.jtool.android.core.models.Invite::groupId.name to groupId,
+                com.jtool.android.core.models.Invite::groupName.name to groupName,
+                com.jtool.android.core.models.Invite::fromEmail.name to (auth.currentUser?.email ?: "Unknown"),
+                com.jtool.android.core.models.Invite::timestamp.name to System.currentTimeMillis()
             )
             getInvitesColl().document(sanitizedEmail).collection("items").add(inviteData).await()
             true
@@ -213,15 +208,12 @@ class GroupOperationsHelper(
         }
     }
 
-    fun invitesFlow(): Flow<List<Map<String, String>>> = callbackFlow {
+    fun invitesFlow(): Flow<List<com.jtool.android.core.models.Invite>> = callbackFlow {
         val email = auth.currentUser?.email?.lowercase()?.trim() ?: run { close(); return@callbackFlow }
         val listener = getInvitesColl().document(email).collection("items").addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
-                val list = snapshot.documents.map { doc ->
-                    val map = mutableMapOf<String, String>()
-                    map["inviteId"] = doc.id
-                    doc.data?.forEach { (k, v) -> map[k] = v.toString() }
-                    map
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(com.jtool.android.core.models.Invite::class.java)?.copy(inviteId = doc.id)
                 }
                 trySend(list)
             }
@@ -261,7 +253,7 @@ class GroupOperationsHelper(
         val listener = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 @Suppress("UNCHECKED_CAST")
-                trySend(snapshot.get("groupIds") as? List<String> ?: emptyList())
+                trySend(snapshot.get(User::groupIds.name) as? List<String> ?: emptyList())
             }
         }
         awaitClose { listener.remove() }

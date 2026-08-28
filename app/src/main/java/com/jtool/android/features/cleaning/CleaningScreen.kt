@@ -23,6 +23,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
@@ -66,6 +67,8 @@ fun CleaningScreen(
                 GenericTitle(
                     title = if (uiState.showDisabledView) Loc.cleaning_showDisabled else Loc.cleaning_cleaning,
                     onBack = onBack,
+                    isLoading = uiState.isLoading,
+                    onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
                     actions = {
                         TitleActionIcon(
                             icon = if (uiState.showDisabledView) Icons.Default.Visibility else Icons.Default.VisibilityOff,
@@ -76,36 +79,43 @@ fun CleaningScreen(
                 )
             }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-                    .imePadding(),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = uiState.isLoading,
+                onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
+                modifier = Modifier.padding(padding).fillMaxSize()
             ) {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .imePadding(),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    items(uiState.displayTasks, key = { it.id }) { task ->
-                        CleaningTaskRow(
-                            task = task,
-                            onToggle = { checked ->
-                                viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
-                            },
-                            onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
-                            onDisable = { isEnabled ->
-                                viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
-                            },
-                            onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
-                            userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
-                        )
-                    }
-                    
-                    item {
-                        Spacer(Modifier.height(100.dp))
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        items(uiState.displayTasks, key = { it.id }) { task ->
+                            Box(Modifier.animateItem()) {
+                                CleaningTaskRow(
+                                    task = task,
+                                    onToggle = { checked ->
+                                        viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
+                                    },
+                                    onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
+                                    onDisable = { isEnabled ->
+                                        viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
+                                    },
+                                    onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
+                                    userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
+                                )
+                            }
+                        }
+                        
+                        item {
+                            Spacer(Modifier.height(100.dp))
+                        }
                     }
                 }
             }
@@ -226,71 +236,49 @@ fun CleaningTaskRow(
     val currentLocale = remember(Loc.lang) { if (Loc.lang == "uk") Locale.forLanguageTag("uk") else Locale.ENGLISH }
     val dateFormat = remember(currentLocale) { SimpleDateFormat("MMM dd, HH:mm", currentLocale) }
     var menuExpanded by remember { mutableStateOf(false) }
-    
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 0.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (task.isEnabled) {
-                    Checkbox(checked = task.isChecked, onCheckedChange = onToggle)
-                } else {
-                    Spacer(Modifier.width(48.dp))
-                }
-                
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task.title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = if (task.isEnabled) MaterialTheme.colorScheme.onSurface 
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                    Text(
-                        text = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.cleaning_oneTime,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
 
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, null)
-                    }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        if (task.isEnabled) {
-                            DropdownMenuItem(text = { Text(Loc.general_update) }, onClick = { onEdit(); menuExpanded = false })
-                            DropdownMenuItem(text = { Text(Loc.cleaning_disable) }, onClick = { onDisable(false); menuExpanded = false })
-                            DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
-                        } else {
-                            DropdownMenuItem(text = { Text(Loc.cleaning_restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
-                            DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
-                        }
-                    }
-                }
-            }
-            
-            if (task.lastDoneTimestamp > 0) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(end = 12.dp, bottom = 4.dp), 
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${Loc.cleaning_lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.general_by} $userName",
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+    CompactActionListItem(
+        onClick = null, // Disable whole-item click for checkboxes
+        headline = task.title,
+        supportingText = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.cleaning_oneTime,
+        metadataText = if (task.lastDoneTimestamp > 0) "${Loc.cleaning_lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.general_by} $userName" else null,
+        leadingContent = {
+            if (task.isEnabled) {
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    Checkbox(
+                        checked = task.isChecked,
+                        onCheckedChange = onToggle,
+                        modifier = Modifier.size(32.dp)
                     )
                 }
+            } else {
+                Spacer(Modifier.width(32.dp))
             }
-        }
-    }
+        },
+        trailingContent = {
+            Box {
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.MoreVert, null, modifier = Modifier.size(20.dp))
+                    }
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    if (task.isEnabled) {
+                        DropdownMenuItem(text = { Text(Loc.general_update) }, onClick = { onEdit(); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.cleaning_disable) }, onClick = { onDisable(false); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                    } else {
+                        DropdownMenuItem(text = { Text(Loc.cleaning_restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                    }
+                }
+            }
+        },
+        isPending = !task.isEnabled
+    )
 }
 
 @Preview(showBackground = true)

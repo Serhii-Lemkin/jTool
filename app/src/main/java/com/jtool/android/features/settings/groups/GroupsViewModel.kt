@@ -42,8 +42,12 @@ class GroupsViewModel(
             
         groupSyncManager.currentGroupIdFlow()
             .onEach { gid ->
-                _uiState.update { it.copy(currentGroupId = gid) }
-                if (gid != null) settingsManager.setCurrentGroupId(gid)
+                // Only update if we get a real value, or if we were intentionally null.
+                // This prevents initial 'null' from overwriting local state before fetch/push finishes.
+                if (gid != null || _uiState.value.currentGroupId == null) {
+                    _uiState.update { it.copy(currentGroupId = gid) }
+                    if (gid != null) settingsManager.setCurrentGroupId(gid)
+                }
             }
             .launchIn(viewModelScope)
     }
@@ -59,6 +63,17 @@ class GroupsViewModel(
             is GroupsEvent.SendInvite -> sendInvite(event.email, event.groupId)
             GroupsEvent.ManualSync -> manualSync()
             GroupsEvent.DismissCreatedDialog -> _uiState.update { it.copy(lastCreatedGroupId = null) }
+            GroupsEvent.Refresh -> refresh()
+        }
+    }
+
+    private fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            // Re-fetch everything from server
+            groupSyncManager.fetchUserSettings()
+            loadGroups()
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 

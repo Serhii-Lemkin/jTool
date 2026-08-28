@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
 import com.jtool.android.core.localization.Loc
@@ -36,8 +37,11 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
+            GenericTitle(
+                title = "",
+                onBack = { viewModel.onEvent(NotesEvent.NavigateBack) },
+                isLoading = uiState.isLoading,
+                customTitle = {
                     if (uiState.isEditMode) {
                         TextField(
                             value = uiState.draftTitle,
@@ -58,11 +62,6 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.onEvent(NotesEvent.NavigateBack) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                     }
                 },
                 actions = {
@@ -144,23 +143,28 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 }
 
                 val checklist = uiState.editingNote?.checklist ?: emptyList()
-                val sortedChecklist = checklist.sortedWith(compareBy<com.jtool.android.core.models.ChecklistItem> { it.isChecked }.thenBy { it.timestamp })
+                // Filter out dummy items used for counting in the list view
+                val realChecklist = checklist.filter { !it.id.startsWith("dummy_") }
+                val sortedChecklist = realChecklist.sortedWith(compareBy<com.jtool.android.core.models.ChecklistItem> { it.isChecked }.thenBy { it.timestamp })
                 
                 items(sortedChecklist, key = { it.id }) { item ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) }
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 1.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
-                            checked = item.isChecked,
-                            onCheckedChange = { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) }
-                        )
+                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                            Checkbox(
+                                checked = item.isChecked,
+                                onCheckedChange = { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) },
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                         Text(
                             text = item.text,
-                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f).padding(start = 4.dp),
                             textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
                             color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else Color.Unspecified
                         )
@@ -197,9 +201,10 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 if (currentNote != null && !uiState.isEditMode) {
                     val appUserId = viewModel.getAppUserId()
                     val authUid = viewModel.getAuthUserId()
+                    val comments by viewModel.comments.collectAsState(initial = emptyList<com.jtool.android.core.models.Comment>())
                     
                     CommentSection(
-                        comments = currentNote.comments,
+                        comments = comments,
                         currentUserId = appUserId,
                         userNames = uiState.userNames,
                         onEvent = { event ->

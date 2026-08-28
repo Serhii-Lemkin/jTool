@@ -30,14 +30,16 @@ import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleDropdownMenu
-import com.jtool.android.core.components.layout.RightAlignedFAB
+import com.jtool.android.core.components.layout.TitleActionIcon
 
 val AisleIcons = mapOf(
     "Common" to Icons.AutoMirrored.Filled.Label,
     "Veggies" to Icons.Default.Eco,
-    "Meat" to Icons.Default.SetMeal,
+    "Meat" to Icons.Default.KebabDining,
+    "Fish" to Icons.Default.SetMeal,
     "Dairy" to Icons.Default.Egg,
     "Bakery" to Icons.Default.BakeryDining,
     "Drinks" to Icons.Default.LocalDrink,
@@ -140,6 +142,8 @@ fun ShoppingListScreen(
                 GenericTitle(
                     title = Loc.shoplist_shoppingList,
                     onBack = onBack,
+                    isLoading = uiState.isLoading,
+                    onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
                     actions = {
                         TitleDropdownMenu(icon = filterIcon) {
                             DropdownMenuItem(
@@ -164,7 +168,11 @@ fun ShoppingListScreen(
                 )
             }
         ) { padding ->
-            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = uiState.isLoading,
+                onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
+                modifier = Modifier.padding(padding).fillMaxSize()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -331,88 +339,60 @@ fun ShoppingItemRow(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggle(!item.isChecked) },
-        color = Color.Transparent
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 0.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = item.isChecked,
-                    onCheckedChange = { onToggle(it) }
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.text,
-                        fontSize = 16.sp,
-                        textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
-                        color = if (item.isChecked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+    CompactActionListItem(
+        onClick = null, // Disable whole-item click for checkboxes
+        headline = item.text,
+        isStrikethrough = item.isChecked,
+        metadataText = "${Loc.general_by} $userName",
+        leadingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    Checkbox(
+                        checked = item.isChecked,
+                        onCheckedChange = { onToggle(it) },
+                        modifier = Modifier.size(32.dp)
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            AisleIcons[item.aisle] ?: Icons.AutoMirrored.Filled.Label,
-                            contentDescription = null,
-                            modifier = Modifier.size(10.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "${Loc.general_by} $userName",
-                            fontSize = 9.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
+                }
+                Icon(
+                    imageVector = AisleIcons[item.aisle] ?: Icons.AutoMirrored.Filled.Label,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                )
+            }
+        },
+        trailingContent = {
+            Box {
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.MoreVert, null, modifier = Modifier.size(20.dp))
                     }
                 }
-                
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu", modifier = Modifier.size(18.dp))
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            leadingIcon = { Icon(Icons.Default.Edit, null) },
-                            text = { Text(Loc.shoplist_changeAisle) },
-                            onClick = {
-                                onChangeAisle()
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                            text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                onDelete()
-                                menuExpanded = false
-                            }
-                        )
-                    }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        text = { Text(Loc.shoplist_changeAisle) },
+                        onClick = {
+                            onChangeAisle()
+                            menuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                        text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            onDelete()
+                            menuExpanded = false
+                        }
+                    )
                 }
             }
         }
-    }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-fun ShoppingListPreview() {
-    val context = LocalContext.current
-    MaterialTheme {
-        ShoppingListScreen(
-            manager = ShoppingListManager(context),
-            backupManager = BackupManager(context),
-            settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context),
-            onBack = {}
-        )
-    }
+    )
 }

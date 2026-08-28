@@ -79,27 +79,24 @@ class AdminViewModel(
                     _uiState.update { it.copy(showGroupDeleteConfirm2 = null) }
                 }
             }
-            AdminEvent.StartLegacyMigration -> {
+            AdminEvent.Refresh -> {
+                _uiState.update { it.copy(isMigrating = true) }
                 viewModelScope.launch {
-                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting Legacy Migration...") }
-                    val success = groupSyncManager.migrateSupportLegacy { status ->
-                        _uiState.update { it.copy(migrationStatus = status) }
-                    }
-                    _uiState.update { it.copy(
-                        isMigrating = false,
-                        migrationStatus = if (success) "Legacy Migration Completed!" else "Failed"
-                    ) }
+                    // Re-trigger flows by just delaying or forcing a reload if possible.
+                    // For now, since these are listeners, we just show a loader to indicate "checking"
+                    kotlinx.coroutines.delay(500)
+                    _uiState.update { it.copy(isMigrating = false) }
                 }
             }
-            AdminEvent.StartUserDataMigration -> {
+            AdminEvent.StartLegacyFieldsMigration -> {
                 viewModelScope.launch {
-                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting User Data Migration...") }
-                    val success = groupSyncManager.migrateAllUsersToUserData { status ->
+                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting Legacy Fields Migration...") }
+                    val success = groupSyncManager.migrateLegacyFields { status ->
                         _uiState.update { it.copy(migrationStatus = status) }
                     }
                     _uiState.update { it.copy(
                         isMigrating = false,
-                        migrationStatus = if (success) "User Data Migration Completed!" else "Failed"
+                        migrationStatus = if (success) "Fields Migration Completed!" else "Failed"
                     ) }
                 }
             }

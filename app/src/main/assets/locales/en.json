@@ -28,8 +28,6 @@
 
     "timecalc_baseDateTime": "Base Date/Time",
     "timecalc_addSub": "Add / Subtract",
-    "timecalc_add": "Add",
-    "timecalc_sub": "Sub",
     "timecalc_history": "History (Tap to restore)",
     "timecalc_added": "Added",
     "timecalc_subtracted": "Subtracted",
@@ -54,6 +52,7 @@
     "shoplist_aisle_common": "Common",
     "shoplist_aisle_veggies": "Veggies",
     "shoplist_aisle_meat": "Meat",
+    "shoplist_aisle_fish": "Fish",
     "shoplist_aisle_dairy": "Dairy",
     "shoplist_aisle_bakery": "Bakery",
     "shoplist_aisle_drinks": "Drinks",
@@ -250,6 +249,10 @@
     "general_confirmDeleteTitle": "Delete Item?",
     "general_confirmDeleteMsg": "Are you sure you want to delete this item?",
     "general_unknown": "Unknown",
-    "general_areYouSure": "Are you sure?"
+    "general_areYouSure": "Are you sure?",
+    "general_refreshing": "Refreshing...",
+    "general_pullToRefresh": "Pull to refresh",
+    "general_item": "item",
+    "general_items": "items"
   }
 }

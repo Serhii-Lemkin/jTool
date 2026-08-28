@@ -6,12 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +27,13 @@ import com.jtool.android.core.components.layout.TitleDropdownMenu
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.core.components.comments.CommentEvent
+
+val SupportTypeIcons = mapOf(
+    SupportType.BUG to Icons.Default.BugReport,
+    SupportType.FEATURE to Icons.Default.Star,
+    SupportType.CHANGE to Icons.Default.Edit,
+    SupportType.CRASH to Icons.Default.Warning
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,82 +102,79 @@ fun SupportHubScreen(
 
     Scaffold(
         topBar = {
-            if (uiState.isSearchVisible && uiState.currentSubScreen == SupportScreenType.HUB) {
-                TopAppBar(
-                    title = {
-                        OutlinedTextField(
-                            value = uiState.searchQuery,
-                            onValueChange = { viewModel.onEvent(SupportEvent.UpdateSearchQuery(it)) },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            placeholder = { Text(Loc.general_search) },
-                            trailingIcon = {
-                                IconButton(onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) }) {
-                                    Icon(Icons.Default.Close, null)
-                                }
-                            },
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
+            val appUserId = viewModel.getAppUserId()
+            val authUid = viewModel.getAuthUserId()
+            
+            var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
+            // Update draft when state changes (e.g. clear)
+            LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
+
+            GenericTitle(
+                title = when (uiState.currentSubScreen) {
+                    SupportScreenType.HUB -> Loc.support_hub_title
+                    SupportScreenType.DETAIL -> Loc.support_request_number.format(uiState.selectedRequest?.number ?: 0)
+                    SupportScreenType.NEW_FORM -> Loc.support_new_request
+                },
+                onBack = {
+                    if (uiState.currentSubScreen != SupportScreenType.HUB) {
+                        viewModel.onEvent(SupportEvent.Navigate(SupportScreenType.HUB))
+                    } else {
+                        onBack()
                     }
-                )
-            } else {
-                val appUserId = viewModel.getAppUserId()
-                val authUid = viewModel.getAuthUserId()
-                GenericTitle(
-                    title = when (uiState.currentSubScreen) {
-                        SupportScreenType.HUB -> Loc.support_hub_title
-                        SupportScreenType.DETAIL -> Loc.support_request_number.format(uiState.selectedRequest?.number ?: 0)
-                        SupportScreenType.NEW_FORM -> Loc.support_new_request
-                    },
-                    onBack = {
-                        if (uiState.currentSubScreen != SupportScreenType.HUB) {
-                            viewModel.onEvent(SupportEvent.Navigate(SupportScreenType.HUB))
-                        } else {
-                            onBack()
-                        }
-                    },
-                    actions = {
-                        if (uiState.currentSubScreen == SupportScreenType.HUB) {
-                            TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
-                            
-                            TitleDropdownMenu(icon = Icons.Default.FilterList) {
+                },
+                isLoading = uiState.isLoading,
+                onRefresh = { viewModel.onEvent(SupportEvent.Refresh) },
+                isSearchVisible = uiState.isSearchVisible && uiState.currentSubScreen == SupportScreenType.HUB,
+                searchQuery = draftSearchQuery,
+                onSearchQueryChange = { draftSearchQuery = it },
+                onSearchClose = { 
+                    viewModel.onEvent(SupportEvent.UpdateSearchQuery(""))
+                    viewModel.onEvent(SupportEvent.ToggleSearch) 
+                },
+                onSearchTriggered = {
+                    viewModel.onEvent(SupportEvent.UpdateSearchQuery(draftSearchQuery))
+                },
+                actions = {
+                    if (uiState.currentSubScreen == SupportScreenType.HUB) {
+                        TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
+                        
+                        val filterIcon = uiState.filterType?.let { SupportTypeIcons[it] } ?: Icons.Default.FilterList
+                        TitleDropdownMenu(icon = filterIcon) {
+                            DropdownMenuItem(
+                                text = { Text(if (uiState.showArchived) "Show Active" else Loc.support_show_archived) },
+                                onClick = { 
+                                    viewModel.onEvent(SupportEvent.ToggleArchived(!uiState.showArchived))
+                                },
+                                leadingIcon = { Icon(Icons.Default.Archive, null) },
+                                trailingIcon = { if (uiState.showArchived) Icon(Icons.Default.Check, null) }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                leadingIcon = { Icon(Icons.Default.FilterList, null) },
+                                text = { Text("All Types") },
+                                onClick = { viewModel.onEvent(SupportEvent.SetFilterType(null)) },
+                                trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
+                            )
+                            SupportType.entries.filter { it != SupportType.CRASH }.forEach { type ->
                                 DropdownMenuItem(
-                                    text = { Text(if (uiState.showArchived) "Show Active" else Loc.support_show_archived) },
-                                    onClick = { 
-                                        viewModel.onEvent(SupportEvent.ToggleArchived(!uiState.showArchived))
+                                    leadingIcon = { Icon(SupportTypeIcons[type] ?: Icons.Default.Circle, null) },
+                                    text = { 
+                                        val name = when(type) {
+                                            SupportType.BUG -> Loc.support_type_bug
+                                            SupportType.FEATURE -> Loc.support_type_feature
+                                            SupportType.CHANGE -> Loc.support_type_change
+                                            else -> type.name
+                                        }
+                                        Text(name)
                                     },
-                                    leadingIcon = { Icon(Icons.Default.Archive, null) },
-                                    trailingIcon = { if (uiState.showArchived) Icon(Icons.Default.Check, null) }
+                                    onClick = { viewModel.onEvent(SupportEvent.SetFilterType(type)) },
+                                    trailingIcon = { if (uiState.filterType == type) Icon(Icons.Default.Check, null) }
                                 )
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text("All Types") },
-                                    onClick = { viewModel.onEvent(SupportEvent.SetFilterType(null)) },
-                                    trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
-                                )
-                                SupportType.entries.filter { it != SupportType.CRASH }.forEach { type ->
-                                    DropdownMenuItem(
-                                        text = { 
-                                            val name = when(type) {
-                                                SupportType.BUG -> Loc.support_type_bug
-                                                SupportType.FEATURE -> Loc.support_type_feature
-                                                SupportType.CHANGE -> Loc.support_type_change
-                                                else -> type.name
-                                            }
-                                            Text(name)
-                                        },
-                                        onClick = { viewModel.onEvent(SupportEvent.SetFilterType(type)) },
-                                        trailingIcon = { if (uiState.filterType == type) Icon(Icons.Default.Check, null) }
-                                    )
-                                }
                             }
                         }
                     }
-                )
-            }
+                }
+            )
         },
         floatingActionButton = {
             if (uiState.currentSubScreen == SupportScreenType.HUB) {
@@ -184,6 +183,7 @@ fun SupportHubScreen(
                     dropdownContent = { onDismiss ->
                         SupportType.entries.filter { it != SupportType.CRASH }.forEach { type ->
                             DropdownMenuItem(
+                                leadingIcon = { Icon(SupportTypeIcons[type] ?: Icons.Default.Circle, null) },
                                 text = {
                                     Text(
                                         when (type) {
@@ -207,43 +207,36 @@ fun SupportHubScreen(
         },
         modifier = Modifier.fillMaxSize().navigationBarsPadding()
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            when (uiState.currentSubScreen) {
-                SupportScreenType.HUB -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        if (uiState.isLoading && filteredRequests.isNotEmpty()) {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                            )
-                        }
-
-                        if (filteredRequests.isEmpty()) {
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.onEvent(SupportEvent.Refresh) },
+            modifier = Modifier.padding(padding).fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                when (uiState.currentSubScreen) {
+                    SupportScreenType.HUB -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (filteredRequests.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (uiState.isLoading) {
-                                    CircularProgressIndicator()
-                                } else {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = Loc.support_welcome_title,
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
-                                        Spacer(Modifier.height(16.dp))
-                                        Text(
-                                            text = Loc.support_welcome_msg,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
-                                    }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = Loc.support_welcome_title,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                    Text(
+                                        text = Loc.support_welcome_msg,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
                                 }
                             }
                         } else {
@@ -277,9 +270,10 @@ fun SupportHubScreen(
                     uiState.selectedRequest?.let { request ->
                         val appUserId = viewModel.getAppUserId()
                         val authUid = viewModel.getAuthUserId()
+                        val comments by viewModel.comments.collectAsState(initial = emptyList())
                         
                         SupportDetailCard(
-                            request = request,
+                            request = request.copy(comments = comments),
                             isAdmin = uiState.isAdmin,
                             currentUserId = appUserId,
                             onStatusUpdate = { viewModel.onEvent(SupportEvent.UpdateStatus(request.id, it)) },
@@ -305,6 +299,7 @@ fun SupportHubScreen(
                         selectedType = uiState.filterType ?: SupportType.BUG,
                         onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.filterType ?: SupportType.BUG, context)) }
                     )
+                }
                 }
             }
         }

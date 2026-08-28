@@ -17,13 +17,14 @@ val localProperties = Properties().apply {
 android {
     namespace = "com.jtool.android"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.jtool.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 50
-        versionName = "2.5.4"
+        versionCode = 51
+        versionName = "2.5.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,7 +39,7 @@ android {
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             signingConfig = if (file("key.jks").exists()) signingConfigs.getByName("release") else null
             isMinifyEnabled = true
             isShrinkResources = true
@@ -46,6 +47,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             optimization {
                 enable = true
             }

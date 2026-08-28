@@ -4,15 +4,16 @@ import android.content.Context
 import com.jtool.android.core.models.LinkItem
 
 class LinksManager(context: Context) {
-    private val prefs = context.getSharedPreferences("jtool_links", Context.MODE_PRIVATE)
+    private val context = context
+    private fun getPrefs(groupId: String?) = context.getSharedPreferences("jtool_links_${groupId ?: "none"}", Context.MODE_PRIVATE)
 
-    fun saveLinks(links: List<LinkItem>) {
+    fun saveLinks(links: List<LinkItem>, groupId: String?) {
         val encoded = links.joinToString(";") { "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.url.replace("|", "\\|").replace(";", "\\;")}|${it.timestamp}|${it.lastUpdatedBy}" }
-        prefs.edit().putString("links", encoded).apply()
+        getPrefs(groupId).edit().putString("links", encoded).apply()
     }
 
-    fun loadLinks(): List<LinkItem> {
-        val encoded = prefs.getString("links", "") ?: ""
+    fun loadLinks(groupId: String?): List<LinkItem> {
+        val encoded = getPrefs(groupId).getString("links", "") ?: ""
         if (encoded.isEmpty()) return emptyList()
         
         return encoded.split(";").mapNotNull {

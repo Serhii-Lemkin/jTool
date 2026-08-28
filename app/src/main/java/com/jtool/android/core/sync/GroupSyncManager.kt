@@ -53,7 +53,6 @@ class GroupSyncManager(private val context: Context) {
     suspend fun editSupportComment(id: String, commentId: String, newContent: String) = supportHelper.editComment(id, commentId, newContent)
     suspend fun deleteSupportComment(id: String, commentId: String) = supportHelper.deleteComment(id, commentId)
     suspend fun deleteSupportRequest(id: String) = supportHelper.deleteRequest(id)
-    suspend fun migrateSupportLegacy(onProgress: (String) -> Unit) = supportHelper.migrateLegacyRequests(onProgress)
 
     fun suggestionsFlow(): kotlinx.coroutines.flow.Flow<List<String>> = kotlinx.coroutines.flow.callbackFlow {
         val listener = getSuggestionsColl().addSnapshotListener { snapshot, _ ->
@@ -79,7 +78,7 @@ class GroupSyncManager(private val context: Context) {
     suspend fun manualSyncMerge(): Boolean = true
     suspend fun pullGroupData(): Boolean = true
     suspend fun sendInvite(email: String, groupId: String): Boolean = groupOpsHelper.sendInvite(email, groupId)
-    fun invitesFlow(): Flow<List<Map<String, String>>> = groupOpsHelper.invitesFlow()
+    fun invitesFlow(): Flow<List<com.jtool.android.core.models.Invite>> = groupOpsHelper.invitesFlow()
     suspend fun respondToInvite(inviteId: String, groupId: String, accept: Boolean): Boolean = groupOpsHelper.respondToInvite(inviteId, groupId, accept)
     suspend fun pushUserSettings(): Boolean = userAdminHelper.pushUserSettings()
     suspend fun fetchUserSettings(): Boolean = userAdminHelper.fetchUserSettings()
@@ -91,7 +90,7 @@ class GroupSyncManager(private val context: Context) {
     suspend fun deleteUserPermanently(uid: String) = userAdminHelper.deleteUserPermanently(uid)
     suspend fun deleteMyAccount(): Boolean = userAdminHelper.deleteMyAccount()
     fun userNamesFlow(): Flow<Map<String, String>> = userAdminHelper.userNamesFlow()
-    suspend fun migrateAllUsersToUserData(onProgress: (String) -> Unit) = userAdminHelper.migrateAllUsersToUserData(onProgress)
+    suspend fun migrateLegacyFields(onProgress: (String) -> Unit) = userAdminHelper.migrateLegacyFields(onProgress)
     fun groupMembersFlow(groupId: String): Flow<List<String>> = groupOpsHelper.groupMembersFlow(groupId)
     fun userGroupsFlow(): Flow<List<String>> = groupOpsHelper.userGroupsFlow()
     fun groupInfoFlow(groupIds: List<String>): Flow<Map<String, GroupInfo>> = groupOpsHelper.groupInfoFlow(groupIds)

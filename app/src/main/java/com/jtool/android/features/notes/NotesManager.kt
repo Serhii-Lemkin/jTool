@@ -9,9 +9,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class NotesManager(context: Context) {
-    private val prefs = context.getSharedPreferences("jtool_notes", Context.MODE_PRIVATE)
+    private val context = context
+    private fun getPrefs(groupId: String?) = context.getSharedPreferences("jtool_notes_${groupId ?: "none"}", Context.MODE_PRIVATE)
 
-    fun saveNotes(notes: List<NoteItem>) {
+    fun saveNotes(notes: List<NoteItem>, groupId: String?) {
         val root = JSONArray()
         notes.forEach { note ->
             val obj = JSONObject()
@@ -21,6 +22,8 @@ class NotesManager(context: Context) {
             obj.put("type", note.type.name)
             obj.put("timestamp", note.timestamp)
             obj.put("lastUpdatedBy", note.lastUpdatedBy)
+            obj.put("checklistCount", note.checklistCount)
+            obj.put("commentCount", note.commentCount)
             
             val checklistArr = JSONArray()
             note.checklist.forEach { item ->
@@ -37,7 +40,11 @@ class NotesManager(context: Context) {
             
             root.put(obj)
         }
-        prefs.edit().putString("notes_json", root.toString()).apply()
+        getPrefs(groupId).edit().putString("notes_json", root.toString()).apply()
+    }
+
+    fun clearCache(groupId: String?) {
+        getPrefs(groupId).edit().clear().apply()
     }
 
     private fun serializeComments(comments: List<Comment>): JSONArray {
@@ -56,8 +63,8 @@ class NotesManager(context: Context) {
         return arr
     }
 
-    fun loadNotes(): List<NoteItem> {
-        val json = prefs.getString("notes_json", null)
+    fun loadNotes(groupId: String?): List<NoteItem> {
+        val json = getPrefs(groupId).getString("notes_json", null)
         if (json != null) {
             return try {
                 val root = JSONArray(json)
@@ -90,7 +97,10 @@ class NotesManager(context: Context) {
                         comments = comments,
                         timestamp = obj.getLong("timestamp"),
                         lastUpdatedBy = obj.getString("lastUpdatedBy")
-                    ))
+                    ).apply {
+                        checklistCount = obj.optInt("checklistCount", 0)
+                        commentCount = obj.optInt("commentCount", 0)
+                    })
                 }
                 list
             } catch (e: Exception) {

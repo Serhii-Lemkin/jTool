@@ -22,7 +22,8 @@ import com.jtool.android.core.models.NoteType
 import com.jtool.android.features.notes.NotesEvent
 import com.jtool.android.features.notes.NotesUiState
 import com.jtool.android.features.notes.NotesViewModel
-import com.jtool.android.core.components.comments.getTotalCommentsCount
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.UnifiedFAB
 import java.text.SimpleDateFormat
@@ -31,26 +32,76 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () -> Unit) {
+    var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
+    LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                GenericTitle(title = Loc.notes_notes, onBack = onBack)
+                GenericTitle(
+                    title = Loc.notes_notes,
+                    onBack = onBack,
+                    isLoading = uiState.isLoading || uiState.isRefreshing,
+                    onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
+                    isSearchVisible = uiState.isSearchVisible,
+                    searchQuery = draftSearchQuery,
+                    onSearchQueryChange = { draftSearchQuery = it },
+                    onSearchClose = {
+                        viewModel.onEvent(NotesEvent.UpdateSearchQuery(""))
+                        viewModel.onEvent(NotesEvent.ToggleSearch)
+                    },
+                    onSearchTriggered = {
+                        viewModel.onEvent(NotesEvent.UpdateSearchQuery(draftSearchQuery))
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleSearch) }) {
+                            Icon(Icons.Default.Search, null)
+                        }
+                        
+                        var filterExpanded by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { filterExpanded = true }) {
+                                Icon(Icons.Default.FilterList, null)
+                            }
+                            DropdownMenu(expanded = filterExpanded, onDismissRequest = { filterExpanded = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(Loc.shoplist_all) },
+                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(null)); filterExpanded = false },
+                                    trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(Loc.notes_textNote) },
+                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteType.TEXT)); filterExpanded = false },
+                                    trailingIcon = { if (uiState.filterType == NoteType.TEXT) Icon(Icons.Default.Check, null) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(Loc.notes_checklistNote) },
+                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteType.CHECKLIST)); filterExpanded = false },
+                                    trailingIcon = { if (uiState.filterType == NoteType.CHECKLIST) Icon(Icons.Default.Check, null) }
+                                )
+                            }
+                        }
+                    }
+                )
             }
         ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.onEvent(com.jtool.android.features.notes.NotesEvent.Refresh) },
+                modifier = Modifier.padding(padding).fillMaxSize()
             ) {
-                items(uiState.notes.sortedByDescending { it.timestamp }, key = { it.id }) { note ->
-                    NoteListItem(note, uiState.userNames, viewModel)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                }
-                
-                item {
-                    Spacer(Modifier.height(100.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    items(uiState.filteredNotes, key = { it.id }) { note ->
+                        NoteListItem(note, uiState.userNames, viewModel)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                    }
+                    
+                    item {
+                        Spacer(Modifier.height(100.dp))
+                    }
                 }
             }
         }
@@ -84,36 +135,41 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
     var menuExpanded by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { viewModel.onEvent(NotesEvent.OpenNote(note, false)) }
-            .padding(vertical = 8.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    val contentPreview = if (note.type == NoteType.TEXT) {
+        note.content
+    } else {
+        if (note.checklistCount <= 0) {
+            ""
+        } else {
+            "${note.checklistCount} ${if (note.checklistCount == 1) Loc.general_item else Loc.general_items}"
+        }
+    }
+
+    ActionListItem(
+        onClick = { viewModel.onEvent(NotesEvent.OpenNote(note, false)) },
+        headline = note.title.ifBlank { Loc.notes_untitledNote },
+        supportingText = contentPreview,
+        metadataText = buildString {
+            append("${Loc.general_by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}")
+            append(" • ")
+            append(dateFormat.format(Date(note.timestamp)))
+            if (note.commentCount > 0) {
+                append(" • ")
+                append(note.commentCount)
+                append(" 💬")
+            }
+        },
+        leadingContent = {
             Icon(
                 imageVector = if (note.type == NoteType.TEXT) Icons.AutoMirrored.Filled.Notes else Icons.Default.Checklist,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            
-            if (note.title.isNotBlank()) {
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = note.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
-            
+        },
+        trailingContent = {
             Box {
-                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(24.dp)) {
+                IconButton(onClick = { menuExpanded = true }) {
                     Icon(Icons.Default.MoreVert, null)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -136,58 +192,5 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
                 }
             }
         }
-        
-        val contentPreview = if (note.type == NoteType.TEXT) {
-            note.content
-        } else {
-            note.checklist.joinToString(", ") { it.text }
-        }
-        
-        if (contentPreview.isNotBlank()) {
-            Text(
-                text = contentPreview,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        
-        Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${Loc.general_by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-                
-                val totalComments = getTotalCommentsCount(note.comments)
-                if (totalComments > 0) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.ChatBubbleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = totalComments.toString(),
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
-            }
-            Text(
-                text = dateFormat.format(Date(note.timestamp)),
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
-        }
-    }
+    )
 }

@@ -12,4 +12,5 @@ sealed interface CleaningEvent {
     data class RequestEdit(val task: CleaningTask?) : CleaningEvent
     data class SaveTask(val title: String, val days: Int, val isRecurring: Boolean) : CleaningEvent
     data class AddTask(val title: String, val days: Int, val isRecurring: Boolean) : CleaningEvent
+    object Refresh : CleaningEvent
 }

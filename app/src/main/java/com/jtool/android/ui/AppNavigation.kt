@@ -107,7 +107,8 @@ fun AppNavigation(
         navigateToGroups = navigateToGroups,
         setNavigateToGroups = { navigateToGroups = it },
         hasUpdate = updateVersionCode != null,
-        isAdmin = isAdmin
+        isAdmin = isAdmin,
+        onBack = { currentScreen = AppNames.LAUNCHER }
     )
 
     AppProperties.fromId(currentScreen)?.Content(deps)

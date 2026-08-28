@@ -7,6 +7,5 @@ import com.google.firebase.firestore.PropertyName
 data class GroupInfo(
     val id: String = "",
     val name: String = "",
-    @get:PropertyName("ownerUid")
-    val owner: String? = null
+    val ownerUid: String? = null
 )

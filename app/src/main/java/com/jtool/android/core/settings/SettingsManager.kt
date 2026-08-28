@@ -156,7 +156,7 @@ class SettingsManager(context: Context) {
                 map[id] = GroupInfo(
                     id = id,
                     name = groupJson.getString("name"),
-                    owner = if (groupJson.has("owner")) groupJson.getString("owner") else null
+                    ownerUid = if (groupJson.has("ownerUid")) groupJson.getString("ownerUid") else null
                 )
             }
             map
@@ -170,7 +170,7 @@ class SettingsManager(context: Context) {
         groups.forEach { (id, info) -> 
             val groupJson = org.json.JSONObject()
             groupJson.put("name", info.name)
-            groupJson.put("owner", info.owner)
+            groupJson.put("ownerUid", info.ownerUid)
             obj.put(id, groupJson)
         }
         prefs.edit().putString("remembered_groups", obj.toString()).apply()

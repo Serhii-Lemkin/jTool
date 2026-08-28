@@ -25,7 +25,9 @@ import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -51,78 +53,74 @@ fun LinksScreen(
     val uiState by viewModel.uiState.collectAsState()
     val clipboardManager = LocalClipboardManager.current
 
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
+    
+    LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                GenericTitle(title = Loc.links_links, onBack = onBack)
+                GenericTitle(
+                    title = Loc.links_links, 
+                    onBack = onBack,
+                    isLoading = uiState.isLoading,
+                    onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
+                    isSearchVisible = isSearchVisible,
+                    searchQuery = draftSearchQuery,
+                    onSearchQueryChange = { draftSearchQuery = it },
+                    onSearchClose = {
+                        isSearchVisible = false
+                        viewModel.onEvent(LinksEvent.UpdateSearchQuery(""))
+                    },
+                    onSearchTriggered = {
+                        viewModel.onEvent(LinksEvent.UpdateSearchQuery(draftSearchQuery))
+                    },
+                    searchPlaceholder = Loc.links_searchLinks,
+                    actions = {
+                        TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
+                    }
+                )
             },
             modifier = Modifier.fillMaxSize().imePadding()
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = uiState.isLoading,
+                onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
+                modifier = Modifier.padding(padding).fillMaxSize()
             ) {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.onEvent(LinksEvent.UpdateSearchQuery(it)) },
-                    label = { Text(Loc.links_searchLinks) },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (uiState.searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onEvent(LinksEvent.UpdateSearchQuery("")) }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
-                            }
-                        }
-                    },
-                    singleLine = true
-                )
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    items(uiState.filteredLinks, key = { it.id }) { link ->
-                        var itemMenuExpanded by remember { mutableStateOf(false) }
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        items(uiState.filteredLinks, key = { it.id }) { link ->
+                            var itemMenuExpanded by remember { mutableStateOf(false) }
 
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color.Transparent
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = link.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                        Text(text = link.url, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, maxLines = 1)
+                            ActionListItem(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, Loc.links_invalidUrl, Toast.LENGTH_SHORT).show()
                                     }
-                                    
-                                    IconButton(
-                                        onClick = {
-                                            try {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
-                                                context.startActivity(intent)
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, Loc.links_invalidUrl, Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Default.OpenInNew, contentDescription = "Open", modifier = Modifier.size(20.dp))
-                                    }
-
+                                },
+                                headline = link.title,
+                                supportingText = link.url,
+                                metadataText = "${Loc.general_by} ${uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
+                                trailingContent = {
                                     Box {
                                         IconButton(
                                             onClick = { itemMenuExpanded = true },
-                                            modifier = Modifier.size(32.dp)
                                         ) {
-                                            Icon(Icons.Default.MoreVert, contentDescription = "Options", modifier = Modifier.size(20.dp))
+                                            Icon(Icons.Default.MoreVert, contentDescription = "Options")
                                         }
                                         DropdownMenu(
                                             expanded = itemMenuExpanded,
@@ -148,18 +146,13 @@ fun LinksScreen(
                                         }
                                     }
                                 }
-                                Text(
-                                    text = "${Loc.general_by} ${uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
-                                    fontSize = 9.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.align(Alignment.End).padding(end = 12.dp)
-                                )
-                            }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
                         }
-                    }
-                    
-                    item {
-                        Spacer(Modifier.height(100.dp))
+                        
+                        item {
+                            Spacer(Modifier.height(100.dp))
+                        }
                     }
                 }
             }
@@ -229,21 +222,6 @@ fun LinksScreen(
                     Text(Loc.general_cancel)
                 }
             }
-        )
-    }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-fun LinksPreview() {
-    val context = LocalContext.current
-    MaterialTheme {
-        LinksScreen(
-            manager = LinksManager(context),
-            backupManager = BackupManager(context),
-            settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context),
-            onBack = {}
         )
     }
 }

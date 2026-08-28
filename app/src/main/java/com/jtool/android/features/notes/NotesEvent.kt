@@ -26,4 +26,10 @@ sealed interface NotesEvent {
     data class AddComment(val content: String, val parentId: String?) : NotesEvent
     data class EditComment(val commentId: String, val newContent: String) : NotesEvent
     data class DeleteComment(val commentId: String) : NotesEvent
+    object Refresh : NotesEvent
+    
+    // Search & Filter
+    object ToggleSearch : NotesEvent
+    data class UpdateSearchQuery(val query: String) : NotesEvent
+    data class SetFilterType(val type: NoteType?) : NotesEvent
 }

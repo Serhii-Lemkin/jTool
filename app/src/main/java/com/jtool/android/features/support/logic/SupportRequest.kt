@@ -26,7 +26,18 @@ data class SupportRequest(
     val timestamp: Long = 0L,
     val deviceInfo: Map<String, String> = emptyList<Pair<String, String>>().toMap(),
     val crashLog: String? = null,
-    val comments: List<com.jtool.android.core.models.Comment> = emptyList()
+    val comments: List<com.jtool.android.core.models.Comment> = emptyList(),
+    
+    @get:com.google.firebase.firestore.Exclude
+    @set:com.google.firebase.firestore.Exclude
+    var commentCount: Int = 0,
+
+    // UI state only
+    @get:com.google.firebase.firestore.Exclude
+    val pendingStatus: SupportStatus? = null,
+    
+    @get:com.google.firebase.firestore.Exclude
+    val pendingType: SupportType? = null
 ) {
     val priority: Int
         get() = when (type) {
