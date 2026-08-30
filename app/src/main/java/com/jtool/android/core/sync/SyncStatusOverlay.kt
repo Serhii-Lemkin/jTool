@@ -1,5 +1,6 @@
 package com.jtool.android.core.sync
 
+import com.jtool.android.core.models.system.enums.SyncStatusEnum
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -17,7 +18,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SyncStatusOverlay() {
     val status = SyncStatusManager.status
-    if (status == SyncStatus.IDLE) return
+    if (status == SyncStatusEnum.IDLE) return
 
     val infiniteTransition = rememberInfiniteTransition(label = "sync")
     val rotation by infiniteTransition.animateFloat(
@@ -44,7 +45,7 @@ fun SyncStatusOverlay() {
         ) {
             Box(modifier = Modifier.padding(8.dp)) {
                 when (status) {
-                    SyncStatus.SYNCING -> {
+                    SyncStatusEnum.SYNCING -> {
                         Icon(
                             imageVector = Icons.Default.Sync,
                             contentDescription = "Syncing",
@@ -52,10 +53,9 @@ fun SyncStatusOverlay() {
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    SyncStatus.SUCCESS -> {
-                        // Success state icon removed as per user request
+                    SyncStatusEnum.SUCCESS -> {
                     }
-                    SyncStatus.ERROR -> {
+                    SyncStatusEnum.ERROR -> {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Error",

@@ -1,10 +1,12 @@
 package com.jtool.android.features.admin
 
+import com.jtool.android.core.models.admin.enums.AdminSubScreenEnum
+
 data class AdminUiState(
-    val currentSubScreen: String = "main",
+    val currentSubScreen: AdminSubScreenEnum = AdminSubScreenEnum.MAIN,
     val userNames: Map<String, String> = emptyMap(),
-    val users: List<Map<String, Any?>> = emptyList(),
-    val groups: List<Map<String, Any?>> = emptyList(),
+    val users: List<com.jtool.android.core.models.user.User> = emptyList(),
+    val groups: List<com.jtool.android.core.models.group.GroupInfo> = emptyList(),
     val userSearchQuery: String = "",
     val appliedUserSearchQuery: String = "",
     val groupSearchQuery: String = "",
@@ -14,6 +16,7 @@ data class AdminUiState(
     val showGroupDeleteConfirm1: String? = null,
     val showGroupDeleteConfirm2: String? = null,
     val migrationStatus: String? = null,
+    val migrationResult: com.jtool.android.core.sync.helpers.MigrationResult? = null,
     val isMigrating: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null

@@ -20,10 +20,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.ui.navigation.AppNames
 import com.jtool.android.ui.navigation.AppProperties
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 @Composable
 fun LauncherScreen(
@@ -49,12 +49,12 @@ fun LauncherScreen(
     }
 
     val clickHandlers = mapOf(
-        AppNames.WORK_TIME to onWorkTimeClick,
-        AppNames.TIME_CALC to onTimeCalcClick,
-        AppNames.SHOP_LIST to onShopListClick,
-        AppNames.NOTES to onNotesClick,
-        AppNames.LINKS to onLinksClick,
-        AppNames.CLEANING to onCleaningClick
+        AppScreenEnum.WORK_TIME to onWorkTimeClick,
+        AppScreenEnum.TIME_CALC to onTimeCalcClick,
+        AppScreenEnum.SHOP_LIST to onShopListClick,
+        AppScreenEnum.NOTES to onNotesClick,
+        AppScreenEnum.LINKS to onLinksClick,
+        AppScreenEnum.CLEANING to onCleaningClick
     )
 
     Column(

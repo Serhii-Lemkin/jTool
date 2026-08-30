@@ -1,6 +1,6 @@
 package com.jtool.android.features.cleaning
 
-import com.jtool.android.core.models.CleaningTask
+import com.jtool.android.core.models.feature.cleaning.CleaningTask
 
 sealed interface CleaningEvent {
     data class ToggleDisabledView(val show: Boolean) : CleaningEvent

@@ -253,6 +253,12 @@
     "general_refreshing": "Refreshing...",
     "general_pullToRefresh": "Pull to refresh",
     "general_item": "item",
-    "general_items": "items"
+    "general_items": "items",
+    "crash_automatedReport": "Automated Crash Report",
+    "crash_title": "Oops! App Crashed",
+    "crash_msg": "A fatal error occurred. You can report this to the developer.",
+    "crash_reportBug": "Report bug",
+    "crash_sentSuccess": "Report sent! Thank you.",
+    "crash_goHome": "Go to Home"
   }
 }

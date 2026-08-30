@@ -1,11 +1,15 @@
 package com.jtool.android.features.support.logic
 
+import com.jtool.android.core.models.support.SupportRequest
+import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
+import com.jtool.android.core.models.support.enums.SupportTypeEnum
+
 data class SupportUiState(
     val requests: List<SupportRequest> = emptyList(),
     val isLoading: Boolean = false,
     val isAdmin: Boolean = false,
     val showArchived: Boolean = false,
-    val filterType: SupportType? = null, // null means "All"
+    val filterType: SupportTypeEnum? = null,
     
     val isSending: Boolean = false,
     val isSuccess: Boolean = false,
@@ -16,13 +20,11 @@ data class SupportUiState(
     val error: String? = null,
     
     val selectedRequest: SupportRequest? = null,
-    val currentSubScreen: SupportScreenType = SupportScreenType.HUB,
+    val currentSubScreen: SupportScreenTypeEnum = SupportScreenTypeEnum.HUB,
     
     val searchQuery: String = "",
     val isSearchVisible: Boolean = false,
     val pagingLimit: Int = 15
 )
 
-enum class SupportScreenType {
-    HUB, DETAIL, NEW_FORM
-}
+

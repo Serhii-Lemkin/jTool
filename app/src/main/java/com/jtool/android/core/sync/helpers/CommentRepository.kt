@@ -3,7 +3,7 @@ package com.jtool.android.core.sync.helpers
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.FieldValue
-import com.jtool.android.core.models.Comment
+import com.jtool.android.core.models.common.Comment
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow

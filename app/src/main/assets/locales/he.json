@@ -247,6 +247,12 @@
     "general_refreshing": "מרענן...",
     "general_pullToRefresh": "משוך/י לרענון",
     "general_item": "פריט",
-    "general_items": "פריטים"
+    "general_items": "פריטים",
+    "crash_automatedReport": "דיווח קריסה אוטומטי",
+    "crash_title": "אופס! האפליקציה קרסה",
+    "crash_msg": "אירעה שגיאה קריטית. ניתן לדווח על כך למפתח.",
+    "crash_reportBug": "דווח על באג",
+    "crash_sentSuccess": "הדיווח נשלח! תודה.",
+    "crash_goHome": "חזרה לבית"
   }
 }

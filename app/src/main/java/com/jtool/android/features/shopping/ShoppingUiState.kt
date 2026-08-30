@@ -1,11 +1,12 @@
 package com.jtool.android.features.shopping
 
-import com.jtool.android.core.models.ShoppingItem
+import com.jtool.android.core.models.feature.shopping.ShoppingItem
+import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 
 data class ShoppingUiState(
     val items: List<ShoppingItem> = emptyList(),
     val newItemText: String = "",
-    val selectedAisle: String = "Common",
+    val selectedAisle: ShoppingAisleEnum = ShoppingAisleEnum.COMMON,
     val showAislePicker: Boolean = false,
     val filterType: String = "All",
     val dropdownExpanded: Boolean = false,
@@ -16,7 +17,7 @@ data class ShoppingUiState(
     val isLoading: Boolean = false,
     val error: String? = null
 ) {
-    val activeAisles: List<String>
+    val activeAisles: List<ShoppingAisleEnum>
         get() = items.filter { !it.isChecked }.map { it.aisle }.distinct().sorted()
 
     val displayItems: List<ShoppingItem>
@@ -24,7 +25,7 @@ data class ShoppingUiState(
             filterType == "Unactive" -> items.filter { it.isChecked }.sortedByDescending { it.timestamp }
             filterType.startsWith("Aisle:") -> {
                 val aisleName = filterType.removePrefix("Aisle:")
-                items.filter { !it.isChecked && it.aisle == aisleName }.sortedByDescending { it.id }
+                items.filter { !it.isChecked && it.aisle.name == aisleName }.sortedByDescending { it.id }
             }
             else -> items.filter { !it.isChecked }.sortedByDescending { it.id }
         }

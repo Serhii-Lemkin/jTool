@@ -1,16 +1,18 @@
-package com.jtool.android.core.models
+package com.jtool.android.core.models.feature.shopping
 
 import androidx.annotation.Keep
+import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.firebase.firestore.PropertyName
+import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 
 @Keep
+@IgnoreExtraProperties
 data class ShoppingItem(
-    val id: String = "",
+    var id: String = "",
     val text: String = "",
     @get:PropertyName("isChecked")
-    @PropertyName("isChecked")
     val isChecked: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(),
     val lastUpdatedBy: String = "",
-    val aisle: String = "Common"
+    val aisle: ShoppingAisleEnum = ShoppingAisleEnum.COMMON
 )

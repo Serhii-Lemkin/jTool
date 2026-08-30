@@ -2,15 +2,16 @@ package com.jtool.android.ui.navigation
 
 import androidx.compose.runtime.Composable
 import com.jtool.android.features.settings.SettingsScreen
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
-object SettingsAccount : AppProperties(AppNames.SETTINGS_ACCOUNT) {
+object SettingsAccount : AppProperties(AppScreenEnum.SETTINGS_ACCOUNT) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
         SettingsScreen(
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
             authManager = deps.authManager,
-            groupSyncManager = deps.groupSyncManager,
+            dataManager = deps.dataManager,
             onSignIn = deps.onSignIn,
             isDarkMode = deps.isDarkMode,
             onThemeToggle = deps.onThemeToggle,
@@ -24,7 +25,7 @@ object SettingsAccount : AppProperties(AppNames.SETTINGS_ACCOUNT) {
             groups = deps.groups,
             onGroupsUpdated = deps.onGroupsUpdated,
             currentGroupId = deps.currentGroupId,
-            onBack = { deps.setScreen(AppNames.LAUNCHER) }
+            onBack = { deps.setScreen(AppScreenEnum.LAUNCHER) }
         )
     }
 }

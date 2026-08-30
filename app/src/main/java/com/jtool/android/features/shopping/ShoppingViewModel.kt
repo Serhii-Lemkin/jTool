@@ -1,13 +1,12 @@
 package com.jtool.android.features.shopping
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import com.jtool.android.core.models.ShoppingItem
+import com.jtool.android.core.models.feature.shopping.ShoppingItem
+import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
-import com.jtool.android.core.utils.SyncUtils
+import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.sync.BaseSyncViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -15,29 +14,27 @@ import kotlinx.coroutines.tasks.await
 class ShoppingViewModel(
     private val manager: ShoppingListManager,
     private val settingsManager: SettingsManager,
-    private val groupSyncManager: GroupSyncManager
-) : ViewModel() {
+    private val dataManager: DataManager
+) : BaseSyncViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val _uiState = MutableStateFlow(ShoppingUiState())
     val uiState: StateFlow<ShoppingUiState> = _uiState.asStateFlow()
 
-    private var itemsListener: ListenerRegistration? = null
-
     init {
         observeGroupId()
         observeSyncData()
+        
+        isLoading.onEach { loading -> _uiState.update { it.copy(isLoading = loading) } }.launchIn(viewModelScope)
     }
 
     private fun observeGroupId() {
-        groupSyncManager.currentGroupIdFlow()
+        dataManager.currentGroupIdFlow()
             .onEach { gid ->
-                // Clear current state to avoid data persisting from previous group
                 _uiState.update { it.copy(items = emptyList()) }
-                itemsListener?.remove()
+                clearListeners()
                 
-                // Load from local (which may be empty if clearLocalCache was called)
-                val localItems = manager.loadItems(gid)
+                val localItems = manager.load(gid)
                 _uiState.update { it.copy(items = localItems) }
                 
                 if (gid != null) {
@@ -50,23 +47,29 @@ class ShoppingViewModel(
     private fun getShoppingColl(gid: String) = firestore.collection("groups").document(gid).collection("shopping")
 
     private fun observeFirestoreItems(gid: String) {
-        itemsListener = getShoppingColl(gid).addSnapshotListener { snapshot, _ ->
+        val listener = getShoppingColl(gid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 val list = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(ShoppingItem::class.java)?.copy(id = doc.id)
+                    try {
+                        doc.toObject(ShoppingItem::class.java)?.apply { id = doc.id }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ShoppingVM", "Error deserializing item ${doc.id}", e)
+                        null
+                    }
                 }
                 _uiState.update { it.copy(items = list) }
-                manager.saveItems(list, gid)
+                manager.save(list, gid)
             }
         }
+        addListener(listener)
     }
 
     private fun observeSyncData() {
-        groupSyncManager.userNamesFlow()
+        dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
             .launchIn(viewModelScope)
             
-        groupSyncManager.suggestionsFlow()
+        dataManager.suggestionsFlow()
             .onEach { suggestions: List<String> -> 
                 _uiState.update { it.copy(remoteSuggestions = suggestions) } 
             }
@@ -92,25 +95,25 @@ class ShoppingViewModel(
 
     private fun refresh() {
         val gid = settingsManager.getCurrentGroupId() ?: return
-        viewModelScope.launch {
-            SyncUtils.performRefresh(
-                onLoading = { loading -> _uiState.update { it.copy(isLoading = loading) } }
-            ) {
-                manager.saveItems(emptyList(), gid) // Clear local cache
-                val snapshot = getShoppingColl(gid).get().await()
-                val list = snapshot.documents.mapNotNull { it.toObject(ShoppingItem::class.java)?.copy(id = it.id) }
-                _uiState.update { it.copy(items = list) }
-                manager.saveItems(list, gid)
+        performRefresh(
+            onRefreshStart = {
+                manager.save(emptyList(), gid)
+                _uiState.update { it.copy(items = emptyList()) }
             }
+        ) {
+            val snapshot = getShoppingColl(gid).get(com.google.firebase.firestore.Source.SERVER).await()
+            val list = snapshot.documents.mapNotNull { it.toObject(ShoppingItem::class.java)?.copy(id = it.id) }
+            _uiState.update { it.copy(items = list) }
+            manager.save(list, gid)
         }
     }
 
-    private fun selectAisle(aisle: String) {
+    private fun selectAisle(aisle: ShoppingAisleEnum) {
         val selectedItem = _uiState.value.selectedItem
         if (selectedItem != null) {
             val gid = settingsManager.getCurrentGroupId() ?: return
             viewModelScope.launch {
-                getShoppingColl(gid).document(selectedItem.id).update(com.jtool.android.core.models.ShoppingItem::aisle.name, aisle).await()
+                getShoppingColl(gid).document(selectedItem.id).update(ShoppingItem::aisle.name, aisle).await()
                 _uiState.update { it.copy(selectedItem = null, showAislePicker = false) }
             }
         } else {
@@ -147,7 +150,7 @@ class ShoppingViewModel(
                 )
                 viewModelScope.launch {
                     getShoppingColl(gid).document(id).set(newItem).await()
-                    _uiState.update { it.copy(newItemText = "", selectedAisle = "Common") }
+                    _uiState.update { it.copy(newItemText = "", selectedAisle = ShoppingAisleEnum.COMMON) }
                 }
             }
         }
@@ -157,9 +160,9 @@ class ShoppingViewModel(
         val gid = settingsManager.getCurrentGroupId() ?: return
         viewModelScope.launch {
             getShoppingColl(gid).document(item.id).update(
-                com.jtool.android.core.models.ShoppingItem::isChecked.name, isChecked,
-                com.jtool.android.core.models.ShoppingItem::timestamp.name, System.currentTimeMillis(),
-                com.jtool.android.core.models.ShoppingItem::lastUpdatedBy.name, settingsManager.getAppUserId()
+                ShoppingItem::isChecked.name, isChecked,
+                ShoppingItem::timestamp.name, System.currentTimeMillis(),
+                ShoppingItem::lastUpdatedBy.name, settingsManager.getAppUserId()
             ).await()
         }
     }
@@ -184,10 +187,5 @@ class ShoppingViewModel(
             }
         }
         _uiState.update { it.copy(newItemText = "") }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        itemsListener?.remove()
     }
 }

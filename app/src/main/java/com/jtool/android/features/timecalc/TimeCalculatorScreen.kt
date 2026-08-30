@@ -53,7 +53,6 @@ fun TimeCalculatorScreen(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Section: Set Base Time
             Text(Loc.timecalc_baseDateTime, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TimeInputField(Loc.timecalc_year, uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
@@ -65,7 +64,6 @@ fun TimeCalculatorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Large Display
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 modifier = Modifier.fillMaxWidth()
@@ -82,7 +80,6 @@ fun TimeCalculatorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section: Operations
             Text(Loc.timecalc_addSub, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TimeInputField(Loc.general_yearShort.uppercase(), uiState.yearsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(y = it)) }

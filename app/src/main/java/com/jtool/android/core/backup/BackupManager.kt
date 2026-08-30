@@ -1,6 +1,7 @@
 package com.jtool.android.core.backup
 
 import android.content.Context
+import com.jtool.android.core.models.common.enums.PersistencePrefixEnum
 import org.json.JSONObject
 
 class BackupManager(private val context: Context) {
@@ -25,13 +26,13 @@ class BackupManager(private val context: Context) {
     
     fun createBackupJson(): String {
         val root = JSONObject()
-        val shopPrefs = context.getSharedPreferences("jtool_shopping", Context.MODE_PRIVATE)
+        val shopPrefs = context.getSharedPreferences(PersistencePrefixEnum.SHOPPING.prefix, Context.MODE_PRIVATE)
         root.put("shopping_items", shopPrefs.getString("items", ""))
-        val notesPrefs = context.getSharedPreferences("jtool_notes", Context.MODE_PRIVATE)
+        val notesPrefs = context.getSharedPreferences(PersistencePrefixEnum.NOTES.prefix, Context.MODE_PRIVATE)
         root.put("notes_data", notesPrefs.getString("notes", ""))
-        val linksPrefs = context.getSharedPreferences("jtool_links", Context.MODE_PRIVATE)
+        val linksPrefs = context.getSharedPreferences(PersistencePrefixEnum.LINKS.prefix, Context.MODE_PRIVATE)
         root.put("links_data", linksPrefs.getString("links", ""))
-        val cleaningPrefs = context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE)
+        val cleaningPrefs = context.getSharedPreferences(PersistencePrefixEnum.CLEANING.prefix, Context.MODE_PRIVATE)
         root.put("cleaning_tasks", cleaningPrefs.getString("tasks", ""))
         return root.toString(4)
     }
@@ -41,22 +42,22 @@ class BackupManager(private val context: Context) {
             val root = JSONObject(jsonString)
             if (root.has("shopping_items")) {
                 val shopItems = root.getString("shopping_items")
-                context.getSharedPreferences("jtool_shopping", Context.MODE_PRIVATE)
+                context.getSharedPreferences(PersistencePrefixEnum.SHOPPING.prefix, Context.MODE_PRIVATE)
                     .edit().putString("items", shopItems).apply()
             }
             if (root.has("notes_data")) {
                 val notesData = root.getString("notes_data")
-                context.getSharedPreferences("jtool_notes", Context.MODE_PRIVATE)
+                context.getSharedPreferences(PersistencePrefixEnum.NOTES.prefix, Context.MODE_PRIVATE)
                     .edit().putString("notes", notesData).apply()
             }
             if (root.has("links_data")) {
                 val linksData = root.getString("links_data")
-                context.getSharedPreferences("jtool_links", Context.MODE_PRIVATE)
+                context.getSharedPreferences(PersistencePrefixEnum.LINKS.prefix, Context.MODE_PRIVATE)
                     .edit().putString("links", linksData).apply()
             }
             if (root.has("cleaning_tasks")) {
                 val cleaningData = root.getString("cleaning_tasks")
-                context.getSharedPreferences("jtool_cleaning", Context.MODE_PRIVATE)
+                context.getSharedPreferences(PersistencePrefixEnum.CLEANING.prefix, Context.MODE_PRIVATE)
                     .edit().putString("tasks", cleaningData).apply()
             }
             true

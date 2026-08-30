@@ -18,7 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import com.jtool.android.core.models.ShoppingItem
+import com.jtool.android.core.models.feature.shopping.ShoppingItem
+import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -29,25 +30,25 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleDropdownMenu
 import com.jtool.android.core.components.layout.TitleActionIcon
 
 val AisleIcons = mapOf(
-    "Common" to Icons.AutoMirrored.Filled.Label,
-    "Veggies" to Icons.Default.Eco,
-    "Meat" to Icons.Default.KebabDining,
-    "Fish" to Icons.Default.SetMeal,
-    "Dairy" to Icons.Default.Egg,
-    "Bakery" to Icons.Default.BakeryDining,
-    "Drinks" to Icons.Default.LocalDrink,
-    "Frozen" to Icons.Default.AcUnit,
-    "Snacks" to Icons.Default.Cookie,
-    "Household" to Icons.Default.CleaningServices,
-    "Personal" to Icons.Default.Spa,
-    "Pets" to Icons.Default.Pets
+    ShoppingAisleEnum.COMMON to Icons.AutoMirrored.Filled.Label,
+    ShoppingAisleEnum.VEGGIES to Icons.Default.Eco,
+    ShoppingAisleEnum.MEAT to Icons.Default.KebabDining,
+    ShoppingAisleEnum.FISH to Icons.Default.SetMeal,
+    ShoppingAisleEnum.DAIRY to Icons.Default.Egg,
+    ShoppingAisleEnum.BAKERY to Icons.Default.BakeryDining,
+    ShoppingAisleEnum.DRINKS to Icons.Default.LocalDrink,
+    ShoppingAisleEnum.FROZEN to Icons.Default.AcUnit,
+    ShoppingAisleEnum.SNACKS to Icons.Default.Cookie,
+    ShoppingAisleEnum.HOUSEHOLD to Icons.Default.CleaningServices,
+    ShoppingAisleEnum.PERSONAL to Icons.Default.Spa,
+    ShoppingAisleEnum.PETS to Icons.Default.Pets
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,12 +57,12 @@ fun ShoppingListScreen(
     manager: ShoppingListManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onBack: () -> Unit,
     viewModel: ShoppingViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                ShoppingViewModel(manager, settingsManager, groupSyncManager)
+                ShoppingViewModel(manager, settingsManager, dataManager)
             }
         }
     )
@@ -83,15 +84,15 @@ fun ShoppingListScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(AisleIcons.toList()) { (key, icon) ->
+                    items(AisleIcons.toList()) { (aisle, icon) ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.onEvent(ShoppingEvent.SelectAisle(key))
+                                    viewModel.onEvent(ShoppingEvent.SelectAisle(aisle))
                                 },
                             colors = CardDefaults.cardColors(
-                                containerColor = if (uiState.selectedAisle == key) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                containerColor = if (uiState.selectedAisle == aisle) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                             )
                         ) {
                             Row(
@@ -100,7 +101,7 @@ fun ShoppingListScreen(
                             ) {
                                 Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text(text = Loc.getAisleName(key), fontSize = 12.sp, maxLines = 1)
+                                Text(text = Loc.getAisleName(aisle), fontSize = 12.sp, maxLines = 1)
                             }
                         }
                     }
@@ -136,7 +137,11 @@ fun ShoppingListScreen(
             topBar = {
                 val filterIcon = when {
                     uiState.filterType == "Unactive" -> Icons.Default.CheckBox
-                    uiState.filterType.startsWith("Aisle:") -> AisleIcons[uiState.filterType.removePrefix("Aisle:")] ?: Icons.AutoMirrored.Filled.Label
+                    uiState.filterType.startsWith("Aisle:") -> {
+                        val aisleName = uiState.filterType.removePrefix("Aisle:")
+                        val aisle = try { ShoppingAisleEnum.valueOf(aisleName) } catch (e: Exception) { ShoppingAisleEnum.COMMON }
+                        AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label
+                    }
                     else -> Icons.Default.FilterList
                 }
                 GenericTitle(
@@ -160,7 +165,7 @@ fun ShoppingListScreen(
                                 DropdownMenuItem(
                                     leadingIcon = { Icon(AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label, contentDescription = null) },
                                     text = { Text(Loc.getAisleName(aisle)) },
-                                    onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Aisle:$aisle")) }
+                                    onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Aisle:${aisle.name}")) }
                                 )
                             }
                         }
@@ -340,7 +345,7 @@ fun ShoppingItemRow(
     var menuExpanded by remember { mutableStateOf(false) }
 
     CompactActionListItem(
-        onClick = null, // Disable whole-item click for checkboxes
+        onClick = null,
         headline = item.text,
         isStrikethrough = item.isChecked,
         metadataText = "${Loc.general_by} $userName",

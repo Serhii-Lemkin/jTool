@@ -1,4 +1,4 @@
-package com.jtool.android.core.models
+package com.jtool.android.core.models.user
 
 import androidx.annotation.Keep
 

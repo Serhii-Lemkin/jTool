@@ -2,12 +2,12 @@ package com.jtool.android.features.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class AdminViewModel(
-    private val groupSyncManager: GroupSyncManager
+    private val dataManager: DataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
@@ -18,15 +18,15 @@ class AdminViewModel(
     }
 
     private fun observeData() {
-        groupSyncManager.userNamesFlow()
+        dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
             .launchIn(viewModelScope)
 
-        groupSyncManager.allUsersFlow()
+        dataManager.allUsersFlow()
             .onEach { users -> _uiState.update { it.copy(users = users) } }
             .launchIn(viewModelScope)
 
-        groupSyncManager.allGroupsFlow()
+        dataManager.allGroupsFlow()
             .onEach { groups -> _uiState.update { it.copy(groups = groups) } }
             .launchIn(viewModelScope)
     }
@@ -44,7 +44,7 @@ class AdminViewModel(
             }
             is AdminEvent.SetUserAdminStatus -> {
                 viewModelScope.launch {
-                    groupSyncManager.setUserAdminStatus(event.uid, event.isAdmin)
+                    dataManager.setUserAdminStatus(event.uid, event.isAdmin)
                 }
             }
             is AdminEvent.RequestDeleteUser -> {
@@ -56,7 +56,7 @@ class AdminViewModel(
             }
             is AdminEvent.ConfirmDeleteUser -> {
                 viewModelScope.launch {
-                    groupSyncManager.deleteUserPermanently(event.uid)
+                    dataManager.deleteUserPermanently(event.uid)
                     _uiState.update { it.copy(showUserDeleteConfirm2 = null) }
                 }
             }
@@ -75,28 +75,27 @@ class AdminViewModel(
             }
             is AdminEvent.ConfirmDeleteGroup -> {
                 viewModelScope.launch {
-                    groupSyncManager.deleteGroupPermanently(event.gid)
+                    dataManager.deleteGroupPermanently(event.gid)
                     _uiState.update { it.copy(showGroupDeleteConfirm2 = null) }
                 }
             }
             AdminEvent.Refresh -> {
                 _uiState.update { it.copy(isMigrating = true) }
                 viewModelScope.launch {
-                    // Re-trigger flows by just delaying or forcing a reload if possible.
-                    // For now, since these are listeners, we just show a loader to indicate "checking"
                     kotlinx.coroutines.delay(500)
                     _uiState.update { it.copy(isMigrating = false) }
                 }
             }
-            AdminEvent.StartLegacyFieldsMigration -> {
+            AdminEvent.StartDataMigration -> {
                 viewModelScope.launch {
-                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting Legacy Fields Migration...") }
-                    val success = groupSyncManager.migrateLegacyFields { status ->
+                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting ID Migration...", migrationResult = null) }
+                    val result = dataManager.migrateDataIds { status ->
                         _uiState.update { it.copy(migrationStatus = status) }
                     }
                     _uiState.update { it.copy(
                         isMigrating = false,
-                        migrationStatus = if (success) "Fields Migration Completed!" else "Failed"
+                        migrationStatus = "Migration Finished!",
+                        migrationResult = result
                     ) }
                 }
             }

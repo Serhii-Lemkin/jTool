@@ -1,7 +1,7 @@
 package com.jtool.android.core.components.comments
 
 import com.google.firebase.firestore.CollectionReference
-import com.jtool.android.core.models.Comment
+import com.jtool.android.core.models.common.Comment
 import com.jtool.android.core.sync.helpers.CommentRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -31,7 +31,6 @@ class CommentController(
 
         listenerJob = repository.getCommentsFlow(collection)
             .onEach { serverComments ->
-                // Filter out pending comments that have been confirmed by the server
                 val serverIds = serverComments.map { it.id }.toSet()
                 pendingComments.update { current ->
                     current.filter { it.id !in serverIds }
@@ -62,7 +61,6 @@ class CommentController(
             isPending = true
         )
 
-        // Optimistic UI update
         pendingComments.update { it + ghost }
         combineAndEmit(_comments.value.flatten(), pendingComments.value)
 
@@ -70,9 +68,7 @@ class CommentController(
             try {
                 val confirmedComment = ghost.copy(isPending = false)
                 repository.addComment(collection, confirmedComment)
-                // The listener will handle removing from pending once it sees the server version
             } catch (e: Exception) {
-                // Remove from pending on failure
                 pendingComments.update { current -> current.filter { it.id != realId } }
                 combineAndEmit(_comments.value.flatten(), pendingComments.value)
             }
@@ -120,7 +116,6 @@ class CommentController(
         return roots.map { assemble(it) }.sortedByDescending { it.timestamp }
     }
 
-    // Helper to flatten the tree for merging logic
     private fun List<Comment>.flatten(): List<Comment> {
         val result = mutableListOf<Comment>()
         fun walk(list: List<Comment>) {
@@ -138,5 +133,6 @@ class CommentController(
         activeCollection = null
         _comments.value = emptyList()
         pendingComments.value = emptyList()
+        _isLoading.value = false
     }
 }

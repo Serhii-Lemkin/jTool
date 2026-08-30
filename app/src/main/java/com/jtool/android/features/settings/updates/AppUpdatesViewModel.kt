@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.UpdateAvailability
 import kotlinx.coroutines.flow.MutableStateFlow

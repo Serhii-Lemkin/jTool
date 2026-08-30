@@ -14,6 +14,8 @@
 # Keep the data classes we annotated with @Keep just in case
 -keepattributes *Annotation*
 -keep @androidx.annotation.Keep class * {*;}
+-keep class com.jtool.android.core.models.** { *; }
+
 # Keep Google Play Services Auth classes
 -keep class com.google.android.gms.auth.api.signin.** { *; }
 -keep class com.google.android.gms.common.api.** { *; }

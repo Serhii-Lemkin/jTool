@@ -17,8 +17,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.NoteItem
-import com.jtool.android.core.models.NoteType
+import com.jtool.android.core.models.feature.notes.NoteItem
+import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
 import com.jtool.android.features.notes.NotesEvent
 import com.jtool.android.features.notes.NotesUiState
 import com.jtool.android.features.notes.NotesViewModel
@@ -71,13 +71,13 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
                                 )
                                 DropdownMenuItem(
                                     text = { Text(Loc.notes_textNote) },
-                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteType.TEXT)); filterExpanded = false },
-                                    trailingIcon = { if (uiState.filterType == NoteType.TEXT) Icon(Icons.Default.Check, null) }
+                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.TEXT)); filterExpanded = false },
+                                    trailingIcon = { if (uiState.filterType == NoteTypeEnum.TEXT) Icon(Icons.Default.Check, null) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(Loc.notes_checklistNote) },
-                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteType.CHECKLIST)); filterExpanded = false },
-                                    trailingIcon = { if (uiState.filterType == NoteType.CHECKLIST) Icon(Icons.Default.Check, null) }
+                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.CHECKLIST)); filterExpanded = false },
+                                    trailingIcon = { if (uiState.filterType == NoteTypeEnum.CHECKLIST) Icon(Icons.Default.Check, null) }
                                 )
                             }
                         }
@@ -113,7 +113,7 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
                     text = { Text(Loc.notes_textNote) },
                     onClick = { 
                         onDismiss()
-                        viewModel.onEvent(NotesEvent.StartNewNote(NoteType.TEXT)) 
+                        viewModel.onEvent(NotesEvent.StartNewNote(NoteTypeEnum.TEXT)) 
                     },
                     leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
                 )
@@ -121,7 +121,7 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
                     text = { Text(Loc.notes_checklistNote) },
                     onClick = { 
                         onDismiss()
-                        viewModel.onEvent(NotesEvent.StartNewNote(NoteType.CHECKLIST)) 
+                        viewModel.onEvent(NotesEvent.StartNewNote(NoteTypeEnum.CHECKLIST)) 
                     },
                     leadingIcon = { Icon(Icons.Default.Checklist, null) }
                 )
@@ -135,7 +135,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
     var menuExpanded by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
-    val contentPreview = if (note.type == NoteType.TEXT) {
+    val contentPreview = if (note.type == NoteTypeEnum.TEXT) {
         note.content
     } else {
         if (note.checklistCount <= 0) {
@@ -161,7 +161,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
         },
         leadingContent = {
             Icon(
-                imageVector = if (note.type == NoteType.TEXT) Icons.AutoMirrored.Filled.Notes else Icons.Default.Checklist,
+                imageVector = if (note.type == NoteTypeEnum.TEXT) Icons.AutoMirrored.Filled.Notes else Icons.Default.Checklist,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary

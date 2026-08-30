@@ -17,16 +17,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.features.settings.groups.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupsScreen(
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     settingsManager: SettingsManager,
     onBack: () -> Unit,
     onGroupChanged: (String?) -> Unit,
@@ -34,7 +34,7 @@ fun GroupsScreen(
     viewModel: GroupsViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                GroupsViewModel(groupSyncManager, settingsManager)
+                GroupsViewModel(dataManager, settingsManager)
             }
         }
     )
@@ -42,11 +42,11 @@ fun GroupsScreen(
     val uiState by viewModel.uiState.collectAsState()
     
     val groupMemberIds by remember(uiState.currentGroupId) {
-        if (uiState.currentGroupId != null) groupSyncManager.groupMembersFlow(uiState.currentGroupId!!)
+        if (uiState.currentGroupId != null) dataManager.groupMembersFlow(uiState.currentGroupId!!)
         else kotlinx.coroutines.flow.flowOf(emptyList())
     }.collectAsState(initial = emptyList())
 
-    val globalUserNames by groupSyncManager.userNamesFlow().collectAsState(initial = emptyMap())
+    val globalUserNames by dataManager.userNamesFlow().collectAsState(initial = emptyMap())
 
     var groupSearchQuery by remember { mutableStateOf("") }
     
@@ -86,7 +86,6 @@ fun GroupsScreen(
             modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Group Selection
             if (allGroupIds.isNotEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
                     OutlinedCard(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
@@ -191,7 +190,6 @@ fun GroupsScreen(
         }
     }
 
-    // Dialogs
     if (showCreateGroupDialog) {
         CreateGroupDialog(onDismiss = { showCreateGroupDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.CreateGroup(it)); showCreateGroupDialog = false })
     }

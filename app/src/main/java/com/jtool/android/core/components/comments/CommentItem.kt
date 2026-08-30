@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.Comment
+import com.jtool.android.core.models.common.Comment
 import java.text.SimpleDateFormat
 import java.util.*
 

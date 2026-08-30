@@ -1,18 +1,17 @@
-package com.jtool.android.core.models
+package com.jtool.android.core.models.feature.notes
 
 import androidx.annotation.Keep
+import com.jtool.android.core.models.common.Comment
+import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
+import com.google.firebase.firestore.IgnoreExtraProperties
 
 @Keep
-enum class NoteType {
-    TEXT, CHECKLIST
-}
-
-@Keep
+@IgnoreExtraProperties
 data class NoteItem(
-    val id: String = "",
+    var id: String = "",
     val title: String = "",
     val content: String = "",
-    val type: NoteType = NoteType.TEXT,
+    val type: NoteTypeEnum = NoteTypeEnum.TEXT,
     val checklist: List<ChecklistItem> = emptyList(),
     val comments: List<Comment> = emptyList(),
     val timestamp: Long = System.currentTimeMillis(),

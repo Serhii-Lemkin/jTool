@@ -64,11 +64,9 @@ object Loc {
         return loadedStrings[key] ?: fallback
     }
 
-    // Launcher
     val launcher_hello get() = s("launcher_hello", "Hello")
     val launcher_settings get() = s("launcher_settings", "Settings")
 
-    // Worktime
     val worktime_today get() = s("worktime_today", "Today")
     val worktime_requiredHours get() = s("worktime_requiredHours", "Required Hours")
     val worktime_startTime get() = s("worktime_startTime", "Start Time")
@@ -88,7 +86,6 @@ object Loc {
     val worktime_setHoursManually get() = s("worktime_setHoursManually", "Set your work hours manually to start.")
     val worktime_workTime get() = s("worktime_workTime", "Work")
 
-    // Time Calc
     val timecalc_baseDateTime get() = s("timecalc_baseDateTime", "Base Date/Time")
     val timecalc_addSub get() = s("timecalc_addSub", "Add / Subtract")
     val timecalc_sub get() = s("timecalc_sub", "Sub")
@@ -119,7 +116,6 @@ object Loc {
     val timecalc_minute get() = s("timecalc_minute", "Min")
     val timecalc_timeCalc get() = s("timecalc_timeCalc", "Time")
 
-    // ShopList
     val shoplist_shoppingList get() = s("shoplist_shoppingList", "ShopList")
     val shoplist_addItem get() = s("shoplist_addItem", "Add Item")
     val shoplist_recentlyChecked get() = s("shoplist_recentlyChecked", "Recently Checked")
@@ -131,25 +127,23 @@ object Loc {
     val shoplist_selectAisle get() = s("shoplist_selectAisle", "Select Aisle")
     val shoplist_changeAisle get() = s("shoplist_changeAisle", "Change Aisle")
     
-    fun getAisleName(aisleKey: String): String {
-        return when(aisleKey) {
-            "Common" -> s("shoplist_aisle_common", "Common")
-            "Veggies" -> s("shoplist_aisle_veggies", "Veggies")
-            "Meat" -> s("shoplist_aisle_meat", "Meat")
-            "Fish" -> s("shoplist_aisle_fish", "Fish")
-            "Dairy" -> s("shoplist_aisle_dairy", "Dairy")
-            "Bakery" -> s("shoplist_aisle_bakery", "Bakery")
-            "Drinks" -> s("shoplist_aisle_drinks", "Drinks")
-            "Frozen" -> s("shoplist_aisle_frozen", "Frozen")
-            "Snacks" -> s("shoplist_aisle_snacks", "Snacks")
-            "Household" -> s("shoplist_aisle_household", "Household")
-            "Personal" -> s("shoplist_aisle_personal", "Personal")
-            "Pets" -> s("shoplist_aisle_pets", "Pets")
-            else -> aisleKey
+    fun getAisleName(aisle: com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum): String {
+        return when(aisle) {
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.COMMON -> s("shoplist_aisle_common", "Common")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.VEGGIES -> s("shoplist_aisle_veggies", "Veggies")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.MEAT -> s("shoplist_aisle_meat", "Meat")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.FISH -> s("shoplist_aisle_fish", "Fish")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.DAIRY -> s("shoplist_aisle_dairy", "Dairy")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.BAKERY -> s("shoplist_aisle_bakery", "Bakery")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.DRINKS -> s("shoplist_aisle_drinks", "Drinks")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.FROZEN -> s("shoplist_aisle_frozen", "Frozen")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.SNACKS -> s("shoplist_aisle_snacks", "Snacks")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.HOUSEHOLD -> s("shoplist_aisle_household", "Household")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PERSONAL -> s("shoplist_aisle_personal", "Personal")
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PETS -> s("shoplist_aisle_pets", "Pets")
         }
     }
 
-    // Notes
     val notes_notes get() = s("notes_notes", "Notes")
     val notes_textNote get() = s("notes_textNote", "Text Note")
     val notes_checklistNote get() = s("notes_checklistNote", "Checklist")
@@ -159,7 +153,6 @@ object Loc {
     val notes_noteTitlePlaceholder get() = s("notes_noteTitlePlaceholder", "Title")
     val notes_untitledNote get() = s("notes_untitledNote", "Untitled")
 
-    // Comments
     val comments_comments get() = s("comments_comments", "Comments")
     val comments_addComment get() = s("comments_addComment", "Add a comment...")
     val comments_reply get() = s("comments_reply", "Reply")
@@ -167,7 +160,6 @@ object Loc {
     val comments_edited get() = s("comments_edited", "edited")
     val comments_replying get() = s("comments_replying", "Replying...")
 
-    // Links
     val links_links get() = s("links_links", "Links")
     val links_searchLinks get() = s("links_searchLinks", "Search links...")
     val links_linkTitle get() = s("links_linkTitle", "Title")
@@ -180,7 +172,6 @@ object Loc {
     val links_confirmDeleteLinkTitle get() = s("links_confirmDeleteLinkTitle", "Delete Link?")
     val links_confirmDeleteLinkMsg get() = s("links_confirmDeleteLinkMsg", "Are you sure you want to delete this link?")
 
-    // Cleaning
     val cleaning_cleaning get() = s("cleaning_cleaning", "Cleaning")
     val cleaning_taskTitle get() = s("cleaning_taskTitle", "Task Title")
     val cleaning_everyXDays get() = s("cleaning_everyXDays", "Every X Days")
@@ -205,7 +196,6 @@ object Loc {
         return RecurrenceFormatter.formatEveryXDays(days, lang)
     }
 
-    // Settings
     val settings_displayName get() = s("settings_displayName", "Display Name")
     val settings_userSettings get() = s("settings_userSettings", "User Settings")
     val settings_syncSubtitle get() = s("settings_syncSubtitle", "Cloud sync for your data")
@@ -296,7 +286,6 @@ object Loc {
     val settings_groupIdLabel get() = s("settings_groupIdLabel", "Group ID: %s")
     val settings_editGroupName get() = s("settings_editGroupName", "Edit Group Name")
 
-    // Support / CRM
     val support_hub_title get() = s("support_hub_title", "Support Hub")
     val support_type_bug get() = s("support_type_bug", "Bug")
     val support_type_crash get() = s("support_type_crash", "Crash")
@@ -320,7 +309,6 @@ object Loc {
     val support_enter_details get() = s("support_enter_details", "Enter details here...")
     val support_sent_success get() = s("support_sent_success", "Support request sent!")
 
-    // Admin
     val admin_adminPanel get() = s("admin_adminPanel", "Admin Panel")
     val admin_users get() = s("admin_users", "Users")
     val admin_usersSubtitle get() = s("admin_usersSubtitle", "Manage user permissions")
@@ -332,7 +320,6 @@ object Loc {
     val admin_makeAdmin get() = s("admin_makeAdmin", "Make Admin")
     val admin_removeAdmin get() = s("admin_removeAdmin", "Remove Admin")
 
-    // General
     val general_hourSymbol get() = s("general_hourSymbol", "h")
     val general_minuteSymbol get() = s("general_minuteSymbol", "m")
     val general_yearShort get() = s("general_yearShort", "y")
@@ -358,4 +345,11 @@ object Loc {
     val general_pullToRefresh get() = s("general_pullToRefresh", "Pull to refresh")
     val general_item get() = s("general_item", "item")
     val general_items get() = s("general_items", "items")
+
+    val crash_title get() = s("crash_title", "Oops! App Crashed")
+    val crash_msg get() = s("crash_msg", "A fatal error occurred. You can report this to the developer.")
+    val crash_reportBug get() = s("crash_reportBug", "Report bug")
+    val crash_automatedReport get() = s("crash_automatedReport", "Automated Crash Report")
+    val crash_sentSuccess get() = s("crash_sentSuccess", "Report sent! Thank you.")
+    val crash_goHome get() = s("crash_goHome", "Go to Home")
 }

@@ -1,20 +1,20 @@
 package com.jtool.android.features.cleaning
 
 import android.content.Context
-import com.jtool.android.core.models.CleaningTask
+import com.jtool.android.core.models.feature.cleaning.CleaningTask
+import com.jtool.android.core.persistence.LocalPersistenceManager
+import com.jtool.android.core.models.common.enums.PersistencePrefixEnum
 
-class CleaningManager(context: Context) {
-    private val context = context
-    private fun getPrefs(groupId: String?) = context.getSharedPreferences("jtool_cleaning_${groupId ?: "none"}", Context.MODE_PRIVATE)
+class CleaningManager(context: Context) : LocalPersistenceManager<CleaningTask>(context, PersistencePrefixEnum.CLEANING) {
 
-    fun saveTasks(tasks: List<CleaningTask>, groupId: String?) {
-        val encoded = tasks.joinToString(";") { 
+    override fun save(items: List<CleaningTask>, groupId: String?) {
+        val encoded = items.joinToString(";") { 
             "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.frequencyDays}|${it.isRecurring}|${it.lastDoneTimestamp}|${it.isChecked}|${it.isEnabled}|${it.lastUpdatedBy}|${it.timestamp}" 
         }
         getPrefs(groupId).edit().putString("tasks", encoded).apply()
     }
 
-    fun loadTasks(groupId: String?): List<CleaningTask> {
+    override fun load(groupId: String?): List<CleaningTask> {
         val encoded = getPrefs(groupId).getString("tasks", "") ?: ""
         if (encoded.isEmpty()) return emptyList()
         

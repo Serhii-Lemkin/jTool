@@ -5,9 +5,10 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.runtime.Composable
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.features.links.LinksScreen
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 object Links : AppProperties(
-    AppNames.LINKS,
+    AppScreenEnum.LINKS,
     Icons.Default.Link,
     { Loc.links_links }
 ) {
@@ -17,8 +18,8 @@ object Links : AppProperties(
             manager = deps.linksManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager,
-            onBack = { deps.setScreen(AppNames.LAUNCHER) }
+            dataManager = deps.dataManager,
+            onBack = { deps.setScreen(AppScreenEnum.LAUNCHER) }
         )
     }
 }

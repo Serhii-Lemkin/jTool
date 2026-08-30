@@ -16,7 +16,6 @@ fun RightAlignedFAB(
     content: @Composable () -> Unit
 ) {
     val layoutDirection = LocalLayoutDirection.current
-    // In LTR, End is Right. In RTL, Start is Right.
     val alignment = if (layoutDirection == LayoutDirection.Rtl) Alignment.BottomStart else Alignment.BottomEnd
     
     Box(

@@ -1,13 +1,11 @@
 package com.jtool.android.features.cleaning
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import com.jtool.android.core.models.CleaningTask
+import com.jtool.android.core.models.feature.cleaning.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
-import com.jtool.android.core.utils.SyncUtils
+import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.sync.BaseSyncViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,27 +18,27 @@ import java.time.temporal.ChronoUnit
 class CleaningViewModel(
     private val manager: CleaningManager,
     private val settingsManager: SettingsManager,
-    private val groupSyncManager: GroupSyncManager
-) : ViewModel() {
+    private val dataManager: DataManager
+) : BaseSyncViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val _uiState = MutableStateFlow(CleaningUiState())
     val uiState: StateFlow<CleaningUiState> = _uiState.asStateFlow()
 
-    private var tasksListener: ListenerRegistration? = null
-
     init {
         observeGroupId()
         observeSyncData()
         startAutoResetTimer()
+        
+        isLoading.onEach { loading -> _uiState.update { it.copy(isLoading = loading) } }.launchIn(viewModelScope)
     }
 
     private fun observeGroupId() {
-        groupSyncManager.currentGroupIdFlow()
+        dataManager.currentGroupIdFlow()
             .onEach { gid ->
                 _uiState.update { it.copy(tasks = emptyList()) }
-                tasksListener?.remove()
-                val localTasks = manager.loadTasks(gid)
+                clearListeners()
+                val localTasks = manager.load(gid)
                 _uiState.update { it.copy(tasks = localTasks) }
                 if (gid != null) {
                     observeFirestoreTasks(gid)
@@ -52,23 +50,29 @@ class CleaningViewModel(
     private fun getCleaningColl(gid: String) = firestore.collection("groups").document(gid).collection("cleaning")
 
     private fun observeFirestoreTasks(gid: String) {
-        tasksListener = getCleaningColl(gid).addSnapshotListener { snapshot, _ ->
+        val listener = getCleaningColl(gid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 val list = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(CleaningTask::class.java)?.copy(id = doc.id)
+                    try {
+                        doc.toObject(CleaningTask::class.java)?.apply { id = doc.id }
+                    } catch (e: Exception) {
+                        android.util.Log.e("CleaningVM", "Error deserializing task ${doc.id}", e)
+                        null
+                    }
                 }
                 val (updated, changed) = checkTasksForResets(list)
                 if (changed) {
                     updated.forEach { task -> saveTaskToFirestore(task) }
                 }
                 _uiState.update { it.copy(tasks = updated) }
-                manager.saveTasks(updated, gid)
+                manager.save(updated, gid)
             }
         }
+        addListener(listener)
     }
 
     private fun observeSyncData() {
-        groupSyncManager.userNamesFlow()
+        dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
             .launchIn(viewModelScope)
     }
@@ -76,7 +80,7 @@ class CleaningViewModel(
     private fun startAutoResetTimer() {
         viewModelScope.launch {
             while (true) {
-                delay(60000L) // Check every minute
+                delay(60000L)
                 val (updated, changed) = checkTasksForResets(_uiState.value.tasks)
                 if (changed) {
                     updated.forEach { task -> saveTaskToFirestore(task) }
@@ -121,17 +125,16 @@ class CleaningViewModel(
 
     private fun refresh() {
         val gid = settingsManager.getCurrentGroupId() ?: return
-        viewModelScope.launch {
-            SyncUtils.performRefresh(
-                onLoading = { loading -> _uiState.update { it.copy(isLoading = loading) } }
-            ) {
-                manager.saveTasks(emptyList(), gid) // Clear local cache
+        performRefresh(
+            onRefreshStart = {
                 _uiState.update { it.copy(tasks = emptyList()) }
-                val snapshot = getCleaningColl(gid).get().await()
-                val list = snapshot.documents.mapNotNull { it.toObject(CleaningTask::class.java)?.copy(id = it.id) }
-                _uiState.update { it.copy(tasks = list) }
-                manager.saveTasks(list, gid)
+                manager.save(emptyList(), gid)
             }
+        ) {
+            val snapshot = getCleaningColl(gid).get(com.google.firebase.firestore.Source.SERVER).await()
+            val list = snapshot.documents.mapNotNull { it.toObject(CleaningTask::class.java)?.copy(id = it.id) }
+            _uiState.update { it.copy(tasks = list) }
+            manager.save(list, gid)
         }
     }
 
@@ -191,10 +194,5 @@ class CleaningViewModel(
         viewModelScope.launch {
             getCleaningColl(gid).document(task.id).set(task).await()
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        tasksListener?.remove()
     }
 }

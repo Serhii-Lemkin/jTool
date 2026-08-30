@@ -7,7 +7,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.models.feature.notes.enums.NotesScreenTypeEnum
 import com.jtool.android.features.notes.edit.NoteEditScreen
 import com.jtool.android.features.notes.list.NoteListScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,19 +20,19 @@ fun NotesScreen(
     manager: NotesManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onBack: () -> Unit,
     viewModel: NotesViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                NotesViewModel(manager, settingsManager, groupSyncManager)
+                NotesViewModel(manager, settingsManager, dataManager)
             }
         }
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    if (uiState.currentScreen == NotesScreenType.EDIT) {
+    if (uiState.currentScreen == NotesScreenTypeEnum.EDIT) {
         BackHandler { viewModel.onEvent(NotesEvent.NavigateBack) }
         NoteEditScreen(uiState, viewModel)
     } else {
@@ -66,7 +67,7 @@ fun NotesPreview() {
             manager = NotesManager(context),
             backupManager = BackupManager(context),
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context),
+            dataManager = DataManager(context),
             onBack = {}
         )
     }

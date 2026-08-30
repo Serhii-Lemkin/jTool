@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.Comment
+import com.jtool.android.core.models.common.Comment
 
 @Composable
 fun CommentSection(
@@ -56,7 +56,6 @@ fun CommentSection(
 
         AnimatedVisibility(visible = state.isExpanded) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Input Field at the Top
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                     if (state.replyingToId != null) {
                         Row(
@@ -107,7 +106,6 @@ fun CommentSection(
                     }
                 }
 
-                // Comments List (Latest on top is handled by ViewModel)
                 comments.forEach { comment ->
                     CommentItem(
                         comment = comment,

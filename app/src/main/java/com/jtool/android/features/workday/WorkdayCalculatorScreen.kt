@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.ui.theme.JToolTheme
 import com.jtool.android.core.components.layout.GenericTitle
 import kotlinx.coroutines.launch
@@ -37,12 +37,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 @Composable
 fun WorkdayCalculatorScreen(
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onBack: () -> Unit,
     viewModel: WorkdayViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                WorkdayViewModel(settingsManager, groupSyncManager)
+                WorkdayViewModel(settingsManager, dataManager)
             }
         }
     )
@@ -235,7 +235,7 @@ fun WorkdayCalculatorScreenPreview() {
     JToolTheme {
         WorkdayCalculatorScreen(
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context),
+            dataManager = DataManager(context),
             onBack = {}
         )
     }

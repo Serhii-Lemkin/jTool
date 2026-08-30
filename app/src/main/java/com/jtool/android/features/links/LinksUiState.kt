@@ -1,6 +1,6 @@
 package com.jtool.android.features.links
 
-import com.jtool.android.core.models.LinkItem
+import com.jtool.android.core.models.feature.links.LinkItem
 
 data class LinksUiState(
     val links: List<LinkItem> = emptyList(),

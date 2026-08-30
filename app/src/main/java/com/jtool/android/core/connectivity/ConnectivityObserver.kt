@@ -5,14 +5,14 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class ConnectivityObserver(
     private val context: Context,
     private val settingsManager: SettingsManager,
-    private val groupSyncManager: GroupSyncManager,
+    private val dataManager: DataManager,
     private val scope: CoroutineScope
 ) {
     fun start() {
@@ -23,7 +23,7 @@ class ConnectivityObserver(
                 override fun onAvailable(network: Network) {
                     if (settingsManager.isSyncPending()) {
                         scope.launch {
-                            val success = groupSyncManager.pushUserSettings()
+                            val success = dataManager.pushUserSettings()
                             settingsManager.setSyncPending(!success)
                         }
                     }

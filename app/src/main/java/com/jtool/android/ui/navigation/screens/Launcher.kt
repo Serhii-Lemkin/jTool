@@ -2,29 +2,30 @@ package com.jtool.android.ui.navigation
 
 import androidx.compose.runtime.Composable
 import com.jtool.android.ui.LauncherScreen
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
-object Launcher : AppProperties(AppNames.LAUNCHER) {
+object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
         LauncherScreen(
-            onWorkTimeClick = { deps.setScreen(AppNames.WORK_TIME) },
-            onTimeCalcClick = { deps.setScreen(AppNames.TIME_CALC) },
-            onShopListClick = { deps.setScreen(AppNames.SHOP_LIST) },
-            onNotesClick = { deps.setScreen(AppNames.NOTES) },
-            onLinksClick = { deps.setScreen(AppNames.LINKS) },
-            onCleaningClick = { deps.setScreen(AppNames.CLEANING) },
-            onSettingsClick = { deps.setScreen(AppNames.SETTINGS) },
-            onAccountClick = { deps.setScreen(AppNames.SETTINGS_ACCOUNT) },
+            onWorkTimeClick = { deps.setScreen(AppScreenEnum.WORK_TIME) },
+            onTimeCalcClick = { deps.setScreen(AppScreenEnum.TIME_CALC) },
+            onShopListClick = { deps.setScreen(AppScreenEnum.SHOP_LIST) },
+            onNotesClick = { deps.setScreen(AppScreenEnum.NOTES) },
+            onLinksClick = { deps.setScreen(AppScreenEnum.LINKS) },
+            onCleaningClick = { deps.setScreen(AppScreenEnum.CLEANING) },
+            onSettingsClick = { deps.setScreen(AppScreenEnum.SETTINGS) },
+            onAccountClick = { deps.setScreen(AppScreenEnum.SETTINGS_ACCOUNT) },
             showBadge = deps.hasUpdate || (deps.currentUser != null && deps.currentGroupId == null),
             settingsManager = deps.settingsManager,
             currentGroupId = deps.currentGroupId,
             groups = deps.groups,
             onJoinGroupClick = { 
                 deps.setNavigateToGroups(true)
-                deps.setScreen(AppNames.SETTINGS)
+                deps.setScreen(AppScreenEnum.SETTINGS)
             },
             isAdmin = deps.isAdmin,
-            onAdminClick = { deps.setScreen(AppNames.ADMIN_PANEL) },
+            onAdminClick = { deps.setScreen(AppScreenEnum.ADMIN_PANEL) },
             currentUser = deps.currentUser
         )
     }

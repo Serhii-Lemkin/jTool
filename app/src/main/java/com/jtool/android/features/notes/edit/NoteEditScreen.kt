@@ -22,7 +22,7 @@ import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.NoteType
+import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
 import com.jtool.android.features.notes.NotesEvent
 import com.jtool.android.features.notes.NotesUiState
 import com.jtool.android.features.notes.NotesViewModel
@@ -93,10 +93,10 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Top
         ) {
-            val noteType = uiState.editingNote?.type ?: uiState.creatingNoteType ?: NoteType.TEXT
+            val noteType = uiState.editingNote?.type ?: uiState.creatingNoteType ?: NoteTypeEnum.TEXT
             
             item {
-                if (noteType == NoteType.TEXT) {
+                if (noteType == NoteTypeEnum.TEXT) {
                     if (uiState.isEditMode) {
                         TextField(
                             value = uiState.draftContent,
@@ -119,7 +119,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 }
             }
 
-            if (noteType == NoteType.CHECKLIST) {
+            if (noteType == NoteTypeEnum.CHECKLIST) {
                 if (uiState.isEditMode) {
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -143,9 +143,8 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 }
 
                 val checklist = uiState.editingNote?.checklist ?: emptyList()
-                // Filter out dummy items used for counting in the list view
                 val realChecklist = checklist.filter { !it.id.startsWith("dummy_") }
-                val sortedChecklist = realChecklist.sortedWith(compareBy<com.jtool.android.core.models.ChecklistItem> { it.isChecked }.thenBy { it.timestamp })
+                val sortedChecklist = realChecklist.sortedWith(compareBy<com.jtool.android.core.models.feature.notes.ChecklistItem> { it.isChecked }.thenBy { it.timestamp })
                 
                 items(sortedChecklist, key = { it.id }) { item ->
                     Row(
@@ -201,7 +200,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                 if (currentNote != null && !uiState.isEditMode) {
                     val appUserId = viewModel.getAppUserId()
                     val authUid = viewModel.getAuthUserId()
-                    val comments by viewModel.comments.collectAsState(initial = emptyList<com.jtool.android.core.models.Comment>())
+                    val comments by viewModel.comments.collectAsState(initial = emptyList<com.jtool.android.core.models.common.Comment>())
                     
                     CommentSection(
                         comments = comments,

@@ -14,15 +14,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.SettingsMenuItem
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsMainScreen(
     authManager: AuthManager,
     settingsManager: SettingsManager,
-    onNavigate: (String) -> Unit,
+    onNavigate: (AppScreenEnum) -> Unit,
     hasUpdate: Boolean,
     viewModel: SettingsMainViewModel = viewModel(
         factory = viewModelFactory {
@@ -42,7 +43,7 @@ fun SettingsMainScreen(
                 title = Loc.settings_account,
                 subtitle = Loc.settings_cloudSyncFirebase,
                 icon = Icons.Default.AccountCircle,
-                onClick = { onNavigate("account") }
+                onClick = { onNavigate(AppScreenEnum.SETTINGS_ACCOUNT) }
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
         }
@@ -53,7 +54,7 @@ fun SettingsMainScreen(
                     title = Loc.settings_groups,
                     subtitle = Loc.settings_syncSubtitle,
                     icon = Icons.Default.Group,
-                    onClick = { onNavigate("groups") },
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_GROUPS) },
                     hasBadge = uiState.isSyncMissing
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
@@ -63,7 +64,7 @@ fun SettingsMainScreen(
                     title = Loc.settings_generalSettings,
                     subtitle = Loc.settings_appearanceLanguage,
                     icon = Icons.Default.Settings,
-                    onClick = { onNavigate("general") }
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_GENERAL) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
@@ -72,7 +73,7 @@ fun SettingsMainScreen(
                     title = Loc.settings_appUpdates,
                     subtitle = Loc.settings_appUpdatesSubtitle,
                     icon = Icons.Default.SystemUpdate,
-                    onClick = { onNavigate("app_updates") },
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_UPDATES) },
                     hasBadge = hasUpdate
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
@@ -82,7 +83,7 @@ fun SettingsMainScreen(
                     title = Loc.settings_visibilityTitle,
                     subtitle = Loc.settings_visibilitySubtitle,
                     icon = Icons.Default.Visibility,
-                    onClick = { onNavigate("visibility") }
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_VISIBILITY) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
@@ -91,7 +92,7 @@ fun SettingsMainScreen(
                     title = Loc.support_hub_title,
                     subtitle = Loc.support_new_request,
                     icon = Icons.Default.Feedback,
-                    onClick = { onNavigate("requests") }
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_REQUESTS) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
@@ -103,16 +104,16 @@ fun SettingsMainScreen(
                     subtitle = Loc.settings_privacySubtitle,
                     icon = Icons.Default.PrivacyTip,
                     onClick = {
-                        val manager = GroupSyncManager(context)
+                        val dataManager = DataManager(context)
                         scope.launch {
-                            val options = manager.getAppOptions()
-                            val url = options?.get("privacy") as? String
+                            val options = dataManager.getAppOptions()
+                            val url = options?.privacy
                             if (!url.isNullOrBlank()) {
                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                                 intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                                 context.startActivity(intent)
                             } else {
-                                android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase (node: app_options/config)")
+                                android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase")
                                 android.widget.Toast.makeText(context, "Privacy Policy URL not found", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }

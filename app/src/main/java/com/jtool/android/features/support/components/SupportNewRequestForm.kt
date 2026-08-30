@@ -7,14 +7,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.features.support.logic.SupportType
+import com.jtool.android.core.models.support.enums.SupportTypeEnum
 
 @Composable
 fun SupportNewRequestForm(
     text: String,
     onTextChange: (String) -> Unit,
     isSending: Boolean,
-    selectedType: SupportType,
+    selectedType: SupportTypeEnum,
     onSubmit: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -27,10 +27,10 @@ fun SupportNewRequestForm(
             ) {
                 Text(
                     text = when (selectedType) {
-                        SupportType.BUG -> Loc.support_type_bug
-                        SupportType.FEATURE -> Loc.support_type_feature
-                        SupportType.CHANGE -> Loc.support_type_change
-                        else -> ""
+                        SupportTypeEnum.BUG -> Loc.support_type_bug
+                        SupportTypeEnum.FEATURE -> Loc.support_type_feature
+                        SupportTypeEnum.CHANGE -> Loc.support_type_change
+                        SupportTypeEnum.CRASH -> Loc.support_type_crash
                     },
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelLarge,

@@ -5,9 +5,10 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.runtime.Composable
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.features.notes.NotesScreen
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 object Notes : AppProperties(
-    AppNames.NOTES,
+    AppScreenEnum.NOTES,
     Icons.Default.Description,
     { Loc.notes_notes }
 ) {
@@ -17,8 +18,8 @@ object Notes : AppProperties(
             manager = deps.notesManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager,
-            onBack = { deps.setScreen(AppNames.LAUNCHER) }
+            dataManager = deps.dataManager,
+            onBack = { deps.setScreen(AppScreenEnum.LAUNCHER) }
         )
     }
 }

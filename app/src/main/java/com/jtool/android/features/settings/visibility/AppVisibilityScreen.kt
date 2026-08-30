@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 @Composable
 fun AppVisibilityScreen(
@@ -29,12 +30,12 @@ fun AppVisibilityScreen(
     val uiState by viewModel.uiState.collectAsState()
     val apps = remember {
         listOf(
-            "WorkTime" to Loc.worktime_workTime,
-            "TimeCalc" to Loc.timecalc_timeCalc,
-            "ShopList" to Loc.shoplist_shoppingList,
-            "Notes" to Loc.notes_notes,
-            "Links" to Loc.links_links,
-            "Cleaning" to Loc.cleaning_cleaning
+            AppScreenEnum.WORK_TIME to Loc.worktime_workTime,
+            AppScreenEnum.TIME_CALC to Loc.timecalc_timeCalc,
+            AppScreenEnum.SHOP_LIST to Loc.shoplist_shoppingList,
+            AppScreenEnum.NOTES to Loc.notes_notes,
+            AppScreenEnum.LINKS to Loc.links_links,
+            AppScreenEnum.CLEANING to Loc.cleaning_cleaning
         )
     }
 
@@ -45,7 +46,6 @@ fun AppVisibilityScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Layout Toggle Section
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -70,7 +70,6 @@ fun AppVisibilityScreen(
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Apps Section
         Column(modifier = Modifier.fillMaxWidth()) {
             apps.forEach { (id, name) ->
                 val isVisible = uiState.visibleApps[id] ?: true

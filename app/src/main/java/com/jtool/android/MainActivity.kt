@@ -23,7 +23,7 @@ import com.jtool.android.core.crash.CrashInterceptor
 import com.jtool.android.core.connectivity.ConnectivityObserver
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.SyncStatusOverlay
 import com.jtool.android.core.utils.AppUtils
 import com.jtool.android.features.auth.SignInHandler
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var cleaningManager: CleaningManager
     private lateinit var backupManager: BackupManager
     private lateinit var authManager: AuthManager
-    private lateinit var groupSyncManager: GroupSyncManager
+    private lateinit var dataManager: DataManager
     
     private lateinit var connectivityObserver: ConnectivityObserver
     private lateinit var signInHandler: SignInHandler
@@ -66,14 +66,16 @@ class MainActivity : ComponentActivity() {
         cleaningManager = CleaningManager(this)
         backupManager = BackupManager(this)
         authManager = AuthManager(this)
-        groupSyncManager = GroupSyncManager(this)
+        dataManager = DataManager(this)
 
-        connectivityObserver = ConnectivityObserver(this, settingsManager, groupSyncManager, lifecycleScope)
-        signInHandler = SignInHandler(this, authManager, groupSyncManager, lifecycleScope)
+        connectivityObserver = ConnectivityObserver(this, settingsManager, dataManager, lifecycleScope)
+        signInHandler = SignInHandler(this, authManager, dataManager, lifecycleScope)
 
         AppUtils.logAppSignature(this)
         AppUtils.requestNotificationPermission(this)
         connectivityObserver.start()
+
+        initializeLanguage()
 
         Loc.load(this, settingsManager.getLanguage())
 
@@ -83,7 +85,7 @@ class MainActivity : ComponentActivity() {
         lifecycle.addObserver(androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 lifecycleScope.launch {
-                    groupSyncManager.fetchUserSettings()
+                    dataManager.fetchUserSettings()
                 }
             }
         })
@@ -119,7 +121,7 @@ class MainActivity : ComponentActivity() {
                                 cleaningManager = cleaningManager,
                                 backupManager = backupManager,
                                 authManager = authManager,
-                                groupSyncManager = groupSyncManager,
+                                dataManager = dataManager,
                                 onSignIn = { signInHandler.launchSignIn() },
                                 isDarkMode = isDark,
                                 currentUser = currentUserState,
@@ -131,7 +133,7 @@ class MainActivity : ComponentActivity() {
                                 onThemeToggle = {
                                     isDark = !isDark
                                     settingsManager.setDarkMode(isDark)
-                                    lifecycleScope.launch { groupSyncManager.pushUserSettings() }
+                                    lifecycleScope.launch { dataManager.pushUserSettings() }
                                 },
                                 currentLang = currentLang,
                                 onLangToggle = {
@@ -182,6 +184,32 @@ class MainActivity : ComponentActivity() {
                 } catch (e: Exception) {
                     android.util.Log.e("AppUpdate", "Failed to start update flow", e)
                 }
+            }
+        }
+    }
+
+    private fun initializeLanguage() {
+        if (!settingsManager.hasLanguageBeenSet()) {
+            val systemLocale = java.util.Locale.getDefault()
+            val systemLangCode = systemLocale.language
+            
+            val normalizedCode = when(systemLangCode) {
+                "iw" -> "he"
+                else -> systemLangCode
+            }
+
+            val supportedLanguages = Loc.getAvailableLanguages(this).map { it.locale }
+            
+            if (supportedLanguages.contains(normalizedCode)) {
+                settingsManager.setLanguage(normalizedCode)
+            } else {
+                lifecycleScope.launch {
+                    dataManager.logRequestedLanguage(
+                        name = systemLocale.displayLanguage,
+                        code = systemLangCode
+                    )
+                }
+                settingsManager.setLanguage("en")
             }
         }
     }

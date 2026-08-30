@@ -20,11 +20,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.jtool.android.core.models.LinkItem
+import com.jtool.android.core.models.feature.links.LinkItem
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
@@ -39,12 +39,12 @@ fun LinksScreen(
     manager: LinksManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onBack: () -> Unit,
     viewModel: LinksViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                LinksViewModel(manager, settingsManager, groupSyncManager)
+                LinksViewModel(manager, settingsManager, dataManager)
             }
         }
     )
@@ -120,7 +120,7 @@ fun LinksScreen(
                                         IconButton(
                                             onClick = { itemMenuExpanded = true },
                                         ) {
-                                            Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                                            Icon(Icons.Default.MoreVert, contentDescription = null)
                                         }
                                         DropdownMenu(
                                             expanded = itemMenuExpanded,

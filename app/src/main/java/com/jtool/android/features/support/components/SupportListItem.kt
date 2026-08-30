@@ -13,9 +13,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.features.support.logic.SupportRequest
-import com.jtool.android.features.support.logic.SupportStatus
-import com.jtool.android.features.support.logic.SupportType
+import com.jtool.android.core.models.support.SupportRequest
+import com.jtool.android.core.models.support.enums.SupportStatusEnum
+import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.core.components.layout.ActionListItem
 import java.text.SimpleDateFormat
 import java.util.*
@@ -54,12 +54,12 @@ fun SupportListItem(
 }
 
 @Composable
-fun TypeLabel(type: SupportType, isPending: Boolean = false) {
+fun TypeLabel(type: SupportTypeEnum, isPending: Boolean = false) {
     val text = when (type) {
-        SupportType.BUG -> Loc.support_type_bug
-        SupportType.FEATURE -> Loc.support_type_feature
-        SupportType.CHANGE -> Loc.support_type_change
-        SupportType.CRASH -> Loc.support_type_crash
+        SupportTypeEnum.BUG -> Loc.support_type_bug
+        SupportTypeEnum.FEATURE -> Loc.support_type_feature
+        SupportTypeEnum.CHANGE -> Loc.support_type_change
+        SupportTypeEnum.CRASH -> Loc.support_type_crash
     }
     Text(
         text = text.uppercase(),
@@ -70,12 +70,12 @@ fun TypeLabel(type: SupportType, isPending: Boolean = false) {
 }
 
 @Composable
-fun StatusBadge(status: SupportStatus, isPending: Boolean = false) {
+fun StatusBadge(status: SupportStatusEnum, isPending: Boolean = false) {
     val (text, color) = when (status) {
-        SupportStatus.OPENED -> Loc.support_status_opened to MaterialTheme.colorScheme.error
-        SupportStatus.IN_PROGRESS -> Loc.support_status_in_progress to MaterialTheme.colorScheme.primary
-        SupportStatus.CLOSED -> Loc.support_status_closed to MaterialTheme.colorScheme.secondary
-        SupportStatus.CUT -> Loc.support_status_cut to MaterialTheme.colorScheme.outline
+        SupportStatusEnum.OPENED -> Loc.support_status_opened to MaterialTheme.colorScheme.error
+        SupportStatusEnum.IN_PROGRESS -> Loc.support_status_in_progress to MaterialTheme.colorScheme.primary
+        SupportStatusEnum.CLOSED -> Loc.support_status_closed to MaterialTheme.colorScheme.secondary
+        SupportStatusEnum.CUT -> Loc.support_status_cut to MaterialTheme.colorScheme.outline
     }
     
     Surface(

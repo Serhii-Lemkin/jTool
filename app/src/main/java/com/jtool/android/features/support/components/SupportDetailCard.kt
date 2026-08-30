@@ -22,9 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.features.support.logic.SupportRequest
-import com.jtool.android.features.support.logic.SupportStatus
-import com.jtool.android.features.support.logic.SupportType
+import com.jtool.android.core.models.support.SupportRequest
+import com.jtool.android.core.models.support.enums.SupportStatusEnum
+import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
 
@@ -33,12 +33,12 @@ fun SupportDetailCard(
     request: SupportRequest,
     isAdmin: Boolean,
     currentUserId: String,
-    onStatusUpdate: (SupportStatus) -> Unit,
-    onTypeUpdate: (SupportType) -> Unit,
+    onStatusUpdate: (SupportStatusEnum) -> Unit,
+    onTypeUpdate: (SupportTypeEnum) -> Unit,
     onDelete: () -> Unit,
     onCommentEvent: (CommentEvent) -> Unit,
     userNames: Map<String, String> = emptyMap(),
-    isOwner: (com.jtool.android.core.models.Comment) -> Boolean = { it.userId == currentUserId }
+    isOwner: (com.jtool.android.core.models.common.Comment) -> Boolean = { it.userId == currentUserId }
 ) {
     var statusMenuExpanded by remember { mutableStateOf(false) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
@@ -60,7 +60,6 @@ fun SupportDetailCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // Number removed from here as it is in the TopBar
                 if (isAdmin) {
                     Box {
                         val displayType = request.pendingType ?: request.type
@@ -72,10 +71,10 @@ fun SupportDetailCard(
                         ) {
                             Text(
                                 text = when (displayType) {
-                                    SupportType.BUG -> Loc.support_type_bug
-                                    SupportType.CRASH -> Loc.support_type_crash
-                                    SupportType.FEATURE -> Loc.support_type_feature
-                                    SupportType.CHANGE -> Loc.support_type_change
+                                    SupportTypeEnum.BUG -> Loc.support_type_bug
+                                    SupportTypeEnum.CRASH -> Loc.support_type_crash
+                                    SupportTypeEnum.FEATURE -> Loc.support_type_feature
+                                    SupportTypeEnum.CHANGE -> Loc.support_type_change
                                 },
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (isPending) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
@@ -91,15 +90,15 @@ fun SupportDetailCard(
                             expanded = typeMenuExpanded,
                             onDismissRequest = { typeMenuExpanded = false }
                         ) {
-                            SupportType.entries.forEach { type ->
+                            SupportTypeEnum.entries.forEach { type ->
                                 DropdownMenuItem(
                                     text = {
                                         Text(
                                             when (type) {
-                                                SupportType.BUG -> Loc.support_type_bug
-                                                SupportType.CRASH -> Loc.support_type_crash
-                                                SupportType.FEATURE -> Loc.support_type_feature
-                                                SupportType.CHANGE -> Loc.support_type_change
+                                                SupportTypeEnum.BUG -> Loc.support_type_bug
+                                                SupportTypeEnum.CRASH -> Loc.support_type_crash
+                                                SupportTypeEnum.FEATURE -> Loc.support_type_feature
+                                                SupportTypeEnum.CHANGE -> Loc.support_type_change
                                             }
                                         )
                                     },
@@ -115,10 +114,10 @@ fun SupportDetailCard(
                     val displayType = request.pendingType ?: request.type
                     Text(
                         text = when (displayType) {
-                            SupportType.BUG -> Loc.support_type_bug
-                            SupportType.CRASH -> Loc.support_type_crash
-                            SupportType.FEATURE -> Loc.support_type_feature
-                            SupportType.CHANGE -> Loc.support_type_change
+                            SupportTypeEnum.BUG -> Loc.support_type_bug
+                            SupportTypeEnum.CRASH -> Loc.support_type_crash
+                            SupportTypeEnum.FEATURE -> Loc.support_type_feature
+                            SupportTypeEnum.CHANGE -> Loc.support_type_change
                         },
                         style = MaterialTheme.typography.labelMedium,
                         color = if (request.pendingType != null) MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondary
@@ -136,10 +135,10 @@ fun SupportDetailCard(
                             label = {
                                 Text(
                                     when (displayStatus) {
-                                        SupportStatus.OPENED -> Loc.support_status_opened
-                                        SupportStatus.IN_PROGRESS -> Loc.support_status_in_progress
-                                        SupportStatus.CLOSED -> Loc.support_status_closed
-                                        SupportStatus.CUT -> Loc.support_status_cut
+                                        SupportStatusEnum.OPENED -> Loc.support_status_opened
+                                        SupportStatusEnum.IN_PROGRESS -> Loc.support_status_in_progress
+                                        SupportStatusEnum.CLOSED -> Loc.support_status_closed
+                                        SupportStatusEnum.CUT -> Loc.support_status_cut
                                     }
                                 )
                             },
@@ -156,15 +155,15 @@ fun SupportDetailCard(
                             expanded = statusMenuExpanded,
                             onDismissRequest = { statusMenuExpanded = false }
                         ) {
-                            SupportStatus.entries.forEach { status ->
+                            SupportStatusEnum.entries.forEach { status ->
                                 DropdownMenuItem(
                                     text = {
                                         Text(
                                             when (status) {
-                                                SupportStatus.OPENED -> Loc.support_status_opened
-                                                SupportStatus.IN_PROGRESS -> Loc.support_status_in_progress
-                                                SupportStatus.CLOSED -> Loc.support_status_closed
-                                                SupportStatus.CUT -> Loc.support_status_cut
+                                                SupportStatusEnum.OPENED -> Loc.support_status_opened
+                                                SupportStatusEnum.IN_PROGRESS -> Loc.support_status_in_progress
+                                                SupportStatusEnum.CLOSED -> Loc.support_status_closed
+                                                SupportStatusEnum.CUT -> Loc.support_status_cut
                                             }
                                         )
                                     },
@@ -197,7 +196,7 @@ fun SupportDetailCard(
                             },
                             leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
                         )
-                        if (isAdmin || request.status == SupportStatus.CUT) {
+                        if (isAdmin || request.status == SupportStatusEnum.CUT) {
                             DropdownMenuItem(
                                 text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
                                 onClick = {
@@ -222,12 +221,11 @@ fun SupportDetailCard(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 300.dp) // Provide a constraint to prevent nested scroll error
+                    .heightIn(max = 300.dp)
                     .padding(top = 8.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
             ) {
-                // Use a separate Box for the scrollable log to avoid infinite height measurement
                 Box(modifier = Modifier.padding(8.dp).verticalScroll(rememberScrollState())) {
                     Text(
                         text = request.crashLog,

@@ -1,6 +1,6 @@
 package com.jtool.android.features.settings.groups
 
-import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.group.GroupInfo
 
 data class GroupsUiState(
     val groups: Map<String, GroupInfo> = emptyMap(),

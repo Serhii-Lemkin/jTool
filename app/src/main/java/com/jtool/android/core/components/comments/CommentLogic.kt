@@ -1,7 +1,7 @@
 package com.jtool.android.core.components.comments
 
 import androidx.compose.runtime.*
-import com.jtool.android.core.models.Comment
+import com.jtool.android.core.models.common.Comment
 
 class CommentSectionState(
     initialExpanded: Boolean = false

@@ -263,6 +263,12 @@
     "general_refreshing": "Оновлення...",
     "general_pullToRefresh": "Потягніть, щоб оновити",
     "general_item": "елемент",
-    "general_items": "елементів"
+    "general_items": "елементів",
+    "crash_automatedReport": "Автоматичний звіт про помилку",
+    "crash_title": "Ой! Додаток зупинився",
+    "crash_msg": "Сталася критична помилка. Ви можете повідомити про це розробнику.",
+    "crash_reportBug": "Повідомити про помилку",
+    "crash_sentSuccess": "Звіт надіслано! Дякуємо.",
+    "crash_goHome": "На головну"
   }
 }

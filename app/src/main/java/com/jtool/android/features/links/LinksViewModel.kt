@@ -1,13 +1,11 @@
 package com.jtool.android.features.links
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import com.jtool.android.core.models.LinkItem
+import com.jtool.android.core.models.feature.links.LinkItem
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
-import com.jtool.android.core.utils.SyncUtils
+import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.sync.BaseSyncViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -15,26 +13,26 @@ import kotlinx.coroutines.tasks.await
 class LinksViewModel(
     private val manager: LinksManager,
     private val settingsManager: SettingsManager,
-    private val groupSyncManager: GroupSyncManager
-) : ViewModel() {
+    private val dataManager: DataManager
+) : BaseSyncViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val _uiState = MutableStateFlow(LinksUiState())
     val uiState: StateFlow<LinksUiState> = _uiState.asStateFlow()
 
-    private var linksListener: ListenerRegistration? = null
-
     init {
         observeGroupId()
         observeSyncData()
+        
+        isLoading.onEach { loading -> _uiState.update { it.copy(isLoading = loading) } }.launchIn(viewModelScope)
     }
 
     private fun observeGroupId() {
-        groupSyncManager.currentGroupIdFlow()
+        dataManager.currentGroupIdFlow()
             .onEach { gid ->
                 _uiState.update { it.copy(links = emptyList()) }
-                linksListener?.remove()
-                val localLinks = manager.loadLinks(gid)
+                clearListeners()
+                val localLinks = manager.load(gid)
                 _uiState.update { it.copy(links = localLinks) }
                 if (gid != null) {
                     observeFirestoreLinks(gid)
@@ -46,20 +44,26 @@ class LinksViewModel(
     private fun getLinksColl(gid: String) = firestore.collection("groups").document(gid).collection("links")
 
     private fun observeFirestoreLinks(gid: String) {
-        linksListener = getLinksColl(gid).addSnapshotListener { snapshot, _ ->
+        val listener = getLinksColl(gid).addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
                 _uiState.update { it.copy(isLoading = true) }
                 val list = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(LinkItem::class.java)?.copy(id = doc.id)
+                    try {
+                        doc.toObject(LinkItem::class.java)?.apply { id = doc.id }
+                    } catch (e: Exception) {
+                        android.util.Log.e("LinksVM", "Error deserializing link ${doc.id}", e)
+                        null
+                    }
                 }
                 _uiState.update { it.copy(links = list, isLoading = false) }
-                manager.saveLinks(list, gid)
+                manager.save(list, gid)
             }
         }
+        addListener(listener)
     }
 
     private fun observeSyncData() {
-        groupSyncManager.userNamesFlow()
+        dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
             .launchIn(viewModelScope)
     }
@@ -80,17 +84,16 @@ class LinksViewModel(
 
     private fun refresh() {
         val gid = settingsManager.getCurrentGroupId() ?: return
-        viewModelScope.launch {
-            SyncUtils.performRefresh(
-                onLoading = { loading -> _uiState.update { it.copy(isLoading = loading) } }
-            ) {
-                manager.saveLinks(emptyList(), gid) // Clear local cache
+        performRefresh(
+            onRefreshStart = {
+                manager.save(emptyList(), gid)
                 _uiState.update { it.copy(links = emptyList()) }
-                val snapshot = getLinksColl(gid).get().await()
-                val list = snapshot.documents.mapNotNull { it.toObject(LinkItem::class.java)?.copy(id = it.id) }
-                _uiState.update { it.copy(links = list) }
-                manager.saveLinks(list, gid)
             }
+        ) {
+            val snapshot = getLinksColl(gid).get(com.google.firebase.firestore.Source.SERVER).await()
+            val list = snapshot.documents.mapNotNull { it.toObject(LinkItem::class.java)?.copy(id = it.id) }
+            _uiState.update { it.copy(links = list) }
+            manager.save(list, gid)
         }
     }
 
@@ -125,10 +128,5 @@ class LinksViewModel(
                 _uiState.update { it.copy(newTitle = "", newUrl = "", showAddDialog = false) }
             }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        linksListener?.remove()
     }
 }

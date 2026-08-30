@@ -3,6 +3,7 @@ package com.jtool.android.features.settings.visibility
 import androidx.lifecycle.ViewModel
 import com.jtool.android.ui.navigation.AppProperties
 import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

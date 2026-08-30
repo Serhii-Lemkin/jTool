@@ -1,10 +1,12 @@
-package com.jtool.android.core.models
+package com.jtool.android.core.models.feature.links
 
 import androidx.annotation.Keep
+import com.google.firebase.firestore.IgnoreExtraProperties
 
 @Keep
+@IgnoreExtraProperties
 data class LinkItem(
-    val id: String = "",
+    var id: String = "",
     val title: String = "",
     val url: String = "",
     val timestamp: Long = System.currentTimeMillis(),

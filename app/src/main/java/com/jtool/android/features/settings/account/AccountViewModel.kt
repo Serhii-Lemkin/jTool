@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 class AccountViewModel(
     private val authManager: AuthManager,
     private val settingsManager: SettingsManager,
-    private val groupSyncManager: GroupSyncManager
+    private val dataManager: DataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AccountUiState())
@@ -43,7 +43,7 @@ class AccountViewModel(
     private fun updateUserName(name: String) {
         settingsManager.saveUserName(name)
         _uiState.update { it.copy(userName = name) }
-        viewModelScope.launch { groupSyncManager.pushUserSettings() }
+        viewModelScope.launch { dataManager.pushUserSettings() }
     }
 
     private fun signOut() {
@@ -56,10 +56,9 @@ class AccountViewModel(
     private fun deleteAccount() {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            val success = groupSyncManager.deleteMyAccount()
+            val success = dataManager.deleteMyAccount()
             _uiState.update { it.copy(isLoading = false) }
             if (success) {
-                // Nav will be handled by UI observing currentUserEmail becoming null
                 _uiState.update { it.copy(currentUserEmail = null) }
             }
         }

@@ -20,9 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.CleaningTask
+import com.jtool.android.core.models.feature.cleaning.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
@@ -47,12 +47,12 @@ fun CleaningScreen(
     manager: CleaningManager,
     backupManager: BackupManager,
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onBack: () -> Unit,
     viewModel: CleaningViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                CleaningViewModel(manager, settingsManager, groupSyncManager)
+                CleaningViewModel(manager, settingsManager, dataManager)
             }
         }
     )
@@ -238,7 +238,7 @@ fun CleaningTaskRow(
     var menuExpanded by remember { mutableStateOf(false) }
 
     CompactActionListItem(
-        onClick = null, // Disable whole-item click for checkboxes
+        onClick = null,
         headline = task.title,
         supportingText = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.cleaning_oneTime,
         metadataText = if (task.lastDoneTimestamp > 0) "${Loc.cleaning_lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.general_by} $userName" else null,
@@ -290,7 +290,7 @@ fun CleaningPreview() {
             manager = CleaningManager(context),
             backupManager = BackupManager(context),
             settingsManager = SettingsManager(context),
-            groupSyncManager = GroupSyncManager(context),
+            dataManager = DataManager(context),
             onBack = {}
         )
     }

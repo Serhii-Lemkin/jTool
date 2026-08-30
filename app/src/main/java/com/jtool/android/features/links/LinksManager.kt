@@ -1,18 +1,18 @@
 package com.jtool.android.features.links
 
 import android.content.Context
-import com.jtool.android.core.models.LinkItem
+import com.jtool.android.core.models.feature.links.LinkItem
+import com.jtool.android.core.persistence.LocalPersistenceManager
+import com.jtool.android.core.models.common.enums.PersistencePrefixEnum
 
-class LinksManager(context: Context) {
-    private val context = context
-    private fun getPrefs(groupId: String?) = context.getSharedPreferences("jtool_links_${groupId ?: "none"}", Context.MODE_PRIVATE)
+class LinksManager(context: Context) : LocalPersistenceManager<LinkItem>(context, PersistencePrefixEnum.LINKS) {
 
-    fun saveLinks(links: List<LinkItem>, groupId: String?) {
-        val encoded = links.joinToString(";") { "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.url.replace("|", "\\|").replace(";", "\\;")}|${it.timestamp}|${it.lastUpdatedBy}" }
+    override fun save(items: List<LinkItem>, groupId: String?) {
+        val encoded = items.joinToString(";") { "${it.id}|${it.title.replace("|", "\\|").replace(";", "\\;")}|${it.url.replace("|", "\\|").replace(";", "\\;")}|${it.timestamp}|${it.lastUpdatedBy}" }
         getPrefs(groupId).edit().putString("links", encoded).apply()
     }
 
-    fun loadLinks(groupId: String?): List<LinkItem> {
+    override fun load(groupId: String?): List<LinkItem> {
         val encoded = getPrefs(groupId).getString("links", "") ?: ""
         if (encoded.isEmpty()) return emptyList()
         

@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -12,7 +12,7 @@ import java.time.LocalTime
 
 class WorkdayViewModel(
     private val settingsManager: SettingsManager,
-    private val groupSyncManager: GroupSyncManager
+    private val dataManager: DataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WorkdayUiState())
@@ -83,7 +83,7 @@ class WorkdayViewModel(
                     requiredHours = event.hours[currentDay] ?: 0.0
                 ) }
                 viewModelScope.launch {
-                    groupSyncManager.pushUserSettings()
+                    dataManager.pushUserSettings()
                 }
             }
         }

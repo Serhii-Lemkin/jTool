@@ -20,9 +20,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 
 import com.jtool.android.features.settings.main.SettingsMainScreen
 import com.jtool.android.features.settings.account.AccountScreen
@@ -33,6 +33,7 @@ import com.jtool.android.features.settings.visibility.AppVisibilityScreen
 import com.jtool.android.features.support.screens.SupportHubScreen
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +41,7 @@ fun SettingsScreen(
     backupManager: BackupManager,
     settingsManager: SettingsManager,
     authManager: AuthManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onSignIn: () -> Unit,
     isDarkMode: Boolean,
     onThemeToggle: () -> Unit,
@@ -60,35 +61,35 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(startOnUpdates, startOnGroups, startOnAccount) {
-        if (startOnUpdates) viewModel.onEvent(SettingsEvent.Navigate("app_updates"))
-        else if (startOnGroups) viewModel.onEvent(SettingsEvent.Navigate("groups"))
-        else if (startOnAccount) viewModel.onEvent(SettingsEvent.Navigate("account"))
+        if (startOnUpdates) viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_UPDATES))
+        else if (startOnGroups) viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_GROUPS))
+        else if (startOnAccount) viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_ACCOUNT))
     }
 
-    if (uiState.currentSubScreen != "main") {
-        BackHandler { viewModel.onEvent(SettingsEvent.Navigate("main")) }
+    if (uiState.currentSubScreen != AppScreenEnum.SETTINGS) {
+        BackHandler { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) }
     }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
-            if (uiState.currentSubScreen != "requests" && uiState.currentSubScreen != "groups") {
+            if (uiState.currentSubScreen != AppScreenEnum.SETTINGS_REQUESTS && uiState.currentSubScreen != AppScreenEnum.SETTINGS_GROUPS) {
                 GenericTitle(
                     title = when(uiState.currentSubScreen) {
-                        "account" -> Loc.settings_account
-                        "general" -> Loc.settings_generalSettings
-                        "app_updates" -> Loc.settings_appUpdates
-                        "visibility" -> Loc.settings_visibilityTitle
+                        AppScreenEnum.SETTINGS_ACCOUNT -> Loc.settings_account
+                        AppScreenEnum.SETTINGS_GENERAL -> Loc.settings_generalSettings
+                        AppScreenEnum.SETTINGS_UPDATES -> Loc.settings_appUpdates
+                        AppScreenEnum.SETTINGS_VISIBILITY -> Loc.settings_visibilityTitle
                         else -> Loc.launcher_settings
                     },
                     onBack = { 
-                        if (uiState.currentSubScreen == "main") onBack() else viewModel.onEvent(SettingsEvent.Navigate("main")) 
+                        if (uiState.currentSubScreen == AppScreenEnum.SETTINGS) onBack() else viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) 
                     }
                 )
             }
         }
     ) { padding ->
-        val boxModifier = if (uiState.currentSubScreen == "requests" || uiState.currentSubScreen == "groups") {
+        val boxModifier = if (uiState.currentSubScreen == AppScreenEnum.SETTINGS_REQUESTS || uiState.currentSubScreen == AppScreenEnum.SETTINGS_GROUPS) {
             Modifier.fillMaxSize()
         } else {
             Modifier.padding(padding).fillMaxSize()
@@ -96,47 +97,48 @@ fun SettingsScreen(
         
         Box(modifier = boxModifier) {
             when (uiState.currentSubScreen) {
-                "main" -> SettingsMainScreen(
+                AppScreenEnum.SETTINGS -> SettingsMainScreen(
                     authManager = authManager,
                     settingsManager = settingsManager,
                     onNavigate = { viewModel.onEvent(SettingsEvent.Navigate(it)) },
                     hasUpdate = hasUpdate
                 )
-                "account" -> AccountScreen(
+                AppScreenEnum.SETTINGS_ACCOUNT -> AccountScreen(
                     authManager = authManager,
                     settingsManager = settingsManager,
-                    groupSyncManager = groupSyncManager,
+                    dataManager = dataManager,
                     onSignIn = onSignIn,
                     onSignOut = { 
                         onGroupChanged(null)
                         onGroupsUpdated(emptyMap())
                     }
                 )
-                "groups" -> GroupsScreen(
-                    groupSyncManager = groupSyncManager,
+                AppScreenEnum.SETTINGS_GROUPS -> GroupsScreen(
+                    dataManager = dataManager,
                     settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) },
+                    onBack = { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) },
                     onGroupChanged = onGroupChanged,
                     onGroupsUpdated = onGroupsUpdated
                 )
-                "general" -> GeneralSettingsScreen(
+                AppScreenEnum.SETTINGS_GENERAL -> GeneralSettingsScreen(
                     settingsManager = settingsManager,
-                    groupSyncManager = groupSyncManager,
+                    dataManager = dataManager,
                     onThemeToggle = onThemeToggle,
                     onLangToggle = onLangToggle
                 )
-                "app_updates" -> AppUpdatesScreen(
+                AppScreenEnum.SETTINGS_UPDATES -> AppUpdatesScreen(
                     backupManager = backupManager
                 )
-                "visibility" -> AppVisibilityScreen(
+                AppScreenEnum.SETTINGS_VISIBILITY -> AppVisibilityScreen(
                     settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) }
+                    onBack = { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) }
                 )
-                "requests" -> SupportHubScreen(
-                    syncManager = groupSyncManager,
+                AppScreenEnum.SETTINGS_REQUESTS -> SupportHubScreen(
+                    dataManager = dataManager,
                     settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate("main")) }
+                    onBack = { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) }
                 )
+                else -> {}
             }
         }
     }

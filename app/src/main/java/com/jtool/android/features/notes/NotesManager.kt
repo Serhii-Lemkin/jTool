@@ -1,20 +1,20 @@
 package com.jtool.android.features.notes
 
 import android.content.Context
-import com.jtool.android.core.models.NoteItem
-import com.jtool.android.core.models.NoteType
-import com.jtool.android.core.models.ChecklistItem
-import com.jtool.android.core.models.Comment
+import com.jtool.android.core.models.feature.notes.NoteItem
+import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
+import com.jtool.android.core.models.feature.notes.ChecklistItem
+import com.jtool.android.core.models.common.Comment
+import com.jtool.android.core.persistence.LocalPersistenceManager
+import com.jtool.android.core.models.common.enums.PersistencePrefixEnum
 import org.json.JSONArray
 import org.json.JSONObject
 
-class NotesManager(context: Context) {
-    private val context = context
-    private fun getPrefs(groupId: String?) = context.getSharedPreferences("jtool_notes_${groupId ?: "none"}", Context.MODE_PRIVATE)
+class NotesManager(context: Context) : LocalPersistenceManager<NoteItem>(context, PersistencePrefixEnum.NOTES) {
 
-    fun saveNotes(notes: List<NoteItem>, groupId: String?) {
+    override fun save(items: List<NoteItem>, groupId: String?) {
         val root = JSONArray()
-        notes.forEach { note ->
+        items.forEach { note ->
             val obj = JSONObject()
             obj.put("id", note.id)
             obj.put("title", note.title)
@@ -35,16 +35,10 @@ class NotesManager(context: Context) {
                 checklistArr.put(itemObj)
             }
             obj.put("checklist", checklistArr)
-            
             obj.put("comments", serializeComments(note.comments))
-            
             root.put(obj)
         }
         getPrefs(groupId).edit().putString("notes_json", root.toString()).apply()
-    }
-
-    fun clearCache(groupId: String?) {
-        getPrefs(groupId).edit().clear().apply()
     }
 
     private fun serializeComments(comments: List<Comment>): JSONArray {
@@ -63,7 +57,7 @@ class NotesManager(context: Context) {
         return arr
     }
 
-    fun loadNotes(groupId: String?): List<NoteItem> {
+    override fun load(groupId: String?): List<NoteItem> {
         val json = getPrefs(groupId).getString("notes_json", null)
         if (json != null) {
             return try {
@@ -92,7 +86,7 @@ class NotesManager(context: Context) {
                         id = obj.getString("id"),
                         title = obj.optString("title", ""),
                         content = obj.optString("content", ""),
-                        type = NoteType.valueOf(obj.optString("type", NoteType.TEXT.name)),
+                        type = NoteTypeEnum.valueOf(obj.optString("type", NoteTypeEnum.TEXT.name)),
                         checklist = checklist,
                         comments = comments,
                         timestamp = obj.getLong("timestamp"),

@@ -5,9 +5,10 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.runtime.Composable
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.features.shopping.ShoppingListScreen
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 object ShopList : AppProperties(
-    AppNames.SHOP_LIST,
+    AppScreenEnum.SHOP_LIST,
     Icons.Default.ShoppingCart,
     { Loc.shoplist_shoppingList }
 ) {
@@ -17,8 +18,8 @@ object ShopList : AppProperties(
             manager = deps.shoppingListManager,
             backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
-            groupSyncManager = deps.groupSyncManager,
-            onBack = { deps.setScreen(AppNames.LAUNCHER) }
+            dataManager = deps.dataManager,
+            onBack = { deps.setScreen(AppScreenEnum.LAUNCHER) }
         )
     }
 }

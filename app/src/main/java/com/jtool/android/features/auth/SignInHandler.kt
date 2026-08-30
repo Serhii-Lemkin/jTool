@@ -9,14 +9,14 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.jtool.android.core.auth.AuthManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class SignInHandler(
     private val activity: ComponentActivity,
     private val authManager: AuthManager,
-    private val groupSyncManager: GroupSyncManager,
+    private val dataManager: DataManager,
     private val scope: CoroutineScope
 ) {
     private val signInLauncher: ActivityResultLauncher<android.content.Intent> =
@@ -29,8 +29,8 @@ class SignInHandler(
                     scope.launch {
                         val success = authManager.signInWithGoogle(account)
                         if (success) {
-                            groupSyncManager.fetchUserSettings()
-                            groupSyncManager.pushUserSettings()
+                            dataManager.fetchUserSettings()
+                            dataManager.pushUserSettings()
                         } else {
                             Toast.makeText(activity, "Firebase Auth Failed", Toast.LENGTH_SHORT).show()
                         }

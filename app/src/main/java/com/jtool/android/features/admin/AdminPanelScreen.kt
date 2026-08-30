@@ -1,5 +1,6 @@
 package com.jtool.android.features.admin
 
+import com.jtool.android.core.models.admin.enums.AdminSubScreenEnum
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -23,7 +25,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
@@ -37,12 +39,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminPanelScreen(
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onBack: () -> Unit,
     viewModel: AdminViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                AdminViewModel(groupSyncManager)
+                AdminViewModel(dataManager)
             }
         }
     )
@@ -53,16 +55,16 @@ fun AdminPanelScreen(
     var draftSearchQuery by remember { mutableStateOf("") }
     
     LaunchedEffect(uiState.appliedUserSearchQuery, uiState.appliedGroupSearchQuery) {
-        if (uiState.currentSubScreen == "users") draftSearchQuery = uiState.appliedUserSearchQuery
-        if (uiState.currentSubScreen == "groups") draftSearchQuery = uiState.appliedGroupSearchQuery
+        if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) draftSearchQuery = uiState.appliedUserSearchQuery
+        if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) draftSearchQuery = uiState.appliedGroupSearchQuery
     }
 
-    if (uiState.currentSubScreen != "main") {
+    if (uiState.currentSubScreen != AdminSubScreenEnum.MAIN) {
         BackHandler { 
             if (isSearchVisible) {
                 isSearchVisible = false
             } else {
-                viewModel.onEvent(AdminEvent.Navigate(if (uiState.currentSubScreen == "request_detail") "requests" else "main"))
+                viewModel.onEvent(AdminEvent.Navigate(AdminSubScreenEnum.MAIN))
             }
         }
     }
@@ -72,16 +74,16 @@ fun AdminPanelScreen(
         topBar = {
             GenericTitle(
                 title = when(uiState.currentSubScreen) {
-                    "users" -> Loc.admin_users
-                    "groups" -> Loc.settings_groups
-                    "migration" -> "System Data Migration"
+                    AdminSubScreenEnum.USERS -> Loc.admin_users
+                    AdminSubScreenEnum.GROUPS -> Loc.settings_groups
+                    AdminSubScreenEnum.MIGRATION -> "System Data Migration"
                     else -> Loc.admin_adminPanel
                 },
                 onBack = { 
                     if (isSearchVisible) {
                         isSearchVisible = false
                     } else {
-                        if (uiState.currentSubScreen == "main") onBack() else viewModel.onEvent(AdminEvent.Navigate("main"))
+                        if (uiState.currentSubScreen == AdminSubScreenEnum.MAIN) onBack() else viewModel.onEvent(AdminEvent.Navigate(AdminSubScreenEnum.MAIN))
                     }
                 },
                 isLoading = uiState.isMigrating,
@@ -90,29 +92,29 @@ fun AdminPanelScreen(
                 onSearchQueryChange = { draftSearchQuery = it },
                 onSearchClose = {
                     isSearchVisible = false
-                    if (uiState.currentSubScreen == "users") {
+                    if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) {
                         viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(""))
                         viewModel.onEvent(AdminEvent.ApplyUserSearch)
-                    } else if (uiState.currentSubScreen == "groups") {
+                    } else if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
                         viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(""))
                         viewModel.onEvent(AdminEvent.ApplyGroupSearch)
                     }
                 },
                 onSearchTriggered = {
-                    if (uiState.currentSubScreen == "users") {
+                    if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) {
                         viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(draftSearchQuery))
                         viewModel.onEvent(AdminEvent.ApplyUserSearch)
-                    } else if (uiState.currentSubScreen == "groups") {
+                    } else if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
                         viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(draftSearchQuery))
                         viewModel.onEvent(AdminEvent.ApplyGroupSearch)
                     }
                 },
-                onRefresh = if (uiState.currentSubScreen == "users" || uiState.currentSubScreen == "groups") {
+                onRefresh = if (uiState.currentSubScreen == AdminSubScreenEnum.USERS || uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
                     { viewModel.onEvent(AdminEvent.Refresh) }
                 } else null,
-                searchPlaceholder = if (uiState.currentSubScreen == "users") Loc.admin_searchUsers else Loc.general_searchGroups,
+                searchPlaceholder = if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) Loc.admin_searchUsers else Loc.general_searchGroups,
                 actions = {
-                    if (uiState.currentSubScreen == "users" || uiState.currentSubScreen == "groups") {
+                    if (uiState.currentSubScreen == AdminSubScreenEnum.USERS || uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
                         TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
                     }
                 }
@@ -121,10 +123,10 @@ fun AdminPanelScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (uiState.currentSubScreen) {
-                "main" -> AdminMainScreen(onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) })
-                "users" -> UsersTab(viewModel, uiState)
-                "groups" -> GroupsTab(viewModel, uiState)
-                "migration" -> MigrationTab(viewModel, uiState)
+                AdminSubScreenEnum.MAIN -> AdminMainScreen(onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) })
+                AdminSubScreenEnum.USERS -> UsersTab(viewModel, uiState)
+                AdminSubScreenEnum.GROUPS -> GroupsTab(viewModel, uiState)
+                AdminSubScreenEnum.MIGRATION -> MigrationTab(viewModel, uiState)
             }
         }
     }
@@ -152,28 +154,65 @@ fun MigrationTab(viewModel: AdminViewModel, uiState: AdminUiState) {
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-        Text("1. Legacy Fields Migration", style = MaterialTheme.typography.titleMedium)
-        Text("Updates legacy fields (edited, pending, checked, enabled, recurring) to new standardized names (isEdited, isPending, isChecked, isEnabled, isRecurring).", fontSize = 12.sp)
-        Spacer(Modifier.height(8.dp))
+        Text("1. Legacy ID Migration", style = MaterialTheme.typography.titleMedium)
+        Text("Converts numeric 'id' fields to strings in Shopping, Cleaning, Links, and Notes collections.", fontSize = 12.sp)
+        Spacer(Modifier.height(16.dp))
+        
         Button(
-            onClick = { viewModel.onEvent(AdminEvent.StartLegacyFieldsMigration) },
+            onClick = { viewModel.onEvent(AdminEvent.StartDataMigration) },
             enabled = !uiState.isMigrating,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Start Legacy Fields Migration")
+            Text("Start ID Migration")
+        }
+
+        uiState.migrationResult?.let { result ->
+            Spacer(Modifier.height(24.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Migration Summary", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Successfully Updated: ${result.updatedCount}", color = MaterialTheme.colorScheme.primary)
+                    Text("Already Correct: ${result.missedCount}")
+                    Text("Field Missing: ${result.fieldMissingCount}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    Text("Errors Found: ${result.errors.size}", color = if (result.errors.isNotEmpty()) MaterialTheme.colorScheme.error else Color.Unspecified)
+                    
+                    if (result.updatedPaths.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("Updated Items:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        result.updatedPaths.take(5).forEach { path ->
+                            Text("• $path", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+                        if (result.updatedPaths.size > 5) {
+                            Text("• ...and ${result.updatedPaths.size - 5} more (see Logcat)", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                        }
+                    }
+
+                    if (result.errors.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("Error Details:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        result.errors.take(10).forEach { error ->
+                            Text("• $error", fontSize = 10.sp, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-fun AdminMainScreen(onNavigate: (String) -> Unit) {
+fun AdminMainScreen(onNavigate: (AdminSubScreenEnum) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             AdminMenuItem(
                 title = Loc.admin_users,
                 subtitle = Loc.admin_usersSubtitle,
                 icon = Icons.Default.People,
-                onClick = { onNavigate("users") }
+                onClick = { onNavigate(AdminSubScreenEnum.USERS) }
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
@@ -182,16 +221,16 @@ fun AdminMainScreen(onNavigate: (String) -> Unit) {
                 title = Loc.settings_groups,
                 subtitle = Loc.admin_groupsSubtitle,
                 icon = Icons.Default.GroupWork,
-                onClick = { onNavigate("groups") }
+                onClick = { onNavigate(AdminSubScreenEnum.GROUPS) }
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
         item {
             AdminMenuItem(
                 title = "System Migration",
-                subtitle = "Standardize database field names",
-                icon = Icons.Default.Backup,
-                onClick = { onNavigate("migration") }
+                subtitle = "Fix numeric ID types in database",
+                icon = Icons.Default.Build,
+                onClick = { onNavigate(AdminSubScreenEnum.MIGRATION) }
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
@@ -239,24 +278,23 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             val filtered = if (uiState.appliedUserSearchQuery.isEmpty()) {
                 emptyList()
             } else {
-                uiState.users.filter { 
-                    (it[com.jtool.android.core.models.User::email.name] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
-                    (it[com.jtool.android.core.models.UserData::appUserId.name] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
-                    (it[com.jtool.android.core.models.User::uid.name] as? String)?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true
+                uiState.users.filter { user ->
+                    user.email?.contains(uiState.appliedUserSearchQuery, ignoreCase = true) == true ||
+                    user.uid.contains(uiState.appliedUserSearchQuery, ignoreCase = true)
                 }
             }
 
-            items(filtered) { user ->
-                val uid = user[com.jtool.android.core.models.User::uid.name] as? String ?: ""
-                val isAdmin = user[com.jtool.android.core.models.User::isAdmin.name] as? Boolean ?: false
+            items(filtered, key = { it.uid.ifEmpty { "empty_u_${System.identityHashCode(it)}" } }) { user ->
+                val uid = user.uid
+                val isAdmin = user.isAdmin
                 var menuExpanded by remember { mutableStateOf(false) }
 
                 ActionListItem(
-                    headline = uiState.userNames[uid] ?: (user["userName"] as? String) ?: Loc.general_unknown,
-                    supportingText = user[com.jtool.android.core.models.User::email.name] as? String ?: "",
+                    headline = uiState.userNames[uid] ?: user.email ?: Loc.general_unknown,
+                    supportingText = user.email ?: "",
                     metadataText = buildString {
                         if (isAdmin) append("ADMIN • ")
-                        append(user[com.jtool.android.core.models.User::uid.name] as? String ?: "")
+                        append(uid)
                     },
                     trailingContent = {
                         Box {
@@ -351,16 +389,16 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             val filtered = if (uiState.appliedGroupSearchQuery.isEmpty()) {
                 emptyList()
             } else {
-                uiState.groups.filter {
-                    (it[com.jtool.android.core.models.GroupInfo::name.name] as? String)?.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) == true ||
-                    (it[com.jtool.android.core.models.GroupInfo::id.name] as? String)?.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) == true
+                uiState.groups.filter { group ->
+                    group.name.contains(uiState.appliedGroupSearchQuery, ignoreCase = true) ||
+                    group.id.contains(uiState.appliedGroupSearchQuery, ignoreCase = true)
                 }
             }
 
-            items(filtered) { group ->
-                val gid = group[com.jtool.android.core.models.GroupInfo::id.name] as? String ?: ""
+            items(filtered, key = { it.id.ifEmpty { "empty_g_${System.identityHashCode(it)}" } }) { group ->
+                val gid = group.id
                 ActionListItem(
-                    headline = group[com.jtool.android.core.models.GroupInfo::name.name] as? String ?: "Unknown",
+                    headline = group.name,
                     supportingText = gid,
                     trailingContent = {
                         IconButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(gid, 1)) }) {

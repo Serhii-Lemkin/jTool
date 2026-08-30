@@ -18,19 +18,19 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 
 @Composable
 fun AccountScreen(
     authManager: AuthManager,
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     viewModel: AccountViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                AccountViewModel(authManager, settingsManager, groupSyncManager)
+                AccountViewModel(authManager, settingsManager, dataManager)
             }
         }
     )
@@ -50,7 +50,6 @@ fun AccountScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Firebase Auth Section
         Text(Loc.settings_cloudSyncFirebase, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
         Spacer(modifier = Modifier.height(12.dp))
         
@@ -85,7 +84,6 @@ fun AccountScreen(
         if (uiState.currentUserEmail != null) {
             var userNameInput by remember { mutableStateOf(uiState.userName) }
             
-            // Sync input with state if it changes externally
             LaunchedEffect(uiState.userName) {
                 userNameInput = uiState.userName
             }
@@ -94,7 +92,6 @@ fun AccountScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             Spacer(modifier = Modifier.height(24.dp))
 
-            // User Settings Section
             Text(Loc.settings_userSettings, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -171,7 +168,6 @@ fun AccountScreen(
         )
     }
 
-    // Deletion Flow: Step 1 (Email verification)
     if (showDeleteStep1) {
         AlertDialog(
             onDismissRequest = { showDeleteStep1 = false },
@@ -209,7 +205,6 @@ fun AccountScreen(
         )
     }
 
-    // Deletion Flow: Step 2 (Final Warning)
     if (showDeleteStep2) {
         AlertDialog(
             onDismissRequest = { showDeleteStep2 = false },
@@ -220,7 +215,7 @@ fun AccountScreen(
                     onClick = {
                         showDeleteStep2 = false
                         viewModel.onEvent(AccountEvent.DeleteAccount)
-                        onSignOut() // Trigger UI transition
+                        onSignOut()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {

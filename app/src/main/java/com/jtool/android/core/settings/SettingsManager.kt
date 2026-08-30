@@ -1,7 +1,8 @@
 package com.jtool.android.core.settings
 
 import android.content.Context
-import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.group.GroupInfo
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 import java.time.DayOfWeek
 
 class SettingsManager(context: Context) {
@@ -116,16 +117,20 @@ class SettingsManager(context: Context) {
         return prefs.getString("language", "en") ?: "en"
     }
 
+    fun hasLanguageBeenSet(): Boolean {
+        return prefs.contains("language")
+    }
+
     fun setLanguage(lang: String) {
         prefs.edit().putString("language", lang).apply()
     }
 
-    fun isAppVisible(appId: String): Boolean {
-        return prefs.getBoolean("visible_$appId", true)
+    fun isAppVisible(appId: AppScreenEnum): Boolean {
+        return prefs.getBoolean("visible_${appId.id}", true)
     }
 
-    fun setAppVisible(appId: String, visible: Boolean) {
-        prefs.edit().putBoolean("visible_$appId", visible).apply()
+    fun setAppVisible(appId: AppScreenEnum, visible: Boolean) {
+        prefs.edit().putBoolean("visible_${appId.id}", visible).apply()
     }
 
     fun isGridLayout(): Boolean {

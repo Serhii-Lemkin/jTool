@@ -1,7 +1,8 @@
 package com.jtool.android.features.notes
 
-import com.jtool.android.core.models.NoteItem
-import com.jtool.android.core.models.NoteType
+import com.jtool.android.core.models.feature.notes.NoteItem
+import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
+import com.jtool.android.core.models.feature.notes.enums.NotesScreenTypeEnum
 
 data class NotesUiState(
     val notes: List<NoteItem> = emptyList(),
@@ -11,21 +12,18 @@ data class NotesUiState(
     val error: String? = null,
     val isRefreshing: Boolean = false,
     
-    // Navigation & Editing
-    val currentScreen: NotesScreenType = NotesScreenType.LIST,
+    val currentScreen: NotesScreenTypeEnum = NotesScreenTypeEnum.LIST,
     val editingNote: NoteItem? = null,
-    val creatingNoteType: NoteType? = null,
+    val creatingNoteType: NoteTypeEnum? = null,
     val isEditMode: Boolean = false,
     val showTypeMenu: Boolean = false,
     
-    // Draft state for creating/editing
     val draftTitle: String = "",
     val draftContent: String = "",
     val checklistInput: String = "",
     
-    // Search & Filter
     val searchQuery: String = "",
-    val filterType: NoteType? = null, // null means "All"
+    val filterType: NoteTypeEnum? = null,
     val isSearchVisible: Boolean = false
 ) {
     val filteredNotes: List<NoteItem>
@@ -42,6 +40,4 @@ data class NotesUiState(
             .sortedByDescending { it.timestamp }
 }
 
-enum class NotesScreenType {
-    LIST, EDIT
-}
+

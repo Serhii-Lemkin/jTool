@@ -3,8 +3,10 @@ package com.jtool.android.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 
+import com.jtool.android.core.models.common.enums.AppScreenEnum
+
 sealed class AppProperties(
-    val id: String,
+    val id: AppScreenEnum,
     val icon: ImageVector? = null,
     val getName: () -> String = { "" }
 ) {
@@ -15,6 +17,6 @@ sealed class AppProperties(
         val allApps = listOf(WorkTime, TimeCalc, ShopList, Notes, Links, Cleaning)
         val allScreens = listOf(Launcher, WorkTime, TimeCalc, ShopList, Notes, Links, Cleaning, AdminPanel, Settings, SettingsAccount)
         
-        fun fromId(id: String): AppProperties? = allScreens.find { it.id == id }
+        fun fromId(id: AppScreenEnum): AppProperties? = allScreens.find { it.id == id }
     }
 }

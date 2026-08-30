@@ -3,14 +3,14 @@ package com.jtool.android.features.settings.groups
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GroupsViewModel(
-    private val groupSyncManager: GroupSyncManager,
+    private val dataManager: DataManager,
     private val settingsManager: SettingsManager
 ) : ViewModel() {
 
@@ -30,9 +30,9 @@ class GroupsViewModel(
     }
 
     private fun observeGroups() {
-        groupSyncManager.userGroupsFlow()
+        dataManager.userGroupsFlow()
             .flatMapLatest { ids ->
-                groupSyncManager.groupInfoFlow(ids)
+                dataManager.groupInfoFlow(ids)
             }
             .onEach { liveGroups ->
                 settingsManager.saveGroups(liveGroups)
@@ -40,10 +40,8 @@ class GroupsViewModel(
             }
             .launchIn(viewModelScope)
             
-        groupSyncManager.currentGroupIdFlow()
+        dataManager.currentGroupIdFlow()
             .onEach { gid ->
-                // Only update if we get a real value, or if we were intentionally null.
-                // This prevents initial 'null' from overwriting local state before fetch/push finishes.
                 if (gid != null || _uiState.value.currentGroupId == null) {
                     _uiState.update { it.copy(currentGroupId = gid) }
                     if (gid != null) settingsManager.setCurrentGroupId(gid)
@@ -70,8 +68,7 @@ class GroupsViewModel(
     private fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            // Re-fetch everything from server
-            groupSyncManager.fetchUserSettings()
+            dataManager.fetchUserSettings()
             loadGroups()
             _uiState.update { it.copy(isLoading = false) }
         }
@@ -80,7 +77,7 @@ class GroupsViewModel(
     private fun switchGroup(id: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            groupSyncManager.switchGroup(id)
+            dataManager.switchGroup(id)
             _uiState.update { it.copy(currentGroupId = id, isLoading = false) }
         }
     }
@@ -88,10 +85,9 @@ class GroupsViewModel(
     private fun createGroup(name: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = groupSyncManager.createGroup(name)
+            val result = dataManager.createGroup(name)
             if (result != null) {
-                // Automatically join the newly created group
-                if (groupSyncManager.joinGroup(result)) {
+                if (dataManager.joinGroup(result)) {
                     _uiState.update { it.copy(
                         currentGroupId = result,
                         lastCreatedGroupId = result
@@ -105,7 +101,7 @@ class GroupsViewModel(
     private fun joinGroup(id: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            if (groupSyncManager.joinGroup(id)) {
+            if (dataManager.joinGroup(id)) {
                 _uiState.update { it.copy(currentGroupId = id, isLoading = false) }
             } else {
                 _uiState.update { it.copy(isLoading = false) }
@@ -116,7 +112,7 @@ class GroupsViewModel(
     private fun leaveGroup(id: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            groupSyncManager.leaveGroup(id)
+            dataManager.leaveGroup(id)
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -124,27 +120,27 @@ class GroupsViewModel(
     private fun deleteGroup(id: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            groupSyncManager.deleteGroupPermanently(id)
+            dataManager.deleteGroupPermanently(id)
             _uiState.update { it.copy(isLoading = false) }
         }
     }
 
     private fun updateGroupName(id: String, newName: String) {
         viewModelScope.launch {
-            groupSyncManager.updateGroupName(id, newName)
+            dataManager.updateGroupName(id, newName)
         }
     }
 
     private fun sendInvite(email: String, groupId: String) {
         viewModelScope.launch {
-            groupSyncManager.sendInvite(email, groupId)
+            dataManager.sendInvite(email, groupId)
         }
     }
 
     private fun manualSync() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            groupSyncManager.manualSyncMerge()
+            dataManager.manualSyncMerge()
             _uiState.update { it.copy(isLoading = false) }
         }
     }

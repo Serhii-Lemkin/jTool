@@ -1,6 +1,6 @@
 package com.jtool.android.features.links
 
-import com.jtool.android.core.models.LinkItem
+import com.jtool.android.core.models.feature.links.LinkItem
 
 sealed interface LinksEvent {
     data class UpdateSearchQuery(val query: String) : LinksEvent

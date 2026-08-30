@@ -19,7 +19,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.models.support.SupportRequest
+import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
+import com.jtool.android.core.models.support.enums.SupportStatusEnum
+import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.features.support.components.*
 import com.jtool.android.features.support.logic.*
 import com.jtool.android.core.components.layout.GenericTitle
@@ -28,23 +32,23 @@ import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.core.components.comments.CommentEvent
 
-val SupportTypeIcons = mapOf(
-    SupportType.BUG to Icons.Default.BugReport,
-    SupportType.FEATURE to Icons.Default.Star,
-    SupportType.CHANGE to Icons.Default.Edit,
-    SupportType.CRASH to Icons.Default.Warning
+val SupportTypeEnumIcons = mapOf(
+    SupportTypeEnum.BUG to Icons.Default.BugReport,
+    SupportTypeEnum.FEATURE to Icons.Default.Star,
+    SupportTypeEnum.CHANGE to Icons.Default.Edit,
+    SupportTypeEnum.CRASH to Icons.Default.Warning
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupportHubScreen(
-    syncManager: GroupSyncManager,
+    dataManager: DataManager,
     settingsManager: SettingsManager,
     onBack: () -> Unit,
     viewModel: SupportViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                SupportViewModel(syncManager, settingsManager)
+                SupportViewModel(dataManager, settingsManager)
             }
         }
     )
@@ -66,16 +70,16 @@ fun SupportHubScreen(
         }
     }
 
-    val globalUserNames by syncManager.userNamesFlow().collectAsState(initial = emptyMap())
+    val globalUserNames by dataManager.userNamesFlow().collectAsState(initial = emptyMap())
 
     val filteredRequests = remember(uiState.requests, uiState.filterType, uiState.showArchived, uiState.searchQuery) {
         uiState.requests
             .filter { if (uiState.filterType == null) true else it.type == uiState.filterType }
             .filter { 
                 if (uiState.showArchived) {
-                    it.status == SupportStatus.CLOSED || it.status == SupportStatus.CUT
+                    it.status == SupportStatusEnum.CLOSED || it.status == SupportStatusEnum.CUT
                 } else {
-                    it.status == SupportStatus.OPENED || it.status == SupportStatus.IN_PROGRESS
+                    it.status == SupportStatusEnum.OPENED || it.status == SupportStatusEnum.IN_PROGRESS
                 }
             }
             .filter {
@@ -93,8 +97,8 @@ fun SupportHubScreen(
     }
 
     BackHandler {
-        if (uiState.currentSubScreen != SupportScreenType.HUB) {
-            viewModel.onEvent(SupportEvent.Navigate(SupportScreenType.HUB))
+        if (uiState.currentSubScreen != SupportScreenTypeEnum.HUB) {
+            viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.HUB))
         } else {
             onBack()
         }
@@ -106,25 +110,25 @@ fun SupportHubScreen(
             val authUid = viewModel.getAuthUserId()
             
             var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
-            // Update draft when state changes (e.g. clear)
+            
             LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
             GenericTitle(
                 title = when (uiState.currentSubScreen) {
-                    SupportScreenType.HUB -> Loc.support_hub_title
-                    SupportScreenType.DETAIL -> Loc.support_request_number.format(uiState.selectedRequest?.number ?: 0)
-                    SupportScreenType.NEW_FORM -> Loc.support_new_request
+                    SupportScreenTypeEnum.HUB -> Loc.support_hub_title
+                    SupportScreenTypeEnum.DETAIL -> Loc.support_request_number.format(uiState.selectedRequest?.number ?: 0)
+                    SupportScreenTypeEnum.NEW_FORM -> Loc.support_new_request
                 },
                 onBack = {
-                    if (uiState.currentSubScreen != SupportScreenType.HUB) {
-                        viewModel.onEvent(SupportEvent.Navigate(SupportScreenType.HUB))
+                    if (uiState.currentSubScreen != SupportScreenTypeEnum.HUB) {
+                        viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.HUB))
                     } else {
                         onBack()
                     }
                 },
                 isLoading = uiState.isLoading,
                 onRefresh = { viewModel.onEvent(SupportEvent.Refresh) },
-                isSearchVisible = uiState.isSearchVisible && uiState.currentSubScreen == SupportScreenType.HUB,
+                isSearchVisible = uiState.isSearchVisible && uiState.currentSubScreen == SupportScreenTypeEnum.HUB,
                 searchQuery = draftSearchQuery,
                 onSearchQueryChange = { draftSearchQuery = it },
                 onSearchClose = { 
@@ -135,10 +139,10 @@ fun SupportHubScreen(
                     viewModel.onEvent(SupportEvent.UpdateSearchQuery(draftSearchQuery))
                 },
                 actions = {
-                    if (uiState.currentSubScreen == SupportScreenType.HUB) {
+                    if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
                         TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
                         
-                        val filterIcon = uiState.filterType?.let { SupportTypeIcons[it] } ?: Icons.Default.FilterList
+                        val filterIcon = uiState.filterType?.let { SupportTypeEnumIcons[it] } ?: Icons.Default.FilterList
                         TitleDropdownMenu(icon = filterIcon) {
                             DropdownMenuItem(
                                 text = { Text(if (uiState.showArchived) "Show Active" else Loc.support_show_archived) },
@@ -155,15 +159,15 @@ fun SupportHubScreen(
                                 onClick = { viewModel.onEvent(SupportEvent.SetFilterType(null)) },
                                 trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
                             )
-                            SupportType.entries.filter { it != SupportType.CRASH }.forEach { type ->
+                            SupportTypeEnum.entries.forEach { type ->
                                 DropdownMenuItem(
-                                    leadingIcon = { Icon(SupportTypeIcons[type] ?: Icons.Default.Circle, null) },
+                                    leadingIcon = { Icon(SupportTypeEnumIcons[type] ?: Icons.Default.Circle, null) },
                                     text = { 
                                         val name = when(type) {
-                                            SupportType.BUG -> Loc.support_type_bug
-                                            SupportType.FEATURE -> Loc.support_type_feature
-                                            SupportType.CHANGE -> Loc.support_type_change
-                                            else -> type.name
+                                            SupportTypeEnum.BUG -> Loc.support_type_bug
+                                            SupportTypeEnum.FEATURE -> Loc.support_type_feature
+                                            SupportTypeEnum.CHANGE -> Loc.support_type_change
+                                            SupportTypeEnum.CRASH -> Loc.support_type_crash
                                         }
                                         Text(name)
                                     },
@@ -177,19 +181,19 @@ fun SupportHubScreen(
             )
         },
         floatingActionButton = {
-            if (uiState.currentSubScreen == SupportScreenType.HUB) {
+            if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
                 UnifiedFAB(
                     onClick = {},
                     dropdownContent = { onDismiss ->
-                        SupportType.entries.filter { it != SupportType.CRASH }.forEach { type ->
+                        SupportTypeEnum.entries.filter { it != SupportTypeEnum.CRASH }.forEach { type ->
                             DropdownMenuItem(
-                                leadingIcon = { Icon(SupportTypeIcons[type] ?: Icons.Default.Circle, null) },
+                                leadingIcon = { Icon(SupportTypeEnumIcons[type] ?: Icons.Default.Circle, null) },
                                 text = {
                                     Text(
                                         when (type) {
-                                            SupportType.BUG -> Loc.support_type_bug
-                                            SupportType.FEATURE -> Loc.support_type_feature
-                                            SupportType.CHANGE -> Loc.support_type_change
+                                            SupportTypeEnum.BUG -> Loc.support_type_bug
+                                            SupportTypeEnum.FEATURE -> Loc.support_type_feature
+                                            SupportTypeEnum.CHANGE -> Loc.support_type_change
                                             else -> ""
                                         }
                                     )
@@ -197,7 +201,7 @@ fun SupportHubScreen(
                                 onClick = {
                                     onDismiss()
                                     viewModel.onEvent(SupportEvent.SetFilterType(type))
-                                    viewModel.onEvent(SupportEvent.Navigate(SupportScreenType.NEW_FORM))
+                                    viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.NEW_FORM))
                                 }
                             )
                         }
@@ -214,7 +218,7 @@ fun SupportHubScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 when (uiState.currentSubScreen) {
-                    SupportScreenType.HUB -> {
+                    SupportScreenTypeEnum.HUB -> {
                         Column(modifier = Modifier.fillMaxSize()) {
                             if (filteredRequests.isEmpty()) {
                             Box(
@@ -266,7 +270,7 @@ fun SupportHubScreen(
                         }
                     }
                 }
-                SupportScreenType.DETAIL -> {
+                SupportScreenTypeEnum.DETAIL -> {
                     uiState.selectedRequest?.let { request ->
                         val appUserId = viewModel.getAppUserId()
                         val authUid = viewModel.getAuthUserId()
@@ -291,13 +295,13 @@ fun SupportHubScreen(
                         )
                     }
                 }
-                SupportScreenType.NEW_FORM -> {
+                SupportScreenTypeEnum.NEW_FORM -> {
                     SupportNewRequestForm(
                         text = uiState.requestText,
                         onTextChange = { viewModel.onEvent(SupportEvent.UpdateRequestText(it)) },
                         isSending = uiState.isSending,
-                        selectedType = uiState.filterType ?: SupportType.BUG,
-                        onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.filterType ?: SupportType.BUG, context)) }
+                        selectedType = uiState.filterType ?: SupportTypeEnum.BUG,
+                        onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.filterType ?: SupportTypeEnum.BUG, context)) }
                     )
                 }
                 }

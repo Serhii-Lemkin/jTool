@@ -1,11 +1,12 @@
 package com.jtool.android.ui.navigation
 
 import com.google.firebase.auth.FirebaseUser
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
-import com.jtool.android.core.models.GroupInfo
+import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.cleaning.CleaningManager
 import com.jtool.android.features.links.LinksManager
 import com.jtool.android.features.notes.NotesManager
@@ -19,7 +20,7 @@ data class NavigationDependencies(
     val linksManager: LinksManager,
     val backupManager: BackupManager,
     val authManager: AuthManager,
-    val groupSyncManager: GroupSyncManager,
+    val dataManager: DataManager,
     val onSignIn: () -> Unit,
     val isDarkMode: Boolean,
     val currentUser: FirebaseUser?,
@@ -30,7 +31,7 @@ data class NavigationDependencies(
     val onThemeToggle: () -> Unit,
     val currentLang: String,
     val onLangToggle: () -> Unit,
-    val setScreen: (String) -> Unit,
+    val setScreen: (AppScreenEnum) -> Unit,
     val navigateToUpdates: Boolean,
     val navigateToGroups: Boolean,
     val setNavigateToGroups: (Boolean) -> Unit,

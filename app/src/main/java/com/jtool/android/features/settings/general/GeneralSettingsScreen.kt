@@ -19,18 +19,18 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 
 @Composable
 fun GeneralSettingsScreen(
     settingsManager: SettingsManager,
-    groupSyncManager: GroupSyncManager,
+    dataManager: DataManager,
     onThemeToggle: () -> Unit,
     onLangToggle: () -> Unit,
     viewModel: GeneralSettingsViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                GeneralSettingsViewModel(settingsManager, groupSyncManager)
+                GeneralSettingsViewModel(settingsManager, dataManager)
             }
         }
     )

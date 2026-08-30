@@ -5,24 +5,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.core.sync.GroupSyncManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.utils.DeviceInfoProvider
-import com.jtool.android.features.support.logic.SupportRequest
-import com.jtool.android.features.support.logic.SupportStatus
-import com.jtool.android.features.support.logic.SupportType
+import com.jtool.android.core.models.support.SupportRequest
+import com.jtool.android.core.models.support.enums.SupportStatusEnum
+import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.ui.theme.JToolTheme
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
 class CrashActivity : ComponentActivity() {
@@ -38,7 +34,7 @@ class CrashActivity : ComponentActivity() {
         
         val crashLog = intent.getStringExtra("crash_log") ?: "No log found"
         val settings = SettingsManager(this)
-        val syncManager = GroupSyncManager(this)
+        val dataManager = DataManager(this)
         Loc.load(this, settings.getLanguage())
 
         setContent {
@@ -48,86 +44,116 @@ class CrashActivity : ComponentActivity() {
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Oops! App Crashed",
+                            text = Loc.crash_title,
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
                         )
                         
                         Spacer(Modifier.height(16.dp))
-                        
+
                         Text(
-                            text = "A fatal error occurred. You can report this to the developer.",
+                            text = Loc.crash_msg,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
-                        
-                        Spacer(Modifier.height(24.dp))
-                        
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                        ) {
-                            LazyColumn(modifier = Modifier.padding(12.dp)) {
-                                item {
-                                    Text(
-                                        text = crashLog,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp
-                                    )
-                                }
-                            }
-                        }
-                        
-                        Spacer(Modifier.height(24.dp))
+
+                        Spacer(Modifier.height(32.dp))
                         
                         var isSending by remember { mutableStateOf(false) }
                         var isSuccess by remember { mutableStateOf(false) }
+                        var errorMessage by remember { mutableStateOf<String?>(null) }
+                        val scope = rememberCoroutineScope()
                         
                         if (isSuccess) {
-                            Text("Report sent! Thank you.", color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = Loc.crash_sentSuccess, 
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(24.dp))
                             Button(onClick = { restartApp() }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Go to Home")
+                                Text(Loc.crash_goHome)
                             }
                         } else {
+                            if (errorMessage != null) {
+                                Text(
+                                    text = errorMessage!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                            }
+
                             Button(
                                 onClick = {
                                     isSending = true
-                                    val scope = MainScope()
+                                    errorMessage = null
                                     scope.launch {
-                                        val request = SupportRequest(
-                                            type = SupportType.CRASH,
-                                            status = SupportStatus.OPENED,
-                                            text = "Automated Crash Report",
-                                            userId = settings.getAppUserId(),
-                                            userName = settings.getUserName(),
-                                            timestamp = System.currentTimeMillis(),
-                                            deviceInfo = DeviceInfoProvider.getDeviceInfo(this@CrashActivity),
-                                            crashLog = crashLog
-                                        )
-                                        val success = syncManager.submitSupportRequest(request, settings.getUserId(), bypassLimit = true)
-                                        isSending = false
-                                        if (success) isSuccess = true
+                                        try {
+                                            val userId = settings.getUserId()
+                                            if (userId.isEmpty()) {
+                                                isSending = false
+                                                errorMessage = "User session expired. Please restart and sign in."
+                                                return@launch
+                                            }
+
+                                            val request = SupportRequest(
+                                                type = SupportTypeEnum.CRASH,
+                                                status = SupportStatusEnum.OPENED,
+                                                text = Loc.crash_automatedReport,
+                                                userId = settings.getAppUserId(),
+                                                userName = settings.getUserName(),
+                                                timestamp = System.currentTimeMillis(),
+                                                deviceInfo = DeviceInfoProvider.getDeviceInfo(this@CrashActivity),
+                                                crashLog = crashLog
+                                            )
+                                            val success = dataManager.submitSupportRequest(request, userId, bypassLimit = true)
+                                            if (success) {
+                                                isSuccess = true
+                                            } else {
+                                                errorMessage = "Server rejected the report. Please try again."
+                                            }
+                                            isSending = false
+                                        } catch (e: Exception) {
+                                            isSending = false
+                                            android.util.Log.e("CrashActivity", "Failed to send crash report", e)
+                                            errorMessage = "Connection error: ${e.localizedMessage}"
+                                        }
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isSending
                             ) {
-                                if (isSending) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                else Text("Report to Admin")
+                                if (isSending) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp), 
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Reporting...")
+                                    }
+                                } else {
+                                    Text(Loc.crash_reportBug)
+                                }
                             }
                             
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(12.dp))
                             
-                            TextButton(onClick = { restartApp() }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Go to Home")
+                            TextButton(
+                                onClick = { restartApp() }, 
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isSending
+                            ) {
+                                Text(Loc.crash_goHome)
                             }
                         }
                     }

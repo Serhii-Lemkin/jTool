@@ -1,10 +1,12 @@
-package com.jtool.android.core.models
+package com.jtool.android.core.models.group
 
 import androidx.annotation.Keep
+import com.google.firebase.firestore.IgnoreExtraProperties
 
 @Keep
+@IgnoreExtraProperties
 data class Invite(
-    val inviteId: String = "",
+    var inviteId: String = "",
     val groupId: String = "",
     val groupName: String = "",
     val fromEmail: String = "",
