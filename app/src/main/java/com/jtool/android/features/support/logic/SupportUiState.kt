@@ -2,14 +2,15 @@ package com.jtool.android.features.support.logic
 
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
+import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 
 data class SupportUiState(
     val requests: List<SupportRequest> = emptyList(),
     val isLoading: Boolean = false,
     val isAdmin: Boolean = false,
-    val showArchived: Boolean = false,
-    val filterType: SupportTypeEnum? = null,
+    val activeTypeFilters: Set<SupportTypeEnum> = emptySet(),
+    val activeStatusFilters: Set<SupportStatusEnum> = setOf(SupportStatusEnum.OPENED, SupportStatusEnum.IN_PROGRESS),
     
     val isSending: Boolean = false,
     val isSuccess: Boolean = false,

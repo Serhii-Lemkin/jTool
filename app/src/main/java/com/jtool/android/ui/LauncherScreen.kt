@@ -33,8 +33,8 @@ fun LauncherScreen(
     onNotesClick: () -> Unit,
     onLinksClick: () -> Unit,
     onCleaningClick: () -> Unit,
+    onCalendarClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    showBadge: Boolean,
     settingsManager: SettingsManager,
     currentGroupId: String?,
     groups: Map<String, GroupInfo>,
@@ -42,7 +42,9 @@ fun LauncherScreen(
     isAdmin: Boolean,
     onAdminClick: () -> Unit,
     onAccountClick: () -> Unit,
-    currentUser: com.google.firebase.auth.FirebaseUser?
+    currentUser: com.google.firebase.auth.FirebaseUser?,
+    notificationCount: Int = 0,
+    onNotificationsClick: () -> Unit = {}
 ) {
     val groupName = remember(currentGroupId, groups) {
         currentGroupId?.let { groups[it]?.name ?: it }
@@ -54,18 +56,48 @@ fun LauncherScreen(
         AppScreenEnum.SHOP_LIST to onShopListClick,
         AppScreenEnum.NOTES to onNotesClick,
         AppScreenEnum.LINKS to onLinksClick,
-        AppScreenEnum.CLEANING to onCleaningClick
+        AppScreenEnum.CLEANING to onCleaningClick,
+        AppScreenEnum.CALENDAR to onCalendarClick
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
-            .padding(24.dp),
+            .padding(top = 0.dp, start = 24.dp, end = 12.dp, bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (notificationCount > 0) {
+                Surface(
+                    color = androidx.compose.ui.graphics.Color(0xFF4CAF50), // Green 500
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    modifier = Modifier.padding(end = 4.dp)
+                ) {
+                    Text(
+                        text = notificationCount.toString(),
+                        color = androidx.compose.ui.graphics.Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            
+            IconButton(onClick = onNotificationsClick) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifications",
+                    tint = if (notificationCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
         
         if (currentUser != null) {
             Text(
@@ -143,8 +175,7 @@ fun LauncherScreen(
                     AppIcon(
                         name = Loc.launcher_settings,
                         icon = Icons.Default.Settings,
-                        onClick = onSettingsClick,
-                        hasBadge = showBadge
+                        onClick = onSettingsClick
                     )
                 }
 
@@ -178,7 +209,7 @@ fun LauncherScreen(
                 }
 
                 item {
-                    AppListRow(name = Loc.launcher_settings, icon = Icons.Default.Settings, onClick = onSettingsClick, hasBadge = showBadge)
+                    AppListRow(name = Loc.launcher_settings, icon = Icons.Default.Settings, onClick = onSettingsClick)
                 }
 
                 if (currentUser != null && isAdmin) {
@@ -192,7 +223,7 @@ fun LauncherScreen(
 }
 
 @Composable
-fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: Boolean = false) {
+fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -202,15 +233,7 @@ fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: B
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BadgedBox(
-                badge = {
-                    if (hasBadge) {
-                        Badge(containerColor = MaterialTheme.colorScheme.error)
-                    }
-                }
-            ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
-            }
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = name,
@@ -232,44 +255,32 @@ fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: B
 }
 
 @Composable
-fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit, hasBadge: Boolean = false) {
+fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .padding(4.dp)
             .fillMaxWidth()
     ) {
-        BadgedBox(
-            badge = {
-                if (hasBadge) {
-                    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-                    Badge(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.offset(x = if (isRtl) 8.dp else (-8).dp, y = 8.dp)
-                    )
-                }
-            }
+        Card(
+            onClick = onClick,
+            modifier = Modifier
+                .aspectRatio(1f)
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
         ) {
-            Card(
-                onClick = onClick,
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .padding(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = name,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = name,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
         }
         Text(

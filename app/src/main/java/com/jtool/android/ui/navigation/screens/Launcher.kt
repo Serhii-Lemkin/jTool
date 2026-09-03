@@ -14,9 +14,9 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             onNotesClick = { deps.setScreen(AppScreenEnum.NOTES) },
             onLinksClick = { deps.setScreen(AppScreenEnum.LINKS) },
             onCleaningClick = { deps.setScreen(AppScreenEnum.CLEANING) },
+            onCalendarClick = { deps.setScreen(AppScreenEnum.CALENDAR) },
             onSettingsClick = { deps.setScreen(AppScreenEnum.SETTINGS) },
             onAccountClick = { deps.setScreen(AppScreenEnum.SETTINGS_ACCOUNT) },
-            showBadge = deps.hasUpdate || (deps.currentUser != null && deps.currentGroupId == null),
             settingsManager = deps.settingsManager,
             currentGroupId = deps.currentGroupId,
             groups = deps.groups,
@@ -26,7 +26,9 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             },
             isAdmin = deps.isAdmin,
             onAdminClick = { deps.setScreen(AppScreenEnum.ADMIN_PANEL) },
-            currentUser = deps.currentUser
+            currentUser = deps.currentUser,
+            notificationCount = deps.notificationCount,
+            onNotificationsClick = deps.onNotificationsClick
         )
     }
 }

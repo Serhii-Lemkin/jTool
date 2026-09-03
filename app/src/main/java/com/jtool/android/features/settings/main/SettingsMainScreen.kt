@@ -24,7 +24,6 @@ fun SettingsMainScreen(
     authManager: AuthManager,
     settingsManager: SettingsManager,
     onNavigate: (AppScreenEnum) -> Unit,
-    hasUpdate: Boolean,
     viewModel: SettingsMainViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -54,8 +53,7 @@ fun SettingsMainScreen(
                     title = Loc.settings_groups,
                     subtitle = Loc.settings_syncSubtitle,
                     icon = Icons.Default.Group,
-                    onClick = { onNavigate(AppScreenEnum.SETTINGS_GROUPS) },
-                    hasBadge = uiState.isSyncMissing
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_GROUPS) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
@@ -73,8 +71,7 @@ fun SettingsMainScreen(
                     title = Loc.settings_appUpdates,
                     subtitle = Loc.settings_appUpdatesSubtitle,
                     icon = Icons.Default.SystemUpdate,
-                    onClick = { onNavigate(AppScreenEnum.SETTINGS_UPDATES) },
-                    hasBadge = hasUpdate
+                    onClick = { onNavigate(AppScreenEnum.SETTINGS_UPDATES) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }

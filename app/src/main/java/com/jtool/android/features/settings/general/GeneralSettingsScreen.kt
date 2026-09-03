@@ -20,6 +20,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.features.settings.general.components.language_selection_slip.LanguageSelectionSlip
 
 @Composable
 fun GeneralSettingsScreen(
@@ -36,10 +37,22 @@ fun GeneralSettingsScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var langMenuExpanded by remember { mutableStateOf(false) }
+    var showLangSlip by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val languages = remember(context) { Loc.getAvailableLanguages(context) }
+
+    if (showLangSlip) {
+        LanguageSelectionSlip(
+            languages = languages,
+            currentLanguageCode = uiState.language,
+            onLanguageSelected = { locale ->
+                viewModel.onEvent(GeneralSettingsEvent.SetLanguage(locale))
+                onLangToggle()
+            },
+            onDismiss = { showLangSlip = false }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -83,7 +96,7 @@ fun GeneralSettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { langMenuExpanded = true }
+                .clickable { showLangSlip = true }
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -99,29 +112,12 @@ fun GeneralSettingsScreen(
                 Text(Loc.settings_language, style = MaterialTheme.typography.bodyLarge)
             }
             
-            Box {
-                Text(
-                    text = languages.find { it.locale == uiState.language }?.name ?: uiState.language,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-                DropdownMenu(
-                    expanded = langMenuExpanded,
-                    onDismissRequest = { langMenuExpanded = false }
-                ) {
-                    languages.forEach { langMeta ->
-                        DropdownMenuItem(
-                            text = { Text(langMeta.name) },
-                            onClick = {
-                                viewModel.onEvent(GeneralSettingsEvent.SetLanguage(langMeta.locale))
-                                onLangToggle()
-                                langMenuExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            Text(
+                text = languages.find { it.locale == uiState.language }?.name ?: uiState.language,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
         }
     }
 }

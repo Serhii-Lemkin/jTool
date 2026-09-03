@@ -349,11 +349,6 @@ class NotesViewModel(
         
         val title = state.draftTitle.trim()
         
-        if (title.isEmpty()) {
-            _uiState.update { it.copy(error = Loc.notes_noteTitlePlaceholder) }
-            return
-        }
-        
         _uiState.update { it.copy(isLoading = true) }
         
         val noteData = mapOf(

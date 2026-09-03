@@ -4,9 +4,6 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,7 +18,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.jtool.android.core.models.feature.shopping.ShoppingItem
 import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -33,8 +29,10 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
-import com.jtool.android.core.components.layout.TitleDropdownMenu
-import com.jtool.android.core.components.layout.TitleActionIcon
+import com.jtool.android.features.shopping.components.aisle_selection_slip.AisleSelectionSlip
+import com.jtool.android.features.shopping.components.filter_selection_slip.FilterSelectionSlip
+import com.jtool.android.features.shopping.components.item_delete_confirm_slip.ItemDeleteConfirmSlip
+import com.jtool.android.features.shopping.components.item_rename_slip.ItemRenameSlip
 
 val AisleIcons = mapOf(
     ShoppingAisleEnum.COMMON to Icons.AutoMirrored.Filled.Label,
@@ -69,65 +67,45 @@ fun ShoppingListScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    var showFilterSlip by remember { mutableStateOf(false) }
 
     if (uiState.showAislePicker) {
-        AlertDialog(
-            onDismissRequest = { 
+        AisleSelectionSlip(
+            selectedAisle = uiState.selectedItem?.aisle ?: uiState.selectedAisle,
+            onAisleSelected = { viewModel.onEvent(ShoppingEvent.SelectAisle(it)) },
+            onDismiss = { 
                 viewModel.onEvent(ShoppingEvent.SelectItem(null))
                 viewModel.onEvent(ShoppingEvent.ToggleAislePicker(false)) 
-            },
-            title = { Text(Loc.shoplist_selectAisle) },
-            text = {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.height(300.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(AisleIcons.toList()) { (aisle, icon) ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.onEvent(ShoppingEvent.SelectAisle(aisle))
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (uiState.selectedAisle == aisle) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(text = Loc.getAisleName(aisle), fontSize = 12.sp, maxLines = 1)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {}
+            }
+        )
+    }
+
+    if (showFilterSlip) {
+        FilterSelectionSlip(
+            activeAisles = uiState.activeAisles,
+            selectedAisleFilters = uiState.activeAisleFilters,
+            currentFilterType = uiState.filterType,
+            onToggleAisle = { viewModel.onEvent(ShoppingEvent.ToggleAisleFilter(it)) },
+            onShowAll = { viewModel.onEvent(ShoppingEvent.ClearAisleFilters) },
+            onShowInactive = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Unactive")) },
+            onDismiss = { showFilterSlip = false }
+        )
+    }
+
+    if (uiState.itemToRename != null) {
+        ItemRenameSlip(
+            currentName = uiState.itemToRename!!.text,
+            onDismiss = { viewModel.onEvent(ShoppingEvent.RequestRename(null)) },
+            onConfirm = { 
+                viewModel.onEvent(ShoppingEvent.ConfirmRename(it))
+            }
         )
     }
 
     if (uiState.itemToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) },
-            title = { Text(Loc.general_confirmDeleteTitle) },
-            text = { Text(Loc.general_confirmDeleteMsg) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onEvent(ShoppingEvent.ConfirmDelete)
-                }) {
-                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) }) {
-                    Text(Loc.general_cancel)
-                }
-            }
+        ItemDeleteConfirmSlip(
+            onDismiss = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) },
+            onConfirm = { viewModel.onEvent(ShoppingEvent.ConfirmDelete) }
         )
     }
 
@@ -137,10 +115,9 @@ fun ShoppingListScreen(
             topBar = {
                 val filterIcon = when {
                     uiState.filterType == "Unactive" -> Icons.Default.CheckBox
-                    uiState.filterType.startsWith("Aisle:") -> {
-                        val aisleName = uiState.filterType.removePrefix("Aisle:")
-                        val aisle = try { ShoppingAisleEnum.valueOf(aisleName) } catch (e: Exception) { ShoppingAisleEnum.COMMON }
-                        AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label
+                    uiState.activeAisleFilters.isNotEmpty() -> {
+                        val first = uiState.activeAisleFilters.first()
+                        AisleIcons[first] ?: Icons.AutoMirrored.Filled.Label
                     }
                     else -> Icons.Default.FilterList
                 }
@@ -150,24 +127,8 @@ fun ShoppingListScreen(
                     isLoading = uiState.isLoading,
                     onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
                     actions = {
-                        TitleDropdownMenu(icon = filterIcon) {
-                            DropdownMenuItem(
-                                leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
-                                text = { Text(Loc.shoplist_all) },
-                                onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("All")) }
-                            )
-                            DropdownMenuItem(
-                                leadingIcon = { Icon(Icons.Default.CheckBox, contentDescription = null) },
-                                text = { Text(Loc.shoplist_unactive) },
-                                onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Unactive")) }
-                            )
-                            uiState.activeAisles.forEach { aisle ->
-                                DropdownMenuItem(
-                                    leadingIcon = { Icon(AisleIcons[aisle] ?: Icons.AutoMirrored.Filled.Label, contentDescription = null) },
-                                    text = { Text(Loc.getAisleName(aisle)) },
-                                    onClick = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Aisle:${aisle.name}")) }
-                                )
-                            }
+                        IconButton(onClick = { showFilterSlip = true }) {
+                            Icon(filterIcon, contentDescription = "Filter")
                         }
                     }
                 )
@@ -176,18 +137,17 @@ fun ShoppingListScreen(
             androidx.compose.material3.pulltorefresh.PullToRefreshBox(
                 isRefreshing = uiState.isLoading,
                 onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
-                modifier = Modifier.padding(padding).fillMaxSize()
+                modifier = Modifier
+                    .padding(top = padding.calculateTopPadding())
+                    .fillMaxSize()
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
-                        .imePadding(),
-                    verticalArrangement = Arrangement.Top,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     LazyColumn(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
                         items(uiState.displayItems, key = { it.id }) { item ->
@@ -198,6 +158,9 @@ fun ShoppingListScreen(
                                 },
                                 onDelete = {
                                     viewModel.onEvent(ShoppingEvent.RequestDelete(item))
+                                },
+                                onRename = {
+                                    viewModel.onEvent(ShoppingEvent.RequestRename(item))
                                 },
                                 onChangeAisle = {
                                     viewModel.onEvent(ShoppingEvent.SelectItem(item))
@@ -227,6 +190,9 @@ fun ShoppingListScreen(
                                     onDelete = {
                                         viewModel.onEvent(ShoppingEvent.RequestDelete(item))
                                     },
+                                    onRename = {
+                                        viewModel.onEvent(ShoppingEvent.RequestRename(item))
+                                    },
                                     onChangeAisle = {
                                         viewModel.onEvent(ShoppingEvent.SelectItem(item))
                                         viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true))
@@ -241,91 +207,122 @@ fun ShoppingListScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (uiState.suggestions.isNotEmpty()) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            tonalElevation = 2.dp
-                        ) {
-                            Column {
-                                uiState.suggestions.forEach { suggestionText ->
-                                    TextButton(
-                                        onClick = {
-                                            viewModel.onEvent(ShoppingEvent.RestoreItem(suggestionText))
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        Row(
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .navigationBarsPadding() // Account for system buttons
+                            .imePadding() // Avoid keyboard obstruction
+                    ) {
+                        if (uiState.suggestions.isNotEmpty()) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                tonalElevation = 2.dp
+                            ) {
+                                Column {
+                                    uiState.suggestions.forEach { suggestionText ->
+                                        TextButton(
+                                            onClick = {
+                                                viewModel.onEvent(ShoppingEvent.RestoreItem(suggestionText))
+                                            },
                                             modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
-                                            Icon(
-                                                Icons.Default.History, 
-                                                contentDescription = null, 
-                                                modifier = Modifier.size(18.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(Modifier.width(12.dp))
-                                            Text(
-                                                text = suggestionText,
-                                                modifier = Modifier.weight(1f),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = Loc.shoplist_restore,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.History, 
+                                                    contentDescription = null, 
+                                                    modifier = Modifier.size(18.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(
+                                                    text = suggestionText,
+                                                    modifier = Modifier.weight(1f),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Text(
+                                                    text = Loc.shoplist_restore,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true)) }) {
-                            Icon(
-                                AisleIcons[uiState.selectedAisle] ?: Icons.AutoMirrored.Filled.Label,
-                                contentDescription = "Select Aisle",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        OutlinedTextField(
-                            value = uiState.newItemText,
-                            onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
-                            label = { Text(Loc.shoplist_addItem) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
-                                if (uiState.newItemText.isNotBlank()) {
-                                    val trimmedText = uiState.newItemText.trim()
-                                    val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
-                                    
-                                    if (existingItem != null && !existingItem.isChecked) {
-                                        Toast.makeText(context, Loc.shoplist_itemAlreadyInList, Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        viewModel.onEvent(ShoppingEvent.AddItem)
-                                        if (existingItem != null && existingItem.isChecked) {
-                                            Toast.makeText(context, Loc.shoplist_restoredExisting, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = uiState.newItemText.isNotBlank()
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add")
+                            Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true)) },
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(
+                                        AisleIcons[uiState.selectedAisle] ?: Icons.AutoMirrored.Filled.Label,
+                                        contentDescription = "Select Aisle",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                
+                                TextField(
+                                    value = uiState.newItemText,
+                                    onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
+                                    placeholder = { Text(Loc.shoplist_addItem) },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent
+                                    )
+                                )
+                                
+                                IconButton(
+                                    onClick = {
+                                        if (uiState.newItemText.isNotBlank()) {
+                                            val trimmedText = uiState.newItemText.trim()
+                                            val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
+                                            
+                                            if (existingItem != null && !existingItem.isChecked) {
+                                                Toast.makeText(context, Loc.shoplist_itemAlreadyInList, Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                viewModel.onEvent(ShoppingEvent.AddItem)
+                                                if (existingItem != null && existingItem.isChecked) {
+                                                    Toast.makeText(context, Loc.shoplist_restoredExisting, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = uiState.newItemText.isNotBlank(),
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add")
+                                }
+                                Spacer(Modifier.width(4.dp))
+                            }
                         }
                     }
                 }
@@ -339,6 +336,7 @@ fun ShoppingItemRow(
     item: ShoppingItem,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onRename: () -> Unit,
     onChangeAisle: () -> Unit,
     userName: String
 ) {
@@ -385,6 +383,14 @@ fun ShoppingItemRow(
                         text = { Text(Loc.shoplist_changeAisle) },
                         onClick = {
                             onChangeAisle()
+                            menuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        leadingIcon = { Icon(Icons.Default.DriveFileRenameOutline, null) },
+                        text = { Text("Rename") },
+                        onClick = {
+                            onRename()
                             menuExpanded = false
                         }
                     )

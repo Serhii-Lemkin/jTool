@@ -21,7 +21,17 @@ import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.GenericTitle
-import com.jtool.android.features.settings.groups.components.*
+import com.jtool.android.core.components.layout.ActionListItem
+import com.jtool.android.features.settings.groups.components.create_group_slip.CreateGroupSlip
+import com.jtool.android.features.settings.groups.components.delete_group_confirm_slip.DeleteGroupConfirmSlip
+import com.jtool.android.features.settings.groups.components.edit_group_name_slip.EditGroupNameSlip
+import com.jtool.android.features.settings.groups.components.group_created_slip.GroupCreatedSlip
+import com.jtool.android.features.settings.groups.components.group_member_item_slip.GroupMemberItem
+import com.jtool.android.features.settings.groups.components.group_selection_slip.GroupSelectionSlip
+import com.jtool.android.features.settings.groups.components.invite_slip.InviteSlip
+import com.jtool.android.features.settings.groups.components.join_group_slip.JoinGroupSlip
+import com.jtool.android.features.settings.groups.components.leave_group_slip.LeaveGroupSlip
+import com.jtool.android.features.settings.groups.components.join_request_sent_slip.JoinRequestSentSlip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,140 +59,143 @@ fun GroupsScreen(
     val globalUserNames by dataManager.userNamesFlow().collectAsState(initial = emptyMap())
 
     var groupSearchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
     
     val allGroupIds = uiState.groups.keys.toList()
     val hasAnyGroups = allGroupIds.isNotEmpty() || uiState.currentGroupId != null
     
-    var expanded by remember { mutableStateOf(false) }
-    var showUnlinkConfirm by remember { mutableStateOf<String?>(null) }
-    var showLastMemberLeaveConfirm by remember { mutableStateOf<String?>(null) }
-    var showDeleteGroupConfirm1 by remember { mutableStateOf<String?>(null) }
-    var showDeleteGroupConfirm2 by remember { mutableStateOf<String?>(null) }
-    var showInviteDialog by remember { mutableStateOf(false) }
+    var showGroupSelectionSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmSheet by remember { mutableStateOf(false) }
+    var showInviteSheet by remember { mutableStateOf(false) }
     var showEditGroupNameDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     
-    var showCreateGroupDialog by remember { mutableStateOf(false) }
-    var showJoinGroupDialog by remember { mutableStateOf(false) }
+    var showCreateGroupSheet by remember { mutableStateOf(false) }
+    var showJoinGroupSheet by remember { mutableStateOf(false) }
 
     val clipboardManager = LocalClipboardManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.currentGroupId, uiState.groups) {
         onGroupChanged(uiState.currentGroupId)
         onGroupsUpdated(uiState.groups)
     }
 
+    LaunchedEffect(uiState.message, uiState.error) {
+        val msg = uiState.message ?: uiState.error
+        if (msg != null) {
+            snackbarHostState.showSnackbar(msg)
+            viewModel.onEvent(GroupsEvent.DismissMessage)
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             GenericTitle(
                 title = Loc.settings_groups,
                 onBack = onBack,
                 isLoading = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(GroupsEvent.Refresh) }
+                onRefresh = { viewModel.onEvent(GroupsEvent.Refresh) },
+                isSearchVisible = isSearching,
+                searchQuery = groupSearchQuery,
+                onSearchQueryChange = { groupSearchQuery = it },
+                onSearchClose = { isSearching = false; groupSearchQuery = "" },
+                actions = {
+                    if (!isSearching) {
+                        IconButton(onClick = { isSearching = true }) {
+                            Icon(Icons.Default.Search, null)
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+            modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val activeGroup = uiState.groups[uiState.currentGroupId]
+            val activeName = activeGroup?.name ?: uiState.currentGroupId ?: Loc.settings_noneSelected
+
             if (allGroupIds.isNotEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-                    OutlinedCard(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(Loc.settings_activeGroup, style = MaterialTheme.typography.labelSmall)
-                                val activeName = uiState.groups[uiState.currentGroupId]?.name ?: uiState.currentGroupId ?: Loc.settings_noneSelected
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(activeName, style = MaterialTheme.typography.bodyLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                                    if (uiState.currentGroupId != null) {
-                                        IconButton(
-                                            onClick = { 
-                                                newGroupName = activeName
-                                                showEditGroupNameDialog = true 
-                                                expanded = false
-                                            },
-                                            modifier = Modifier.size(24.dp).padding(start = 8.dp)
-                                        ) {
-                                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                }
-                            }
-                            Icon(Icons.Default.ArrowDropDown, null)
-                        }
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.fillMaxWidth(0.85f).heightIn(max = 400.dp)) {
-                        OutlinedTextField(
-                            value = groupSearchQuery,
-                            onValueChange = { groupSearchQuery = it },
-                            label = { Text(Loc.general_searchGroups) },
-                            modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            singleLine = true
-                        )
-                        val filteredGroups = allGroupIds.filter { 
-                            uiState.groups[it]?.name?.contains(groupSearchQuery, ignoreCase = true) == true || it.contains(groupSearchQuery, ignoreCase = true) 
-                        }
-                        filteredGroups.forEach { id ->
-                            DropdownMenuItem(
-                                text = { Text(uiState.groups[id]?.name ?: id) },
-                                onClick = { viewModel.onEvent(GroupsEvent.SwitchGroup(id)); expanded = false },
-                                trailingIcon = { if (id == uiState.currentGroupId) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
-                            )
-                        }
-                    }
+                SectionHeader(Loc.settings_activeGroup)
+                ActionListItem(
+                    headline = activeName,
+                    leadingContent = { Icon(Icons.Default.Group, null, tint = MaterialTheme.colorScheme.primary) },
+                    trailingContent = { Icon(Icons.Default.ArrowDropDown, null) },
+                    onClick = { showGroupSelectionSheet = true },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                
+                if (uiState.currentGroupId != null) {
+                    ActionListItem(
+                        headline = Loc.settings_editGroupName,
+                        leadingContent = { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary) },
+                        onClick = { 
+                            newGroupName = activeName
+                            showEditGroupNameDialog = true 
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
                 }
+                Spacer(Modifier.height(16.dp))
             } else if (!hasAnyGroups && !uiState.isLoading) {
-                Card(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f))) {
+                Card(modifier = Modifier.fillMaxWidth().padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f))) {
                     Text(text = Loc.settings_noGroupsMsg, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
 
-            val activeGroupId = uiState.currentGroupId
-            if (activeGroupId != null && !uiState.isLoading) {
-                Text(Loc.settings_linkedGroupId, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
-                Spacer(Modifier.height(16.dp))
-                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { viewModel.onEvent(GroupsEvent.ManualSync) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.CloudSync, null); Spacer(Modifier.width(12.dp)); Text(Loc.settings_manualSync)
-                    }
-                    Button(onClick = { showInviteDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.PersonAdd, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_groupInvite)
-                    }
-                    Spacer(Modifier.height(4.dp)); Text(Loc.settings_shareIdDesc, style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = { clipboardManager.setText(AnnotatedString(activeGroupId)) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_copyId)
-                    }
-                    Button(
-                        onClick = { if (groupMemberIds.size <= 1) showLastMemberLeaveConfirm = activeGroupId else showUnlinkConfirm = activeGroupId },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) { Icon(Icons.AutoMirrored.Filled.ExitToApp, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_unlinkGroup) }
-                }
-                Spacer(Modifier.height(24.dp)); HorizontalDivider(); Spacer(Modifier.height(24.dp))
+            if (uiState.currentGroupId != null && !uiState.isLoading) {
+                SectionHeader("Group Management")
+                
+                ActionListItem(
+                    headline = Loc.settings_groupInvite,
+                    supportingText = "Invite members via email",
+                    leadingContent = { Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { showInviteSheet = true },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                
+                ActionListItem(
+                    headline = Loc.settings_copyId,
+                    supportingText = uiState.currentGroupId,
+                    leadingContent = { Icon(Icons.Default.ContentCopy, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { clipboardManager.setText(AnnotatedString(uiState.currentGroupId!!)) },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                
+                ActionListItem(
+                    headline = Loc.settings_unlinkGroup,
+                    supportingText = "Remove this group from your account",
+                    leadingContent = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = MaterialTheme.colorScheme.error) },
+                    headlineColor = MaterialTheme.colorScheme.error,
+                    onClick = { showLeaveConfirmSheet = true },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                Spacer(Modifier.height(24.dp))
             }
 
-            if (!uiState.isLoading) {
-                Text(Loc.settings_addNewGroup, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(16.dp))
-                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { showCreateGroupDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_createNewGroup)
-                    }
-                    Button(onClick = { showJoinGroupDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.GroupAdd, null); Spacer(Modifier.width(8.dp)); Text(Loc.settings_joinGroup)
-                    }
-                }
-            }
+            SectionHeader(Loc.settings_addNewGroup)
+            ActionListItem(
+                headline = Loc.settings_createNewGroup,
+                leadingContent = { Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary) },
+                onClick = { showCreateGroupSheet = true },
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+            ActionListItem(
+                headline = Loc.settings_joinGroup,
+                leadingContent = { Icon(Icons.Default.GroupAdd, null, tint = MaterialTheme.colorScheme.primary) },
+                onClick = { showJoinGroupSheet = true },
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
 
             if (uiState.currentGroupId != null && groupMemberIds.isNotEmpty() && !uiState.isLoading) {
-                Spacer(Modifier.height(32.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
-                Text(Loc.settings_groupMembers, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(32.dp))
+                SectionHeader(Loc.settings_groupMembers)
                 groupMemberIds.forEach { uid ->
                     val name = globalUserNames[uid] ?: Loc.general_unknown
-                    val isOwner = uiState.groups[uiState.currentGroupId]?.ownerUid == uid
+                    val isOwner = activeGroup?.ownerUid == uid
                     GroupMemberItem(name = name, isOwner = isOwner)
                 }
             }
@@ -190,31 +203,63 @@ fun GroupsScreen(
         }
     }
 
-    if (showCreateGroupDialog) {
-        CreateGroupDialog(onDismiss = { showCreateGroupDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.CreateGroup(it)); showCreateGroupDialog = false })
+    if (showGroupSelectionSheet) {
+        GroupSelectionSlip(
+            groups = uiState.groups,
+            currentGroupId = uiState.currentGroupId,
+            onGroupSelected = { viewModel.onEvent(GroupsEvent.SwitchGroup(it)) },
+            onDismiss = { showGroupSelectionSheet = false }
+        )
     }
-    if (showJoinGroupDialog) {
-        JoinGroupDialog(onDismiss = { showJoinGroupDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.JoinGroup(it)); showJoinGroupDialog = false })
+
+    if (showCreateGroupSheet) {
+        CreateGroupSlip(
+            onDismiss = { showCreateGroupSheet = false },
+            onConfirm = { viewModel.onEvent(GroupsEvent.CreateGroup(it)); showCreateGroupSheet = false }
+        )
     }
-    if (showUnlinkConfirm != null) {
-        UnlinkConfirmDialog(onDismiss = { showUnlinkConfirm = null }, onConfirm = { viewModel.onEvent(GroupsEvent.LeaveGroup(showUnlinkConfirm!!)); showUnlinkConfirm = null })
+    
+    if (showJoinGroupSheet) {
+        JoinGroupSlip(
+            onDismiss = { showJoinGroupSheet = false },
+            onConfirm = { viewModel.onEvent(GroupsEvent.JoinGroup(it)); showJoinGroupSheet = false }
+        )
     }
-    if (showLastMemberLeaveConfirm != null) {
-        LastMemberLeaveDialog(onDismiss = { showLastMemberLeaveConfirm = null }, onConfirm = { viewModel.onEvent(GroupsEvent.LeaveGroup(showLastMemberLeaveConfirm!!)); showLastMemberLeaveConfirm = null })
+
+    if (showLeaveConfirmSheet) {
+        LeaveGroupSlip(
+            isLastMember = groupMemberIds.size <= 1,
+            onDismiss = { showLeaveConfirmSheet = false },
+            onConfirm = { viewModel.onEvent(GroupsEvent.LeaveGroup(uiState.currentGroupId!!)); showLeaveConfirmSheet = false }
+        )
     }
-    if (showInviteDialog) {
-        InviteDialog(onDismiss = { showInviteDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.SendInvite(it, uiState.currentGroupId!!)); showInviteDialog = false })
+
+    if (showInviteSheet) {
+        InviteSlip(
+            onDismiss = { showInviteSheet = false },
+            onConfirm = { viewModel.onEvent(GroupsEvent.SendInvite(it, uiState.currentGroupId!!)); showInviteSheet = false }
+        )
     }
+
     if (showEditGroupNameDialog) {
-        EditGroupNameDialog(initialName = newGroupName, onDismiss = { showEditGroupNameDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.UpdateGroupName(uiState.currentGroupId!!, it)); showEditGroupNameDialog = false })
+        EditGroupNameSlip(initialName = newGroupName, onDismiss = { showEditGroupNameDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.UpdateGroupName(uiState.currentGroupId!!, it)); showEditGroupNameDialog = false })
     }
-    if (showDeleteGroupConfirm1 != null) {
-        DeleteGroupConfirmDialog(step = 1, onDismiss = { showDeleteGroupConfirm1 = null }, onNext = { showDeleteGroupConfirm2 = showDeleteGroupConfirm1; showDeleteGroupConfirm1 = null }, onConfirm = {})
-    }
-    if (showDeleteGroupConfirm2 != null) {
-        DeleteGroupConfirmDialog(step = 2, onDismiss = { showDeleteGroupConfirm2 = null }, onNext = {}, onConfirm = { viewModel.onEvent(GroupsEvent.DeleteGroup(showDeleteGroupConfirm2!!)); showDeleteGroupConfirm2 = null })
-    }
+    
     if (uiState.lastCreatedGroupId != null) {
-        GroupCreatedDialog(groupId = uiState.lastCreatedGroupId!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissCreatedDialog) }, onCopy = { clipboardManager.setText(AnnotatedString(it)) })
+        GroupCreatedSlip(groupId = uiState.lastCreatedGroupId!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissCreatedDialog) }, onCopy = { clipboardManager.setText(AnnotatedString(it)) })
     }
+
+    if (uiState.joinRequestResult != null) {
+        JoinRequestSentSlip(result = uiState.joinRequestResult!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissJoinRequestSentSlip) })
+    }
+}
+
+@Composable
+fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+    )
 }

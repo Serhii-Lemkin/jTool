@@ -31,10 +31,30 @@ class SupportViewModel(
 
     init {
         loadConfig()
+        loadFilters()
         observeAdminStatus()
         observeRequests()
         
         isLoading.onEach { loading -> _uiState.update { it.copy(isLoading = loading) } }.launchIn(viewModelScope)
+    }
+
+    private fun loadFilters() {
+        val types = settings.getSupportTypeFilters().mapNotNull { 
+            try { SupportTypeEnum.valueOf(it) } catch(e:Exception) { null }
+        }.toSet()
+        val statuses = settings.getSupportStatusFilters().mapNotNull { 
+            try { SupportStatusEnum.valueOf(it) } catch(e:Exception) { null }
+        }.toSet()
+        
+        _uiState.update { it.copy(
+            activeTypeFilters = types,
+            activeStatusFilters = if (statuses.isEmpty()) setOf(SupportStatusEnum.OPENED, SupportStatusEnum.IN_PROGRESS) else statuses
+        ) }
+    }
+
+    private fun saveFilters() {
+        settings.saveSupportTypeFilters(_uiState.value.activeTypeFilters.map { it.name }.toSet())
+        settings.saveSupportStatusFilters(_uiState.value.activeStatusFilters.map { it.name }.toSet())
     }
 
     private fun loadConfig() {
@@ -115,8 +135,28 @@ class SupportViewModel(
 
     fun onEvent(event: SupportEvent) {
         when (event) {
-            is SupportEvent.SetFilterType -> _uiState.update { it.copy(filterType = event.type, pagingLimit = 15) }
-            is SupportEvent.ToggleArchived -> _uiState.update { it.copy(showArchived = event.show, pagingLimit = 15) }
+            is SupportEvent.ToggleTypeFilter -> {
+                val current = _uiState.value.activeTypeFilters
+                val next = if (current.contains(event.type)) current - event.type else current + event.type
+                _uiState.update { it.copy(activeTypeFilters = next, pagingLimit = 15) }
+                saveFilters()
+            }
+            is SupportEvent.ToggleStatusFilter -> {
+                val current = _uiState.value.activeStatusFilters
+                val next = if (current.contains(event.status)) current - event.status else current + event.status
+                _uiState.update { it.copy(activeStatusFilters = next, pagingLimit = 15) }
+                saveFilters()
+            }
+            SupportEvent.ClearFilters -> {
+                _uiState.update { it.copy(
+                    activeTypeFilters = emptySet(), 
+                    activeStatusFilters = setOf(SupportStatusEnum.OPENED, SupportStatusEnum.IN_PROGRESS),
+                    pagingLimit = 15 
+                ) }
+                saveFilters()
+            }
+            is SupportEvent.SetFilterType -> { /* Legacy, ignoring */ }
+            is SupportEvent.ToggleArchived -> { /* Legacy, ignoring */ }
             is SupportEvent.ToggleSearch -> _uiState.update { it.copy(isSearchVisible = !it.isSearchVisible, searchQuery = "") }
             is SupportEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query, pagingLimit = 15) }
             SupportEvent.LoadMore -> _uiState.update { it.copy(pagingLimit = it.pagingLimit + 15) }
@@ -137,13 +177,13 @@ class SupportViewModel(
             SupportEvent.Refresh -> performRefresh {
                 _uiState.update { 
                     it.copy(
-                        filterType = null,
+                        requests = emptyList(), // Clear local data on refresh
                         searchQuery = "",
                         isSearchVisible = false,
-                        showArchived = false,
                         pagingLimit = 15
                     )
                 }
+                loadFilters()
                 
                 val isAdmin = _uiState.value.isAdmin
                 val query = if (isAdmin) {
@@ -268,10 +308,8 @@ class SupportViewModel(
                         isSuccess = true, 
                         requestText = "", 
                         currentSubScreen = SupportScreenTypeEnum.HUB,
-                        filterType = null,
                         searchQuery = "",
                         isSearchVisible = false,
-                        showArchived = false,
                         pagingLimit = 15
                     ) }
                 } else {

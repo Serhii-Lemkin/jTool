@@ -17,7 +17,6 @@ object Settings : AppProperties(AppScreenEnum.SETTINGS) {
             onThemeToggle = deps.onThemeToggle,
             currentLang = deps.currentLang,
             onLangToggle = deps.onLangToggle,
-            hasUpdate = deps.hasUpdate,
             startOnUpdates = deps.navigateToUpdates,
             startOnGroups = deps.navigateToGroups,
             onGroupChanged = deps.onGroupChanged,

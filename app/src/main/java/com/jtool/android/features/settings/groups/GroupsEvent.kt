@@ -8,7 +8,8 @@ sealed interface GroupsEvent {
     data class DeleteGroup(val id: String) : GroupsEvent
     data class UpdateGroupName(val id: String, val newName: String) : GroupsEvent
     data class SendInvite(val email: String, val groupId: String) : GroupsEvent
-    object ManualSync : GroupsEvent
     object DismissCreatedDialog : GroupsEvent
+    object DismissMessage : GroupsEvent
+    object DismissJoinRequestSentSlip : GroupsEvent
     object Refresh : GroupsEvent
 }

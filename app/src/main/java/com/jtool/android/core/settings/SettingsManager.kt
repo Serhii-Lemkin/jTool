@@ -3,31 +3,28 @@ package com.jtool.android.core.settings
 import android.content.Context
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.core.models.workday.WorktimeOptions
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import java.time.DayOfWeek
+import java.time.LocalTime
+import java.time.Duration
 
 class SettingsManager(context: Context) {
     private val prefs = context.getSharedPreferences("jtool_settings", Context.MODE_PRIVATE)
+    private val json = Json { ignoreUnknownKeys = true }
 
-    fun saveDayHours(day: DayOfWeek, hours: Double) {
-        prefs.edit().putFloat("hours_${day.name}", hours.toFloat()).apply()
+    fun getWorktimeOptions(): WorktimeOptions {
+        val jsonString = prefs.getString("worktime_options", null) ?: return WorktimeOptions()
+        return try {
+            json.decodeFromString<WorktimeOptions>(jsonString)
+        } catch (_: Exception) {
+            WorktimeOptions()
+        }
     }
 
-    fun getDayHours(day: DayOfWeek): Double {
-        val default = when (day) {
-            DayOfWeek.THURSDAY -> 8.0
-            DayOfWeek.FRIDAY, DayOfWeek.SATURDAY -> 0.0
-            else -> 8.5
-        }
-        val key = "hours_${day.name}"
-        val value = prefs.all[key]
-        return when (value) {
-            is Float -> value.toDouble()
-            is Int -> value.toDouble()
-            is Long -> value.toDouble()
-            is Double -> value.toDouble()
-            is String -> value.toDoubleOrNull() ?: default
-            else -> default
-        }
+    fun saveWorktimeOptions(options: WorktimeOptions) {
+        prefs.edit().putString("worktime_options", json.encodeToString(options)).apply()
     }
 
     fun getAllWeeklyHours(): Map<DayOfWeek, Double> {
@@ -40,38 +37,22 @@ class SettingsManager(context: Context) {
             DayOfWeek.FRIDAY,
             DayOfWeek.SATURDAY
         )
-        return daysInOrder.associateWith { getDayHours(it) }
-    }
-
-    fun saveRememberedStart(time: String, date: String) {
-        prefs.edit()
-            .putString("remembered_time", time)
-            .putString("remembered_date", date)
-            .apply()
-    }
-
-    fun getRememberedStart(currentDate: String): String? {
-        val savedDate = prefs.getString("remembered_date", "")
-        return if (savedDate == currentDate) {
-            prefs.getString("remembered_time", null)
-        } else {
-            null
+        return daysInOrder.associateWith { day ->
+            val default = when (day) {
+                DayOfWeek.THURSDAY -> 8.0
+                DayOfWeek.FRIDAY, DayOfWeek.SATURDAY -> 0.0
+                else -> 8.5
+            }
+            prefs.getFloat("hours_${day.name}", default.toFloat()).toDouble()
         }
-    }
-
-    fun setSyncPending(pending: Boolean) {
-        prefs.edit().putBoolean("sync_pending", pending).apply()
     }
 
     fun isSyncPending(): Boolean {
         return prefs.getBoolean("sync_pending", false)
     }
 
-    fun clearRememberedStart() {
-        prefs.edit()
-            .remove("remembered_time")
-            .remove("remembered_date")
-            .apply()
+    fun setSyncPending(pending: Boolean) {
+        prefs.edit().putBoolean("sync_pending", pending).apply()
     }
 
     fun isDarkMode(): Boolean {
@@ -150,9 +131,9 @@ class SettingsManager(context: Context) {
     }
 
     fun getGroups(): Map<String, GroupInfo> {
-        val json = prefs.getString("remembered_groups", "{}") ?: "{}"
+        val jsonStr = prefs.getString("remembered_groups", "{}") ?: "{}"
         return try {
-            val obj = org.json.JSONObject(json)
+            val obj = org.json.JSONObject(jsonStr)
             val map = mutableMapOf<String, GroupInfo>()
             val keys = obj.keys()
             while (keys.hasNext()) {
@@ -205,5 +186,45 @@ class SettingsManager(context: Context) {
 
     fun setUpdateUrl(url: String?) {
         prefs.edit().putString("update_url", url).apply()
+    }
+
+    fun getSelectedCalendarDate(): String {
+        return prefs.getString("selected_calendar_date", java.time.LocalDate.now().toString()) ?: java.time.LocalDate.now().toString()
+    }
+
+    fun setSelectedCalendarDate(date: String) {
+        prefs.edit().putString("selected_calendar_date", date).commit()
+    }
+
+    fun getSelectedCalendarEventId(): String? {
+        return prefs.getString("selected_calendar_event_id", null)
+    }
+
+    fun setSelectedCalendarEventId(id: String?) {
+        prefs.edit().putString("selected_calendar_event_id", id).commit()
+    }
+
+    fun shouldAutoOpenCalendarAdd(): Boolean {
+        return prefs.getBoolean("auto_open_calendar_add", false)
+    }
+
+    fun setAutoOpenCalendarAdd(open: Boolean) {
+        prefs.edit().putBoolean("auto_open_calendar_add", open).commit()
+    }
+
+    fun getSupportTypeFilters(): Set<String> {
+        return prefs.getStringSet("support_type_filters", emptySet()) ?: emptySet()
+    }
+
+    fun saveSupportTypeFilters(filters: Set<String>) {
+        prefs.edit().putStringSet("support_type_filters", filters).apply()
+    }
+
+    fun getSupportStatusFilters(): Set<String> {
+        return prefs.getStringSet("support_status_filters", setOf("OPENED", "IN_PROGRESS")) ?: setOf("OPENED", "IN_PROGRESS")
+    }
+
+    fun saveSupportStatusFilters(filters: Set<String>) {
+        prefs.edit().putStringSet("support_status_filters", filters).apply()
     }
 }

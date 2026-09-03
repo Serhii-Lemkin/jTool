@@ -81,10 +81,14 @@ class ShoppingViewModel(
             is ShoppingEvent.UpdateNewItemText -> _uiState.update { it.copy(newItemText = event.text) }
             is ShoppingEvent.ToggleAislePicker -> _uiState.update { it.copy(showAislePicker = event.show) }
             is ShoppingEvent.SelectAisle -> selectAisle(event.aisle)
-            is ShoppingEvent.UpdateFilter -> _uiState.update { it.copy(filterType = event.filter, dropdownExpanded = false) }
+            is ShoppingEvent.UpdateFilter -> _uiState.update { it.copy(filterType = event.filter, activeAisleFilters = emptySet(), dropdownExpanded = false) }
+            is ShoppingEvent.ToggleAisleFilter -> toggleAisleFilter(event.aisle)
+            ShoppingEvent.ClearAisleFilters -> _uiState.update { it.copy(activeAisleFilters = emptySet(), filterType = "All") }
             is ShoppingEvent.ToggleFilterDropdown -> _uiState.update { it.copy(dropdownExpanded = event.expanded) }
             is ShoppingEvent.RequestDelete -> _uiState.update { it.copy(itemToDelete = event.item) }
             ShoppingEvent.ConfirmDelete -> confirmDelete()
+            is ShoppingEvent.RequestRename -> _uiState.update { it.copy(itemToRename = event.item) }
+            is ShoppingEvent.ConfirmRename -> confirmRename(event.newName)
             ShoppingEvent.AddItem -> addItem()
             is ShoppingEvent.ToggleItem -> toggleItem(event.item, event.isChecked)
             is ShoppingEvent.RestoreItem -> restoreItem(event.text)
@@ -121,12 +125,29 @@ class ShoppingViewModel(
         }
     }
 
+    private fun toggleAisleFilter(aisle: ShoppingAisleEnum) {
+        val current = _uiState.value.activeAisleFilters
+        val next = if (current.contains(aisle)) current - aisle else current + aisle
+        _uiState.update { it.copy(activeAisleFilters = next, filterType = "Filtered") }
+    }
+
     private fun confirmDelete() {
         val item = _uiState.value.itemToDelete ?: return
         val gid = settingsManager.getCurrentGroupId() ?: return
         viewModelScope.launch {
             getShoppingColl(gid).document(item.id).delete().await()
             _uiState.update { it.copy(itemToDelete = null) }
+        }
+    }
+
+    private fun confirmRename(newName: String) {
+        val item = _uiState.value.itemToRename ?: return
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        if (newName.isNotBlank()) {
+            viewModelScope.launch {
+                getShoppingColl(gid).document(item.id).update(ShoppingItem::text.name, newName).await()
+                _uiState.update { it.copy(itemToRename = null) }
+            }
         }
     }
 

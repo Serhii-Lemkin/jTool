@@ -22,6 +22,7 @@ import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.crash.CrashInterceptor
 import com.jtool.android.core.connectivity.ConnectivityObserver
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.models.common.AppNotification
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.SyncStatusOverlay
@@ -106,6 +107,46 @@ class MainActivity : ComponentActivity() {
             var currentLang by remember { mutableStateOf(settingsManager.getLanguage()) }
             var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
             var groups by remember { mutableStateOf(settingsManager.getGroups()) }
+            
+            var allNotifications by remember { mutableStateOf<List<AppNotification>>(emptyList()) }
+            var showNotificationsSlip by remember { mutableStateOf(false) }
+
+            val invites by remember(currentUserState) {
+                dataManager.invitesFlow()
+            }.collectAsState(initial = emptyList())
+
+            val joinRequests by remember(currentGroupId) {
+                if (currentGroupId != null) dataManager.joinRequestsFlow(currentGroupId!!)
+                else kotlinx.coroutines.flow.flowOf(emptyList())
+            }.collectAsState(initial = emptyList())
+
+            val personalNotifications by remember(currentUserState) {
+                if (currentUserState != null) dataManager.personalNotificationsFlow()
+                else kotlinx.coroutines.flow.flowOf(emptyList())
+            }.collectAsState(initial = emptyList())
+
+            val groupNotifications by remember(currentGroupId) {
+                if (currentGroupId != null) dataManager.groupNotificationsFlow(currentGroupId!!)
+                else kotlinx.coroutines.flow.flowOf(emptyList())
+            }.collectAsState(initial = emptyList())
+
+            LaunchedEffect(invites, joinRequests, personalNotifications, groupNotifications) {
+                val list = mutableListOf<AppNotification>()
+                invites.forEach { list.add(AppNotification.GroupInvite(it)) }
+                val uid = auth.currentUser?.uid
+                joinRequests.filter { it.userId != uid }.forEach { list.add(AppNotification.GroupJoinRequest(it)) }
+                personalNotifications.forEach { list.add(AppNotification.SystemResult(it)) }
+                groupNotifications.forEach { list.add(AppNotification.SystemResult(it)) }
+                allNotifications = list.sortedByDescending { it.timestamp }
+            }
+
+            var lastNotifCount by remember { mutableStateOf(0) }
+            LaunchedEffect(allNotifications.size) {
+                if (allNotifications.size > lastNotifCount) {
+                    showNotificationsSlip = true
+                }
+                lastNotifCount = allNotifications.size
+            }
 
             JToolTheme(darkTheme = isDark) {
                 CompositionLocalProvider(LocalLayoutDirection provides Loc.layoutDirection) {
@@ -140,11 +181,39 @@ class MainActivity : ComponentActivity() {
                                     currentLang = settingsManager.getLanguage()
                                     Loc.load(this@MainActivity, currentLang)
                                 },
+                                notificationCount = allNotifications.size,
+                                onNotificationsClick = { showNotificationsSlip = true },
                                 groups = groups,
                                 onGroupsUpdated = { groups = it }
                             )
                             
                             SyncStatusOverlay()
+
+                            if (showNotificationsSlip) {
+                                com.jtool.android.ui.components.notifications_slip.NotificationsSlip(
+                                    notifications = allNotifications,
+                                    onAcceptInvite = { 
+                                        lifecycleScope.launch { 
+                                            dataManager.respondToInvite(it.invite.inviteId, it.invite.groupId, true) 
+                                        }
+                                    },
+                                    onDeclineInvite = {
+                                        lifecycleScope.launch { 
+                                            dataManager.respondToInvite(it.invite.inviteId, it.invite.groupId, false) 
+                                        }
+                                    },
+                                    onAcceptJoinRequest = { 
+                                        lifecycleScope.launch { dataManager.acceptJoinRequest(it.request) } 
+                                    },
+                                    onDeclineJoinRequest = { 
+                                        lifecycleScope.launch { dataManager.declineJoinRequest(it.request) } 
+                                    },
+                                    onDismissSystemNotification = {
+                                        lifecycleScope.launch { dataManager.markNotificationAsRead(it.notification) }
+                                    },
+                                    onDismiss = { showNotificationsSlip = false }
+                                )
+                            }
                         }
                     }
                 }

@@ -9,8 +9,10 @@ data class ShoppingUiState(
     val selectedAisle: ShoppingAisleEnum = ShoppingAisleEnum.COMMON,
     val showAislePicker: Boolean = false,
     val filterType: String = "All",
+    val activeAisleFilters: Set<ShoppingAisleEnum> = emptySet(),
     val dropdownExpanded: Boolean = false,
     val itemToDelete: ShoppingItem? = null,
+    val itemToRename: ShoppingItem? = null,
     val remoteSuggestions: List<String> = emptyList(),
     val userNames: Map<String, String> = emptyMap(),
     val selectedItem: ShoppingItem? = null,
@@ -23,9 +25,8 @@ data class ShoppingUiState(
     val displayItems: List<ShoppingItem>
         get() = when {
             filterType == "Unactive" -> items.filter { it.isChecked }.sortedByDescending { it.timestamp }
-            filterType.startsWith("Aisle:") -> {
-                val aisleName = filterType.removePrefix("Aisle:")
-                items.filter { !it.isChecked && it.aisle.name == aisleName }.sortedByDescending { it.id }
+            activeAisleFilters.isNotEmpty() -> {
+                items.filter { !it.isChecked && activeAisleFilters.contains(it.aisle) }.sortedByDescending { it.id }
             }
             else -> items.filter { !it.isChecked }.sortedByDescending { it.id }
         }

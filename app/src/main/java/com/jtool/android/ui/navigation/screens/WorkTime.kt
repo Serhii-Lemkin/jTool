@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.features.workday.WorkdayCalculatorScreen
+import com.jtool.android.features.workday.tracker.WorkdayTrackerScreen
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 object WorkTime : AppProperties(
@@ -14,10 +14,11 @@ object WorkTime : AppProperties(
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
-        WorkdayCalculatorScreen(
+        WorkdayTrackerScreen(
             settingsManager = deps.settingsManager,
             dataManager = deps.dataManager,
-            onBack = { deps.setScreen(AppScreenEnum.LAUNCHER) }
+            onBack = { deps.onBack() },
+            onNavigate = { deps.setScreen(it) }
         )
     }
 }

@@ -47,7 +47,6 @@ fun SettingsScreen(
     onThemeToggle: () -> Unit,
     currentLang: String,
     onLangToggle: () -> Unit,
-    hasUpdate: Boolean = false,
     startOnUpdates: Boolean = false,
     startOnGroups: Boolean = false,
     startOnAccount: Boolean = false,
@@ -100,8 +99,7 @@ fun SettingsScreen(
                 AppScreenEnum.SETTINGS -> SettingsMainScreen(
                     authManager = authManager,
                     settingsManager = settingsManager,
-                    onNavigate = { viewModel.onEvent(SettingsEvent.Navigate(it)) },
-                    hasUpdate = hasUpdate
+                    onNavigate = { viewModel.onEvent(SettingsEvent.Navigate(it)) }
                 )
                 AppScreenEnum.SETTINGS_ACCOUNT -> AccountScreen(
                     authManager = authManager,
@@ -149,23 +147,14 @@ fun SettingsMenuItem(
     title: String, 
     subtitle: String, 
     icon: androidx.compose.ui.graphics.vector.ImageVector, 
-    onClick: () -> Unit,
-    hasBadge: Boolean = false
+    onClick: () -> Unit
 ) {
     ActionListItem(
         onClick = onClick,
         headline = title,
         supportingText = subtitle,
         leadingContent = {
-            BadgedBox(
-                badge = {
-                    if (hasBadge) {
-                        Badge(containerColor = MaterialTheme.colorScheme.error)
-                    }
-                }
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            }
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         },
         trailingContent = {
             val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl

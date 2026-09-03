@@ -22,11 +22,9 @@ class SettingsMainViewModel(
 
     private fun loadData() {
         val user = authManager.getCurrentUser()
-        val currentGroupId = settingsManager.getCurrentGroupId()
         _uiState.update { it.copy(
             currentUser = user,
-            userEmail = user?.email,
-            isSyncMissing = user == null || currentGroupId == null
+            userEmail = user?.email
         ) }
     }
 }

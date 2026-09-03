@@ -35,7 +35,8 @@ data class NavigationDependencies(
     val navigateToUpdates: Boolean,
     val navigateToGroups: Boolean,
     val setNavigateToGroups: (Boolean) -> Unit,
-    val hasUpdate: Boolean,
     val isAdmin: Boolean,
+    val notificationCount: Int,
+    val onNotificationsClick: () -> Unit,
     val onBack: () -> Unit
 )

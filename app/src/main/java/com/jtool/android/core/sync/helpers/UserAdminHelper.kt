@@ -8,7 +8,6 @@ import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.models.user.User
 import com.jtool.android.core.models.user.UserData
 import com.jtool.android.core.settings.SettingsManager
-import java.time.DayOfWeek
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -41,13 +40,12 @@ class UserAdminHelper(
             )
             userDoc.set(coreData, SetOptions.merge()).await()
             
-            val hoursMap = settings.getAllWeeklyHours().mapKeys { it.key.name }
             val statsData = mapOf(
                 UserData::appUserId.name to appUserId,
                 UserData::currentGroupId.name to settings.getCurrentGroupId(),
                 UserData::isDarkMode.name to settings.isDarkMode(),
                 UserData::language.name to settings.getLanguage(),
-                UserData::hours.name to hoursMap
+                UserData::worktimeOptions.name to settings.getWorktimeOptions()
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
@@ -100,13 +98,7 @@ class UserAdminHelper(
             if (stats.appUserId.isNotEmpty()) settings.saveAppUserId(stats.appUserId)
             settings.setDarkMode(stats.isDarkMode)
             settings.setLanguage(stats.language)
-            
-            stats.hours.forEach { (dayName, hours) ->
-                try {
-                    val day = DayOfWeek.valueOf(dayName)
-                    settings.saveDayHours(day, hours)
-                } catch (_: Exception) {}
-            }
+            settings.saveWorktimeOptions(stats.worktimeOptions)
             
             true
         } catch (e: Exception) {
@@ -145,6 +137,23 @@ class UserAdminHelper(
         getUsersColl().document(uid).set(mapOf(User::isAdmin.name to isAdmin), SetOptions.merge()).await()
     }
 
+    suspend fun clearWorkdayData(uid: String) {
+        getUserDataColl().document(uid).update(UserData::worktimeOptions.name, com.google.firebase.firestore.FieldValue.delete()).await()
+    }
+
+    suspend fun cleanupLegacyWorkHours() {
+        try {
+            val snapshots = getUserDataColl().get().await()
+            firestore.runBatch { batch ->
+                snapshots.documents.forEach { doc ->
+                    batch.update(doc.reference, "hours", com.google.firebase.firestore.FieldValue.delete())
+                }
+            }.await()
+        } catch (e: Exception) {
+            android.util.Log.e("UserAdmin", "Cleanup failed", e)
+        }
+    }
+
     fun allGroupsFlow(): Flow<List<GroupInfo>> = callbackFlow {
         val listener = getGroupsColl().addSnapshotListener { snapshot, _ ->
             if (snapshot != null) {
@@ -173,6 +182,7 @@ class UserAdminHelper(
                 getUsersColl().document(uid).update(User::groupIds.name, arrayRemove).await()
             }
             
+            // Delete all member documents
             members.documents.forEach { it.reference.delete().await() }
             
             groupDoc.delete().await()
@@ -192,6 +202,7 @@ class UserAdminHelper(
             val userSnap = userDoc.get().await()
             val user = userSnap.toObject(User::class.java)
             val groupIds = user?.groupIds ?: emptyList()
+            
             groupIds.forEach { gid ->
                 getGroupsColl().document(gid).collection("members").document(uid).delete().await()
             }
@@ -217,6 +228,7 @@ class UserAdminHelper(
             val appUserId = settings.getAppUserId()
             getPublicProfilesColl().document(appUserId).delete().await()
             getPublicProfilesColl().document(uid).delete().await()
+            getUserDataColl().document(uid).delete().await() // Delete user_data
             getUsersColl().document(uid).delete().await()
             user.delete().await()
             settings.setCurrentGroupId(null)

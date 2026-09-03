@@ -8,9 +8,13 @@ sealed interface ShoppingEvent {
     data class ToggleAislePicker(val show: Boolean) : ShoppingEvent
     data class SelectAisle(val aisle: ShoppingAisleEnum) : ShoppingEvent
     data class UpdateFilter(val filter: String) : ShoppingEvent
+    data class ToggleAisleFilter(val aisle: ShoppingAisleEnum) : ShoppingEvent
+    object ClearAisleFilters : ShoppingEvent
     data class ToggleFilterDropdown(val expanded: Boolean) : ShoppingEvent
     data class RequestDelete(val item: ShoppingItem?) : ShoppingEvent
     object ConfirmDelete : ShoppingEvent
+    data class RequestRename(val item: ShoppingItem?) : ShoppingEvent
+    data class ConfirmRename(val newName: String) : ShoppingEvent
     object AddItem : ShoppingEvent
     data class ToggleItem(val item: ShoppingItem, val isChecked: Boolean) : ShoppingEvent
     data class RestoreItem(val text: String) : ShoppingEvent

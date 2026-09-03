@@ -6,6 +6,9 @@ import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 
 sealed interface SupportEvent {
+    data class ToggleTypeFilter(val type: SupportTypeEnum) : SupportEvent
+    data class ToggleStatusFilter(val status: SupportStatusEnum) : SupportEvent
+    object ClearFilters : SupportEvent
     data class SetFilterType(val type: SupportTypeEnum?) : SupportEvent
     data class ToggleArchived(val show: Boolean) : SupportEvent
     data class UpdateRequestText(val text: String) : SupportEvent

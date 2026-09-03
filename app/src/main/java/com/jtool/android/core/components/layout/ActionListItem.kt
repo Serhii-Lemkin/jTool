@@ -29,7 +29,8 @@ fun ActionListItem(
     isStrikethrough: Boolean = false,
     headlineColor: Color = MaterialTheme.colorScheme.onSurface,
     supportingColor: Color = MaterialTheme.colorScheme.secondary,
-    metadataColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    metadataColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+    supportingMaxLines: Int = 1
 ) {
     val alpha = if (isPending) 0.5f else 1.0f
     
@@ -59,7 +60,7 @@ fun ActionListItem(
                             text = supportingText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = supportingColor.copy(alpha = alpha),
-                            maxLines = 1,
+                            maxLines = supportingMaxLines,
                             overflow = TextOverflow.Ellipsis
                         )
                     }

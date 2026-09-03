@@ -17,7 +17,6 @@ object SettingsAccount : AppProperties(AppScreenEnum.SETTINGS_ACCOUNT) {
             onThemeToggle = deps.onThemeToggle,
             currentLang = deps.currentLang,
             onLangToggle = deps.onLangToggle,
-            hasUpdate = deps.hasUpdate,
             startOnUpdates = false,
             startOnGroups = false,
             startOnAccount = true,

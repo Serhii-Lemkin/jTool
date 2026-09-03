@@ -79,24 +79,16 @@ class AdminViewModel(
                     _uiState.update { it.copy(showGroupDeleteConfirm2 = null) }
                 }
             }
-            AdminEvent.Refresh -> {
-                _uiState.update { it.copy(isMigrating = true) }
+            AdminEvent.CleanupLegacyWorkHours -> {
                 viewModelScope.launch {
-                    kotlinx.coroutines.delay(500)
-                    _uiState.update { it.copy(isMigrating = false) }
+                    dataManager.cleanupLegacyWorkHours()
                 }
             }
-            AdminEvent.StartDataMigration -> {
+            AdminEvent.Refresh -> {
+                _uiState.update { it.copy(isLoading = true) }
                 viewModelScope.launch {
-                    _uiState.update { it.copy(isMigrating = true, migrationStatus = "Starting ID Migration...", migrationResult = null) }
-                    val result = dataManager.migrateDataIds { status ->
-                        _uiState.update { it.copy(migrationStatus = status) }
-                    }
-                    _uiState.update { it.copy(
-                        isMigrating = false,
-                        migrationStatus = "Migration Finished!",
-                        migrationResult = result
-                    ) }
+                    kotlinx.coroutines.delay(500)
+                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }

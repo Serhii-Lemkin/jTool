@@ -26,6 +26,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.UnifiedFAB
+import com.jtool.android.features.notes.components.new_note_slip.NewNoteSlip
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -33,100 +34,91 @@ import java.util.*
 @Composable
 fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () -> Unit) {
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
+    var showNewNoteSlip by remember { mutableStateOf(false) }
+
     LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                GenericTitle(
-                    title = Loc.notes_notes,
-                    onBack = onBack,
-                    isLoading = uiState.isLoading || uiState.isRefreshing,
-                    onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
-                    isSearchVisible = uiState.isSearchVisible,
-                    searchQuery = draftSearchQuery,
-                    onSearchQueryChange = { draftSearchQuery = it },
-                    onSearchClose = {
-                        viewModel.onEvent(NotesEvent.UpdateSearchQuery(""))
-                        viewModel.onEvent(NotesEvent.ToggleSearch)
-                    },
-                    onSearchTriggered = {
-                        viewModel.onEvent(NotesEvent.UpdateSearchQuery(draftSearchQuery))
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleSearch) }) {
-                            Icon(Icons.Default.Search, null)
-                        }
-                        
-                        var filterExpanded by remember { mutableStateOf(false) }
-                        Box {
-                            IconButton(onClick = { filterExpanded = true }) {
-                                Icon(Icons.Default.FilterList, null)
-                            }
-                            DropdownMenu(expanded = filterExpanded, onDismissRequest = { filterExpanded = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(Loc.shoplist_all) },
-                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(null)); filterExpanded = false },
-                                    trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(Loc.notes_textNote) },
-                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.TEXT)); filterExpanded = false },
-                                    trailingIcon = { if (uiState.filterType == NoteTypeEnum.TEXT) Icon(Icons.Default.Check, null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(Loc.notes_checklistNote) },
-                                    onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.CHECKLIST)); filterExpanded = false },
-                                    trailingIcon = { if (uiState.filterType == NoteTypeEnum.CHECKLIST) Icon(Icons.Default.Check, null) }
-                                )
-                            }
-                        }
-                    }
-                )
-            }
-        ) { padding ->
-            PullToRefreshBox(
-                isRefreshing = uiState.isRefreshing,
-                onRefresh = { viewModel.onEvent(com.jtool.android.features.notes.NotesEvent.Refresh) },
-                modifier = Modifier.padding(padding).fillMaxSize()
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    items(uiState.filteredNotes, key = { it.id }) { note ->
-                        NoteListItem(note, uiState.userNames, viewModel)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+    if (showNewNoteSlip) {
+        NewNoteSlip(
+            onDismiss = { showNewNoteSlip = false },
+            onTypeSelected = { viewModel.onEvent(NotesEvent.StartNewNote(it)) }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            GenericTitle(
+                title = Loc.notes_notes,
+                onBack = onBack,
+                isLoading = uiState.isLoading || uiState.isRefreshing,
+                onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
+                isSearchVisible = uiState.isSearchVisible,
+                searchQuery = draftSearchQuery,
+                onSearchQueryChange = { draftSearchQuery = it },
+                onSearchClose = {
+                    viewModel.onEvent(NotesEvent.UpdateSearchQuery(""))
+                    viewModel.onEvent(NotesEvent.ToggleSearch)
+                },
+                onSearchTriggered = {
+                    viewModel.onEvent(NotesEvent.UpdateSearchQuery(draftSearchQuery))
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleSearch) }) {
+                        Icon(Icons.Default.Search, null)
                     }
                     
-                    item {
-                        Spacer(Modifier.height(100.dp))
+                    var filterExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { filterExpanded = true }) {
+                            Icon(Icons.Default.FilterList, null)
+                        }
+                        DropdownMenu(expanded = filterExpanded, onDismissRequest = { filterExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text(Loc.shoplist_all) },
+                                onClick = { viewModel.onEvent(NotesEvent.SetFilterType(null)); filterExpanded = false },
+                                trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(Loc.notes_textNote) },
+                                onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.TEXT)); filterExpanded = false },
+                                trailingIcon = { if (uiState.filterType == NoteTypeEnum.TEXT) Icon(Icons.Default.Check, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(Loc.notes_checklistNote) },
+                                onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.CHECKLIST)); filterExpanded = false },
+                                trailingIcon = { if (uiState.filterType == NoteTypeEnum.CHECKLIST) Icon(Icons.Default.Check, null) }
+                            )
+                        }
                     }
+                }
+            )
+        },
+        floatingActionButton = {
+            UnifiedFAB(
+                onClick = { showNewNoteSlip = true },
+                contentDescription = Loc.general_add
+            )
+        }
+    ) { padding ->
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.onEvent(com.jtool.android.features.notes.NotesEvent.Refresh) },
+            modifier = Modifier.padding(padding).fillMaxSize()
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                items(uiState.filteredNotes, key = { it.id }) { note ->
+                    NoteListItem(note, uiState.userNames, viewModel)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                }
+                
+                item {
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }
-
-        UnifiedFAB(
-            onClick = {},
-            dropdownContent = { onDismiss ->
-                DropdownMenuItem(
-                    text = { Text(Loc.notes_textNote) },
-                    onClick = { 
-                        onDismiss()
-                        viewModel.onEvent(NotesEvent.StartNewNote(NoteTypeEnum.TEXT)) 
-                    },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Notes, null) }
-                )
-                DropdownMenuItem(
-                    text = { Text(Loc.notes_checklistNote) },
-                    onClick = { 
-                        onDismiss()
-                        viewModel.onEvent(NotesEvent.StartNewNote(NoteTypeEnum.CHECKLIST)) 
-                    },
-                    leadingIcon = { Icon(Icons.Default.Checklist, null) }
-                )
-            }
-        )
     }
 }
 

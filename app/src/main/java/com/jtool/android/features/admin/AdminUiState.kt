@@ -15,9 +15,6 @@ data class AdminUiState(
     val showUserDeleteConfirm2: String? = null,
     val showGroupDeleteConfirm1: String? = null,
     val showGroupDeleteConfirm2: String? = null,
-    val migrationStatus: String? = null,
-    val migrationResult: com.jtool.android.core.sync.helpers.MigrationResult? = null,
-    val isMigrating: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
 )

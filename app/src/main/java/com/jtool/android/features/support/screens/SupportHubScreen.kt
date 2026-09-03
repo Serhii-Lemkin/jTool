@@ -25,6 +25,7 @@ import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.features.support.components.*
+import com.jtool.android.features.support.components.support_filter_slip.SupportFilterSlip
 import com.jtool.android.features.support.logic.*
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleDropdownMenu
@@ -55,6 +56,7 @@ fun SupportHubScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var showFilterSlip by remember { mutableStateOf(false) }
     
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
@@ -72,16 +74,21 @@ fun SupportHubScreen(
 
     val globalUserNames by dataManager.userNamesFlow().collectAsState(initial = emptyMap())
 
-    val filteredRequests = remember(uiState.requests, uiState.filterType, uiState.showArchived, uiState.searchQuery) {
+    if (showFilterSlip) {
+        SupportFilterSlip(
+            activeTypes = uiState.activeTypeFilters,
+            activeStatuses = uiState.activeStatusFilters,
+            onToggleType = { viewModel.onEvent(SupportEvent.ToggleTypeFilter(it)) },
+            onToggleStatus = { viewModel.onEvent(SupportEvent.ToggleStatusFilter(it)) },
+            onClearAll = { viewModel.onEvent(SupportEvent.ClearFilters) },
+            onDismiss = { showFilterSlip = false }
+        )
+    }
+
+    val filteredRequests = remember(uiState.requests, uiState.activeTypeFilters, uiState.activeStatusFilters, uiState.searchQuery) {
         uiState.requests
-            .filter { if (uiState.filterType == null) true else it.type == uiState.filterType }
-            .filter { 
-                if (uiState.showArchived) {
-                    it.status == SupportStatusEnum.CLOSED || it.status == SupportStatusEnum.CUT
-                } else {
-                    it.status == SupportStatusEnum.OPENED || it.status == SupportStatusEnum.IN_PROGRESS
-                }
-            }
+            .filter { if (uiState.activeTypeFilters.isEmpty()) true else uiState.activeTypeFilters.contains(it.type) }
+            .filter { uiState.activeStatusFilters.contains(it.status) }
             .filter {
                 if (uiState.searchQuery.isBlank()) true
                 else {
@@ -142,40 +149,7 @@ fun SupportHubScreen(
                     if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
                         TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
                         
-                        val filterIcon = uiState.filterType?.let { SupportTypeEnumIcons[it] } ?: Icons.Default.FilterList
-                        TitleDropdownMenu(icon = filterIcon) {
-                            DropdownMenuItem(
-                                text = { Text(if (uiState.showArchived) "Show Active" else Loc.support_show_archived) },
-                                onClick = { 
-                                    viewModel.onEvent(SupportEvent.ToggleArchived(!uiState.showArchived))
-                                },
-                                leadingIcon = { Icon(Icons.Default.Archive, null) },
-                                trailingIcon = { if (uiState.showArchived) Icon(Icons.Default.Check, null) }
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                leadingIcon = { Icon(Icons.Default.FilterList, null) },
-                                text = { Text("All Types") },
-                                onClick = { viewModel.onEvent(SupportEvent.SetFilterType(null)) },
-                                trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
-                            )
-                            SupportTypeEnum.entries.forEach { type ->
-                                DropdownMenuItem(
-                                    leadingIcon = { Icon(SupportTypeEnumIcons[type] ?: Icons.Default.Circle, null) },
-                                    text = { 
-                                        val name = when(type) {
-                                            SupportTypeEnum.BUG -> Loc.support_type_bug
-                                            SupportTypeEnum.FEATURE -> Loc.support_type_feature
-                                            SupportTypeEnum.CHANGE -> Loc.support_type_change
-                                            SupportTypeEnum.CRASH -> Loc.support_type_crash
-                                        }
-                                        Text(name)
-                                    },
-                                    onClick = { viewModel.onEvent(SupportEvent.SetFilterType(type)) },
-                                    trailingIcon = { if (uiState.filterType == type) Icon(Icons.Default.Check, null) }
-                                )
-                            }
-                        }
+                        TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSlip = true })
                     }
                 }
             )
@@ -300,8 +274,8 @@ fun SupportHubScreen(
                         text = uiState.requestText,
                         onTextChange = { viewModel.onEvent(SupportEvent.UpdateRequestText(it)) },
                         isSending = uiState.isSending,
-                        selectedType = uiState.filterType ?: SupportTypeEnum.BUG,
-                        onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.filterType ?: SupportTypeEnum.BUG, context)) }
+                        selectedType = uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG,
+                        onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG, context)) }
                     )
                 }
                 }

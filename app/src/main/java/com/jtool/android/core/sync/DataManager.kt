@@ -9,7 +9,6 @@ import com.jtool.android.core.sync.helpers.GroupOperationsHelper
 import com.jtool.android.core.sync.helpers.SupportDatabaseHelper
 import com.jtool.android.core.sync.helpers.UserAdminHelper
 import com.jtool.android.core.sync.helpers.SystemDatabaseHelper
-import com.jtool.android.core.sync.helpers.MigrationHelper
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
@@ -26,9 +25,19 @@ class DataManager(private val context: Context) {
     private val groupOpsHelper: GroupOperationsHelper = GroupOperationsHelper(context, firestore, auth, settings) { userAdminHelper }
     private val supportHelper: SupportDatabaseHelper = SupportDatabaseHelper(firestore)
     private val systemHelper: SystemDatabaseHelper = SystemDatabaseHelper(firestore)
-    private val migrationHelper: MigrationHelper = MigrationHelper(firestore)
+    private val workdayHelper: com.jtool.android.core.sync.helpers.WorkdayDatabaseHelper = com.jtool.android.core.sync.helpers.WorkdayDatabaseHelper(firestore)
+    private val calendarHelper: com.jtool.android.core.sync.helpers.CalendarDatabaseHelper = com.jtool.android.core.sync.helpers.CalendarDatabaseHelper(firestore)
 
     private fun getSuggestionsColl() = firestore.collection("suggestions")
+
+    fun getPrivateCalendarEventsFlow(userId: String, fromDate: String, toDate: String) = calendarHelper.getPrivateEventsFlow(userId, fromDate, toDate)
+    fun getSharedCalendarEventsFlow(groupId: String, fromDate: String, toDate: String) = calendarHelper.getSharedEventsFlow(groupId, fromDate, toDate)
+    suspend fun addPrivateCalendarEvent(userId: String, event: com.jtool.android.core.models.calendar.CalendarEvent) = calendarHelper.addPrivateEvent(userId, event)
+    suspend fun addSharedCalendarEvent(groupId: String, event: com.jtool.android.core.models.calendar.CalendarEvent) = calendarHelper.addSharedEvent(groupId, event)
+    suspend fun deletePrivateCalendarEvent(userId: String, eventId: String) = calendarHelper.deletePrivateEvent(userId, eventId)
+    suspend fun deleteSharedCalendarEvent(groupId: String, eventId: String) = calendarHelper.deleteSharedEvent(groupId, eventId)
+    suspend fun clearPrivateCalendarShifts(userId: String, fromDate: String, toDate: String) = calendarHelper.clearPrivateShiftsInRange(userId, fromDate, toDate)
+    suspend fun replacePrivateCalendarShifts(userId: String, fromDate: String, toDate: String, newShifts: List<com.jtool.android.core.models.calendar.CalendarEvent>) = calendarHelper.replacePrivateShiftsInRange(userId, fromDate, toDate, newShifts)
 
     fun getSupportColl() = firestore.collection("support_requests")
     suspend fun getAppOptions() = supportHelper.getAppOptions()
@@ -57,7 +66,7 @@ class DataManager(private val context: Context) {
     suspend fun getUserGroups(): List<String> = groupOpsHelper.getUserGroups()
     suspend fun createGroup(groupName: String): String? = groupOpsHelper.createGroup(groupName)
     suspend fun updateGroupName(groupId: String, newName: String): Boolean = groupOpsHelper.updateGroupName(groupId, newName)
-    suspend fun joinGroup(groupId: String): Boolean = groupOpsHelper.joinGroup(groupId)
+    suspend fun joinGroup(groupId: String, isInviteAcceptance: Boolean = false): com.jtool.android.core.models.group.enums.JoinGroupResultEnum = groupOpsHelper.joinGroup(groupId, isInviteAcceptance)
     suspend fun leaveGroup(groupId: String) = groupOpsHelper.leaveGroup(groupId)
     suspend fun switchGroup(groupId: String) = groupOpsHelper.switchGroup(groupId)
     fun clearLocalCache() = groupOpsHelper.clearLocalCache()
@@ -72,6 +81,8 @@ class DataManager(private val context: Context) {
     fun isAdminFlow(): Flow<Boolean> = userAdminHelper.isAdminFlow()
     fun allUsersFlow(): Flow<List<com.jtool.android.core.models.user.User>> = userAdminHelper.allUsersFlow()
     suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) = userAdminHelper.setUserAdminStatus(uid, isAdmin)
+    suspend fun clearWorkdayOptions(uid: String) = userAdminHelper.clearWorkdayData(uid)
+    suspend fun cleanupLegacyWorkHours() = userAdminHelper.cleanupLegacyWorkHours()
     fun allGroupsFlow(): Flow<List<com.jtool.android.core.models.group.GroupInfo>> = userAdminHelper.allGroupsFlow()
     suspend fun deleteGroupPermanently(groupId: String) = userAdminHelper.deleteGroupPermanently(groupId)
     suspend fun deleteUserPermanently(uid: String) = userAdminHelper.deleteUserPermanently(uid)
@@ -80,5 +91,10 @@ class DataManager(private val context: Context) {
     fun groupMembersFlow(groupId: String): Flow<List<String>> = groupOpsHelper.groupMembersFlow(groupId)
     fun userGroupsFlow(): Flow<List<String>> = groupOpsHelper.userGroupsFlow()
     fun groupInfoFlow(groupIds: List<String>): Flow<Map<String, GroupInfo>> = groupOpsHelper.groupInfoFlow(groupIds)
-    suspend fun migrateDataIds(onProgress: (String) -> Unit): com.jtool.android.core.sync.helpers.MigrationResult = migrationHelper.migrateDataIds(onProgress)
+    fun joinRequestsFlow(groupId: String): Flow<List<com.jtool.android.core.models.group.JoinRequest>> = groupOpsHelper.joinRequestsFlow(groupId)
+    suspend fun acceptJoinRequest(request: com.jtool.android.core.models.group.JoinRequest) = groupOpsHelper.acceptJoinRequest(request)
+    suspend fun declineJoinRequest(request: com.jtool.android.core.models.group.JoinRequest) = groupOpsHelper.declineJoinRequest(request)
+    fun personalNotificationsFlow() = groupOpsHelper.personalNotificationsFlow()
+    fun groupNotificationsFlow(groupId: String) = groupOpsHelper.groupNotificationsFlow(groupId)
+    suspend fun markNotificationAsRead(notification: com.jtool.android.core.models.common.UserNotification) = groupOpsHelper.markNotificationAsRead(notification)
 }

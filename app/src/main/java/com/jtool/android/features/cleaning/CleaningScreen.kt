@@ -27,6 +27,8 @@ import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
+import com.jtool.android.features.cleaning.components.cleaning_task_delete_confirm_slip.CleaningTaskDeleteConfirmSlip
+import com.jtool.android.features.cleaning.components.cleaning_task_edit_slip.CleaningTaskEditSlip
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -60,71 +62,70 @@ fun CleaningScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                GenericTitle(
-                    title = if (uiState.showDisabledView) Loc.cleaning_showDisabled else Loc.cleaning_cleaning,
-                    onBack = onBack,
-                    isLoading = uiState.isLoading,
-                    onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
-                    actions = {
-                        TitleActionIcon(
-                            icon = if (uiState.showDisabledView) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            onClick = { viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView)) },
-                            tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                        )
-                    }
-                )
-            }
-        ) { padding ->
-            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-                isRefreshing = uiState.isLoading,
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            GenericTitle(
+                title = if (uiState.showDisabledView) Loc.cleaning_showDisabled else Loc.cleaning_cleaning,
+                onBack = onBack,
+                isLoading = uiState.isLoading,
                 onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
-                modifier = Modifier.padding(padding).fillMaxSize()
+                actions = {
+                    TitleActionIcon(
+                        icon = if (uiState.showDisabledView) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        onClick = { viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView)) },
+                        tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                    )
+                }
+            )
+        },
+        floatingActionButton = {
+            UnifiedFAB(
+                onClick = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(true)) },
+                contentDescription = Loc.cleaning_addTask
+            )
+        }
+    ) { padding ->
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
+            modifier = Modifier.padding(padding).fillMaxSize()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .imePadding(),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
-                        .imePadding(),
-                    verticalArrangement = Arrangement.Top,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
-                        items(uiState.displayTasks, key = { it.id }) { task ->
-                            Box(Modifier.animateItem()) {
-                                CleaningTaskRow(
-                                    task = task,
-                                    onToggle = { checked ->
-                                        viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
-                                    },
-                                    onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
-                                    onDisable = { isEnabled ->
-                                        viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
-                                    },
-                                    onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
-                                    userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
-                                )
-                            }
+                    items(uiState.displayTasks, key = { it.id }) { task ->
+                        Box(Modifier.animateItem()) {
+                            CleaningTaskRow(
+                                task = task,
+                                onToggle = { checked ->
+                                    viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
+                                },
+                                onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
+                                onDisable = { isEnabled ->
+                                    viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
+                                },
+                                onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
+                                userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
+                            )
                         }
-                        
-                        item {
-                            Spacer(Modifier.height(100.dp))
-                        }
+                    }
+                    
+                    item {
+                        Spacer(Modifier.height(100.dp))
                     }
                 }
             }
         }
-
-        UnifiedFAB(
-            onClick = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(true)) },
-            contentDescription = Loc.cleaning_addTask
-        )
     }
 
     if (uiState.showAddDialog) {
@@ -132,68 +133,26 @@ fun CleaningScreen(
         var addDays by remember { mutableStateOf("7") }
         var addRecurring by remember { mutableStateOf(true) }
 
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(false)) },
-            title = { Text(Loc.cleaning_addTask) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = addTitle,
-                        onValueChange = { addTitle = it },
-                        label = { Text(Loc.cleaning_taskTitle) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = addDays,
-                        onValueChange = { if (it.all { c -> c.isDigit() }) addDays = it },
-                        label = { Text(Loc.cleaning_everyXDays) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Loc.cleaning_recurring)
-                        Checkbox(checked = addRecurring, onCheckedChange = { addRecurring = it })
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (addTitle.isNotBlank()) {
-                            viewModel.onEvent(CleaningEvent.AddTask(addTitle, addDays.toIntOrNull() ?: 1, addRecurring))
-                        }
-                    },
-                    enabled = addTitle.isNotBlank()
-                ) {
-                    Text(Loc.general_add)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(false)) }) {
-                    Text(Loc.general_cancel)
-                }
+        CleaningTaskEditSlip(
+            title = addTitle,
+            days = addDays,
+            isRecurring = addRecurring,
+            isEdit = false,
+            onTitleChange = { addTitle = it },
+            onDaysChange = { addDays = it },
+            onRecurringChange = { addRecurring = it },
+            onDismiss = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(false)) },
+            onConfirm = { 
+                viewModel.onEvent(CleaningEvent.AddTask(addTitle, addDays.toIntOrNull() ?: 1, addRecurring))
+                viewModel.onEvent(CleaningEvent.ToggleAddDialog(false))
             }
         )
     }
 
     if (uiState.taskToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(CleaningEvent.RequestDelete(null)) },
-            title = { Text(Loc.general_confirmDeleteTitle) },
-            text = { Text(Loc.general_confirmDeleteMsg) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onEvent(CleaningEvent.ConfirmDelete)
-                }) {
-                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(CleaningEvent.RequestDelete(null)) }) {
-                    Text(Loc.general_cancel)
-                }
-            }
+        CleaningTaskDeleteConfirmSlip(
+            onDismiss = { viewModel.onEvent(CleaningEvent.RequestDelete(null)) },
+            onConfirm = { viewModel.onEvent(CleaningEvent.ConfirmDelete) }
         )
     }
 
@@ -202,23 +161,17 @@ fun CleaningScreen(
         var editDays by remember { mutableStateOf(uiState.editingTask!!.frequencyDays.toString()) }
         var editRecurring by remember { mutableStateOf(uiState.editingTask!!.isRecurring) }
 
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(CleaningEvent.RequestEdit(null)) },
-            title = { Text(Loc.cleaning_editTask) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text(Loc.cleaning_taskTitle) })
-                    OutlinedTextField(value = editDays, onValueChange = { editDays = it }, label = { Text(Loc.cleaning_everyXDays) })
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Loc.cleaning_recurring)
-                        Checkbox(checked = editRecurring, onCheckedChange = { editRecurring = it })
-                    }
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.onEvent(CleaningEvent.SaveTask(editTitle, editDays.toIntOrNull() ?: 1, editRecurring))
-                }) { Text(Loc.general_save) }
+        CleaningTaskEditSlip(
+            title = editTitle,
+            days = editDays,
+            isRecurring = editRecurring,
+            isEdit = true,
+            onTitleChange = { editTitle = it },
+            onDaysChange = { editDays = it },
+            onRecurringChange = { editRecurring = it },
+            onDismiss = { viewModel.onEvent(CleaningEvent.RequestEdit(null)) },
+            onConfirm = { 
+                viewModel.onEvent(CleaningEvent.SaveTask(editTitle, editDays.toIntOrNull() ?: 1, editRecurring))
             }
         )
     }

@@ -35,7 +35,8 @@ fun AppVisibilityScreen(
             AppScreenEnum.SHOP_LIST to Loc.shoplist_shoppingList,
             AppScreenEnum.NOTES to Loc.notes_notes,
             AppScreenEnum.LINKS to Loc.links_links,
-            AppScreenEnum.CLEANING to Loc.cleaning_cleaning
+            AppScreenEnum.CLEANING to Loc.cleaning_cleaning,
+            AppScreenEnum.CALENDAR to Loc.calendar_calendar
         )
     }
 

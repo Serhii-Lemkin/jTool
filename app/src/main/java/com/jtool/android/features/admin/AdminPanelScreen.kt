@@ -29,6 +29,9 @@ import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
+import com.jtool.android.features.admin.components.cleanup_confirm_slip.CleanupConfirmSlip
+import com.jtool.android.features.admin.components.delete_user_confirm_slip.DeleteUserConfirmSlip
+import com.jtool.android.features.settings.groups.components.delete_group_confirm_slip.DeleteGroupConfirmSlip
 import kotlinx.coroutines.launch
 
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -76,7 +79,6 @@ fun AdminPanelScreen(
                 title = when(uiState.currentSubScreen) {
                     AdminSubScreenEnum.USERS -> Loc.admin_users
                     AdminSubScreenEnum.GROUPS -> Loc.settings_groups
-                    AdminSubScreenEnum.MIGRATION -> "System Data Migration"
                     else -> Loc.admin_adminPanel
                 },
                 onBack = { 
@@ -86,7 +88,7 @@ fun AdminPanelScreen(
                         if (uiState.currentSubScreen == AdminSubScreenEnum.MAIN) onBack() else viewModel.onEvent(AdminEvent.Navigate(AdminSubScreenEnum.MAIN))
                     }
                 },
-                isLoading = uiState.isMigrating,
+                isLoading = uiState.isLoading,
                 isSearchVisible = isSearchVisible,
                 searchQuery = draftSearchQuery,
                 onSearchQueryChange = { draftSearchQuery = it },
@@ -123,89 +125,33 @@ fun AdminPanelScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (uiState.currentSubScreen) {
-                AdminSubScreenEnum.MAIN -> AdminMainScreen(onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) })
+                AdminSubScreenEnum.MAIN -> AdminMainScreen(
+                    onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) },
+                    onEvent = { viewModel.onEvent(it) }
+                )
                 AdminSubScreenEnum.USERS -> UsersTab(viewModel, uiState)
                 AdminSubScreenEnum.GROUPS -> GroupsTab(viewModel, uiState)
-                AdminSubScreenEnum.MIGRATION -> MigrationTab(viewModel, uiState)
             }
         }
     }
 }
 
+
+
 @Composable
-fun MigrationTab(viewModel: AdminViewModel, uiState: AdminUiState) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Text("System Data Migration", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(16.dp))
-        
-        if (uiState.isMigrating) {
-            CircularProgressIndicator()
-            Spacer(Modifier.height(8.dp))
-        }
-        
-        uiState.migrationStatus?.let {
-            Text(it, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-        }
+fun AdminMainScreen(onNavigate: (AdminSubScreenEnum) -> Unit, onEvent: (AdminEvent) -> Unit) {
+    var showCleanupConfirm by remember { mutableStateOf(false) }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-        Text("1. Legacy ID Migration", style = MaterialTheme.typography.titleMedium)
-        Text("Converts numeric 'id' fields to strings in Shopping, Cleaning, Links, and Notes collections.", fontSize = 12.sp)
-        Spacer(Modifier.height(16.dp))
-        
-        Button(
-            onClick = { viewModel.onEvent(AdminEvent.StartDataMigration) },
-            enabled = !uiState.isMigrating,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Start ID Migration")
-        }
-
-        uiState.migrationResult?.let { result ->
-            Spacer(Modifier.height(24.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Migration Summary", fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Successfully Updated: ${result.updatedCount}", color = MaterialTheme.colorScheme.primary)
-                    Text("Already Correct: ${result.missedCount}")
-                    Text("Field Missing: ${result.fieldMissingCount}", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-                    Text("Errors Found: ${result.errors.size}", color = if (result.errors.isNotEmpty()) MaterialTheme.colorScheme.error else Color.Unspecified)
-                    
-                    if (result.updatedPaths.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text("Updated Items:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        result.updatedPaths.take(5).forEach { path ->
-                            Text("• $path", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-                        }
-                        if (result.updatedPaths.size > 5) {
-                            Text("• ...and ${result.updatedPaths.size - 5} more (see Logcat)", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                        }
-                    }
-
-                    if (result.errors.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text("Error Details:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        result.errors.take(10).forEach { error ->
-                            Text("• $error", fontSize = 10.sp, color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
+    if (showCleanupConfirm) {
+        CleanupConfirmSlip(
+            onDismiss = { showCleanupConfirm = false },
+            onConfirm = {
+                onEvent(AdminEvent.CleanupLegacyWorkHours)
+                showCleanupConfirm = false
             }
-        }
+        )
     }
-}
 
-@Composable
-fun AdminMainScreen(onNavigate: (AdminSubScreenEnum) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             AdminMenuItem(
@@ -227,10 +173,10 @@ fun AdminMainScreen(onNavigate: (AdminSubScreenEnum) -> Unit) {
         }
         item {
             AdminMenuItem(
-                title = "System Migration",
-                subtitle = "Fix numeric ID types in database",
-                icon = Icons.Default.Build,
-                onClick = { onNavigate(AdminSubScreenEnum.MIGRATION) }
+                title = Loc.admin_cleanupLegacyWorkHours,
+                subtitle = "Delete old 'hours' field from all UserData",
+                icon = Icons.Default.DeleteSweep,
+                onClick = { showCleanupConfirm = true }
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         }
@@ -336,48 +282,20 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     }
 
     if (uiState.showUserDeleteConfirm1 != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 1)) },
-            title = { Text(Loc.general_delete) },
-            text = { Text(Loc.admin_deleteUserPermanently) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.onEvent(AdminEvent.RequestDeleteUser(uiState.showUserDeleteConfirm1, 2))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Loc.general_delete)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 1)) }) {
-                    Text(Loc.general_cancel)
-                }
-            }
+        DeleteUserConfirmSlip(
+            step = 1,
+            onDismiss = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 1)) },
+            onNext = { viewModel.onEvent(AdminEvent.RequestDeleteUser(uiState.showUserDeleteConfirm1, 2)) },
+            onConfirm = {}
         )
     }
 
     if (uiState.showUserDeleteConfirm2 != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 2)) },
-            title = { Text(Loc.general_areYouSure) },
-            text = { Text(Loc.general_confirmDeleteMsg) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.onEvent(AdminEvent.ConfirmDeleteUser(uiState.showUserDeleteConfirm2))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Loc.general_delete)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 2)) }) {
-                    Text(Loc.general_cancel)
-                }
-            }
+        DeleteUserConfirmSlip(
+            step = 2,
+            onDismiss = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 2)) },
+            onNext = {},
+            onConfirm = { viewModel.onEvent(AdminEvent.ConfirmDeleteUser(uiState.showUserDeleteConfirm2)) }
         )
     }
 }
@@ -412,48 +330,20 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
     }
 
     if (uiState.showGroupDeleteConfirm1 != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 1)) },
-            title = { Text(Loc.admin_deleteGroup) },
-            text = { Text(Loc.admin_deleteGroupPermanently) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.onEvent(AdminEvent.RequestDeleteGroup(uiState.showGroupDeleteConfirm1, 2))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Loc.general_delete)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 1)) }) {
-                    Text(Loc.general_cancel)
-                }
-            }
+        DeleteGroupConfirmSlip(
+            step = 1,
+            onDismiss = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 1)) },
+            onNext = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(uiState.showGroupDeleteConfirm1, 2)) },
+            onConfirm = {}
         )
     }
 
     if (uiState.showGroupDeleteConfirm2 != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 2)) },
-            title = { Text(Loc.general_areYouSure) },
-            text = { Text(Loc.general_confirmDeleteMsg) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.onEvent(AdminEvent.ConfirmDeleteGroup(uiState.showGroupDeleteConfirm2))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Loc.general_delete)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 2)) }) {
-                    Text(Loc.general_cancel)
-                }
-            }
+        DeleteGroupConfirmSlip(
+            step = 2,
+            onDismiss = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 2)) },
+            onNext = {},
+            onConfirm = { viewModel.onEvent(AdminEvent.ConfirmDeleteGroup(uiState.showGroupDeleteConfirm2)) }
         )
     }
 }

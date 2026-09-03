@@ -10,5 +10,6 @@ data class Invite(
     val groupId: String = "",
     val groupName: String = "",
     val fromEmail: String = "",
+    val inviterUid: String = "",
     val timestamp: Long = 0L
 )

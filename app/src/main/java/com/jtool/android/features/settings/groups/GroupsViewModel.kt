@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.models.group.enums.JoinGroupResultEnum
+import com.jtool.android.core.localization.Loc
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,10 +44,8 @@ class GroupsViewModel(
             
         dataManager.currentGroupIdFlow()
             .onEach { gid ->
-                if (gid != null || _uiState.value.currentGroupId == null) {
-                    _uiState.update { it.copy(currentGroupId = gid) }
-                    if (gid != null) settingsManager.setCurrentGroupId(gid)
-                }
+                _uiState.update { it.copy(currentGroupId = gid) }
+                settingsManager.setCurrentGroupId(gid)
             }
             .launchIn(viewModelScope)
     }
@@ -59,8 +59,9 @@ class GroupsViewModel(
             is GroupsEvent.DeleteGroup -> deleteGroup(event.id)
             is GroupsEvent.UpdateGroupName -> updateGroupName(event.id, event.newName)
             is GroupsEvent.SendInvite -> sendInvite(event.email, event.groupId)
-            GroupsEvent.ManualSync -> manualSync()
             GroupsEvent.DismissCreatedDialog -> _uiState.update { it.copy(lastCreatedGroupId = null) }
+            GroupsEvent.DismissMessage -> _uiState.update { it.copy(message = null) }
+            GroupsEvent.DismissJoinRequestSentSlip -> _uiState.update { it.copy(joinRequestResult = null) }
             GroupsEvent.Refresh -> refresh()
         }
     }
@@ -87,12 +88,10 @@ class GroupsViewModel(
             _uiState.update { it.copy(isLoading = true) }
             val result = dataManager.createGroup(name)
             if (result != null) {
-                if (dataManager.joinGroup(result)) {
-                    _uiState.update { it.copy(
-                        currentGroupId = result,
-                        lastCreatedGroupId = result
-                    ) }
-                }
+                _uiState.update { it.copy(
+                    currentGroupId = result,
+                    lastCreatedGroupId = result
+                ) }
             }
             _uiState.update { it.copy(isLoading = false) }
         }
@@ -100,11 +99,23 @@ class GroupsViewModel(
 
     private fun joinGroup(id: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            if (dataManager.joinGroup(id)) {
-                _uiState.update { it.copy(currentGroupId = id, isLoading = false) }
-            } else {
-                _uiState.update { it.copy(isLoading = false) }
+            _uiState.update { it.copy(isLoading = true, error = null, message = null) }
+            when (dataManager.joinGroup(id, isInviteAcceptance = false)) {
+                JoinGroupResultEnum.JOINED -> {
+                    _uiState.update { it.copy(currentGroupId = id, isLoading = false) }
+                }
+                JoinGroupResultEnum.REQUEST_SENT -> {
+                    _uiState.update { it.copy(joinRequestResult = JoinGroupResultEnum.REQUEST_SENT, isLoading = false) }
+                }
+                JoinGroupResultEnum.ALREADY_REQUESTED -> {
+                    _uiState.update { it.copy(joinRequestResult = JoinGroupResultEnum.ALREADY_REQUESTED, isLoading = false) }
+                }
+                JoinGroupResultEnum.ALREADY_MEMBER -> {
+                    _uiState.update { it.copy(joinRequestResult = JoinGroupResultEnum.ALREADY_MEMBER, isLoading = false) }
+                }
+                JoinGroupResultEnum.FAILED -> {
+                    _uiState.update { it.copy(error = Loc.settings_joinRequestFailed, isLoading = false) }
+                }
             }
         }
     }
@@ -134,14 +145,6 @@ class GroupsViewModel(
     private fun sendInvite(email: String, groupId: String) {
         viewModelScope.launch {
             dataManager.sendInvite(email, groupId)
-        }
-    }
-
-    private fun manualSync() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            dataManager.manualSyncMerge()
-            _uiState.update { it.copy(isLoading = false) }
         }
     }
 }

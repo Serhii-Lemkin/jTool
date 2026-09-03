@@ -22,3 +22,4 @@ app/google-services.json
 # Local Data and Backups
 jtool_*.json
 .DS_Store
+firestore.rules

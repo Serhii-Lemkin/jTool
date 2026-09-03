@@ -19,6 +19,7 @@ import com.jtool.android.features.shopping.ShoppingListManager
 import com.jtool.android.ui.navigation.AppProperties
 import com.jtool.android.ui.navigation.NavigationDependencies
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.core.models.group.Invite
 import kotlinx.coroutines.launch
 
 @Composable
@@ -39,10 +40,30 @@ fun AppNavigation(
     onGroupsUpdated: (Map<String, GroupInfo>) -> Unit,
     onThemeToggle: () -> Unit,
     currentLang: String,
-    onLangToggle: () -> Unit
+    onLangToggle: () -> Unit,
+    notificationCount: Int,
+    onNotificationsClick: () -> Unit
 ) {
     val context = LocalContext.current
     var currentScreen by remember { mutableStateOf(AppScreenEnum.LAUNCHER) }
+    val screenStack = remember { mutableStateListOf(AppScreenEnum.LAUNCHER) }
+
+    fun navigateTo(screen: AppScreenEnum) {
+        if (currentScreen != screen) {
+            screenStack.add(screen)
+            currentScreen = screen
+        }
+    }
+
+    fun navigateBack() {
+        if (screenStack.size > 1) {
+            screenStack.removeAt(screenStack.size - 1)
+            currentScreen = screenStack.last()
+        } else {
+            currentScreen = AppScreenEnum.LAUNCHER
+        }
+    }
+
     var navigateToUpdates by remember { mutableStateOf(false) }
     var navigateToGroups by remember { mutableStateOf(false) }
     var updateVersionCode by remember { mutableStateOf<Int?>(null) }
@@ -50,6 +71,24 @@ fun AppNavigation(
     
     val scope = rememberCoroutineScope()
     val isAdmin by dataManager.isAdminFlow().collectAsState(initial = false)
+
+    val firestoreGroupId by remember(currentUser) {
+        dataManager.currentGroupIdFlow()
+    }.collectAsState(initial = settingsManager.getCurrentGroupId())
+
+    LaunchedEffect(firestoreGroupId) {
+        if (firestoreGroupId != currentGroupId) {
+            onGroupChanged(firestoreGroupId)
+        }
+    }
+
+    val invites by remember(currentUser) {
+        dataManager.invitesFlow()
+    }.collectAsState(initial = emptyList())
+
+    var activeInvite by remember { mutableStateOf<Invite?>(null) }
+
+    // Manual check on startup/re-auth
 
     val userGroupIds by remember(currentUser) { 
         dataManager.userGroupsFlow() 
@@ -76,7 +115,7 @@ fun AppNavigation(
 
     if (currentScreen != AppScreenEnum.LAUNCHER) {
         BackHandler {
-            currentScreen = AppScreenEnum.LAUNCHER
+            navigateBack()
         }
     }
 
@@ -99,14 +138,16 @@ fun AppNavigation(
         onThemeToggle = onThemeToggle,
         currentLang = currentLang,
         onLangToggle = onLangToggle,
-        setScreen = { currentScreen = it },
+        setScreen = { navigateTo(it) },
         navigateToUpdates = updateVersionCode != null,
         navigateToGroups = navigateToGroups,
         setNavigateToGroups = { navigateToGroups = it },
-        hasUpdate = updateVersionCode != null,
         isAdmin = isAdmin,
-        onBack = { currentScreen = AppScreenEnum.LAUNCHER }
+        notificationCount = notificationCount,
+        onNotificationsClick = onNotificationsClick,
+        onBack = { navigateBack() }
     )
 
-    AppProperties.fromId(currentScreen)?.Content(deps)
+    val currentProps = AppProperties.fromId(currentScreen)
+    currentProps?.Content(deps)
 }
