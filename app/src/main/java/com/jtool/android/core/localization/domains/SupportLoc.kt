@@ -1,0 +1,31 @@
+package com.jtool.android.core.localization.domains
+
+import com.jtool.android.core.localization.Loc
+
+object SupportLoc {
+    val hub_title get() = Loc.s("support_hub_title", "Support Hub")
+    val type_bug get() = Loc.s("support_type_bug", "Bug")
+    val type_crash get() = Loc.s("support_type_crash", "Crash")
+    val type_feature get() = Loc.s("support_type_feature", "Feature")
+    val type_change get() = Loc.s("support_type_change", "Change")
+    val type_bug_desc get() = Loc.s("support_type_bug_desc", "Report a bug or a technical issue in the app.")
+    val type_feature_desc get() = Loc.s("support_type_feature_desc", "Suggest a new feature or improvement.")
+    val type_change_desc get() = Loc.s("support_type_change_desc", "Request a change to existing functionality.")
+    val status_opened get() = Loc.s("support_status_opened", "Opened")
+    val status_in_progress get() = Loc.s("support_status_in_progress", "In Progress")
+    val status_closed get() = Loc.s("support_status_closed", "Closed")
+    val status_cut get() = Loc.s("support_status_cut", "Cut")
+    val new_request get() = Loc.s("support_new_request", "New Request")
+    val show_archived get() = Loc.s("support_show_archived", "Show Archived")
+    val submit get() = Loc.s("support_submit", "Submit")
+    val welcome_title get() = Loc.s("support_welcome_title", "Welcome to the Support Hub!")
+    val welcome_msg get() = Loc.s("support_welcome_msg", "Here you can open a ticket for the developer to look into any issues you are experiencing. To start, please press the plus icon in the bottom right corner.")
+    val no_requests get() = Loc.s("support_no_requests", "No requests found.")
+    val request_number get() = Loc.s("support_request_number", "#%d")
+    val device_info get() = Loc.s("support_device_info", "Device Info")
+    val crash_log get() = Loc.s("support_crash_log", "Crash Log")
+    val daily_limit get() = Loc.s("support_daily_limit", "Daily limit reached (%d/%d).")
+    val set_status get() = Loc.s("support_set_status", "Set Status")
+    val enter_details get() = Loc.s("support_enter_details", "Enter details here...")
+    val sent_success get() = Loc.s("support_sent_success", "Support request sent!")
+}

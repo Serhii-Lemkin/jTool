@@ -1,5 +1,6 @@
 package com.jtool.android.core.crash
 
+import android.util.Log
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -48,7 +49,7 @@ class CrashActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = Loc.crash_title,
+                            text = Loc.Crash.title,
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
@@ -57,7 +58,7 @@ class CrashActivity : ComponentActivity() {
                         Spacer(Modifier.height(16.dp))
 
                         Text(
-                            text = Loc.crash_msg,
+                            text = Loc.Crash.msg,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -68,17 +69,58 @@ class CrashActivity : ComponentActivity() {
                         var isSuccess by remember { mutableStateOf(false) }
                         var errorMessage by remember { mutableStateOf<String?>(null) }
                         val scope = rememberCoroutineScope()
+
+                        val sendReport = {
+                            isSending = true
+                            errorMessage = null
+                            scope.launch {
+                                try {
+                                    val userId = settings.getUserId()
+                                    if (userId.isEmpty()) {
+                                        isSending = false
+                                        errorMessage = "User session expired. Please restart and sign in."
+                                        return@launch
+                                    }
+
+                                    val request = SupportRequest(
+                                        type = SupportTypeEnum.CRASH,
+                                        status = SupportStatusEnum.OPENED,
+                                        text = Loc.Crash.automatedReport,
+                                        userId = settings.getAppUserId(),
+                                        userName = settings.getUserName(),
+                                        timestamp = System.currentTimeMillis(),
+                                        deviceInfo = DeviceInfoProvider.getDeviceInfo(this@CrashActivity),
+                                        crashLog = crashLog
+                                    )
+                                    val success = dataManager.submitSupportRequest(request, userId, bypassLimit = true)
+                                    if (success) {
+                                        isSuccess = true
+                                    } else {
+                                        errorMessage = "Server rejected the report. Please try again."
+                                    }
+                                    isSending = false
+                                } catch (e: Exception) {
+                                    isSending = false
+                                    Log.e("CrashActivity", "Failed to send crash report", e)
+                                    errorMessage = "Connection error: ${e.localizedMessage}"
+                                }
+                            }
+                        }
+
+                        LaunchedEffect(Unit) {
+                            sendReport()
+                        }
                         
                         if (isSuccess) {
                             Text(
-                                text = Loc.crash_sentSuccess, 
+                                text = Loc.Crash.sentSuccess, 
                                 color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.height(24.dp))
                             Button(onClick = { restartApp() }, modifier = Modifier.fillMaxWidth()) {
-                                Text(Loc.crash_goHome)
+                                Text(Loc.Crash.goHome)
                             }
                         } else {
                             if (errorMessage != null) {
@@ -92,42 +134,7 @@ class CrashActivity : ComponentActivity() {
                             }
 
                             Button(
-                                onClick = {
-                                    isSending = true
-                                    errorMessage = null
-                                    scope.launch {
-                                        try {
-                                            val userId = settings.getUserId()
-                                            if (userId.isEmpty()) {
-                                                isSending = false
-                                                errorMessage = "User session expired. Please restart and sign in."
-                                                return@launch
-                                            }
-
-                                            val request = SupportRequest(
-                                                type = SupportTypeEnum.CRASH,
-                                                status = SupportStatusEnum.OPENED,
-                                                text = Loc.crash_automatedReport,
-                                                userId = settings.getAppUserId(),
-                                                userName = settings.getUserName(),
-                                                timestamp = System.currentTimeMillis(),
-                                                deviceInfo = DeviceInfoProvider.getDeviceInfo(this@CrashActivity),
-                                                crashLog = crashLog
-                                            )
-                                            val success = dataManager.submitSupportRequest(request, userId, bypassLimit = true)
-                                            if (success) {
-                                                isSuccess = true
-                                            } else {
-                                                errorMessage = "Server rejected the report. Please try again."
-                                            }
-                                            isSending = false
-                                        } catch (e: Exception) {
-                                            isSending = false
-                                            android.util.Log.e("CrashActivity", "Failed to send crash report", e)
-                                            errorMessage = "Connection error: ${e.localizedMessage}"
-                                        }
-                                    }
-                                },
+                                onClick = { sendReport() },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isSending
                             ) {
@@ -142,7 +149,7 @@ class CrashActivity : ComponentActivity() {
                                         Text("Reporting...")
                                     }
                                 } else {
-                                    Text(Loc.crash_reportBug)
+                                    Text(Loc.Crash.reportBug)
                                 }
                             }
                             
@@ -153,7 +160,7 @@ class CrashActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !isSending
                             ) {
-                                Text(Loc.crash_goHome)
+                                Text(Loc.Crash.goHome)
                             }
                         }
                     }

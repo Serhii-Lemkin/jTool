@@ -4,52 +4,34 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.group.Invite
-import com.jtool.android.core.models.group.JoinRequest
 import com.jtool.android.core.models.common.enums.NotificationTypeEnum
 
-sealed interface AppNotification {
-    val id: String
-    val timestamp: Long
-    val typeTitle: String
-    val title: String
-    val subtitle: String
-    val icon: ImageVector
-
-    data class GroupInvite(
-        val invite: Invite
-    ) : AppNotification {
-        override val id: String = invite.inviteId
-        override val timestamp: Long = invite.timestamp
-        override val typeTitle: String = Loc.settings_groupInvitation
-        override val title: String = Loc.settings_invitedToJoin.format(invite.groupName)
-        override val subtitle: String = Loc.settings_fromLabel.format(invite.fromEmail)
-        override val icon: ImageVector = Icons.Default.Group
+val UserNotification.icon: ImageVector
+    get() = when (type) {
+        NotificationTypeEnum.ACCEPTED -> Icons.Default.CheckCircle
+        NotificationTypeEnum.DECLINED -> Icons.Default.Cancel
+        NotificationTypeEnum.INVITE -> Icons.Default.Group
+        NotificationTypeEnum.JOIN_REQUEST -> Icons.Default.PersonAdd
+        NotificationTypeEnum.INFO -> if (isGroupLevel) Icons.Default.Groups else Icons.Default.Info
     }
 
-    data class GroupJoinRequest(
-        val request: JoinRequest
-    ) : AppNotification {
-        override val id: String = request.userId
-        override val timestamp: Long = request.timestamp
-        override val typeTitle: String = Loc.settings_joinRequests
-        override val title: String = Loc.settings_wantsToJoin.format(request.userName)
-        override val subtitle: String = request.userEmail
-        override val icon: ImageVector = Icons.Default.PersonAdd
+val UserNotification.typeTitle: String
+    get() = when (type) {
+        NotificationTypeEnum.INVITE -> Loc.Settings.groupInvitation
+        NotificationTypeEnum.JOIN_REQUEST -> Loc.Settings.joinRequests
+        else -> title
     }
 
-    data class SystemResult(
-        val notification: UserNotification
-    ) : AppNotification {
-        override val id: String = notification.id
-        override val timestamp: Long = notification.timestamp
-        override val typeTitle: String = notification.title
-        override val title: String = notification.message
-        override val subtitle: String = ""
-        override val icon: ImageVector = when(notification.type) {
-            NotificationTypeEnum.ACCEPTED -> Icons.Default.CheckCircle
-            NotificationTypeEnum.DECLINED -> Icons.Default.Cancel
-            else -> if (notification.isGroupLevel) Icons.Default.Groups else Icons.Default.Info
-        }
+val UserNotification.displayTitle: String
+    get() = when (type) {
+        NotificationTypeEnum.INVITE -> Loc.Settings.invitedToJoin.format(targetName ?: "Group")
+        NotificationTypeEnum.JOIN_REQUEST -> Loc.Settings.wantsToJoin.format(targetName ?: "User")
+        else -> message
     }
-}
+
+val UserNotification.displaySubtitle: String
+    get() = when (type) {
+        NotificationTypeEnum.INVITE -> Loc.Settings.fromLabel.format(fromEmail ?: "")
+        NotificationTypeEnum.JOIN_REQUEST -> targetEmail ?: ""
+        else -> ""
+    }

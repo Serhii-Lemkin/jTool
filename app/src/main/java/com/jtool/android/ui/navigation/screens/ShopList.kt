@@ -10,13 +10,12 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object ShopList : AppProperties(
     AppScreenEnum.SHOP_LIST,
     Icons.Default.ShoppingCart,
-    { Loc.shoplist_shoppingList }
+    { Loc.ShopList.shoppingList }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
         ShoppingListScreen(
             manager = deps.shoppingListManager,
-            backupManager = deps.backupManager,
             settingsManager = deps.settingsManager,
             dataManager = deps.dataManager,
             onBack = { deps.setScreen(AppScreenEnum.LAUNCHER) }

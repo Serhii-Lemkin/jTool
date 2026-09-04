@@ -20,6 +20,6 @@ enum class AppScreenEnum(val id: String) {
     SETTINGS_GENERAL("settings_general"),
     SETTINGS_UPDATES("settings_updates"),
     SETTINGS_VISIBILITY("settings_visibility"),
-    SETTINGS_REQUESTS("settings_requests"),
+    SUPPORT_HUB("SupportHub"),
     ADMIN_PANEL("AdminPanel")
 }

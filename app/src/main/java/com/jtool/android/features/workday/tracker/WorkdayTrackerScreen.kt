@@ -62,7 +62,7 @@ fun WorkdayTrackerScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(Modifier.fillMaxWidth().padding(bottom = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Select Date", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp))
+                Text(text = Loc.Workday.selectDate, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp))
                 DatePicker(state = datePickerState)
                 Spacer(Modifier.height(24.dp))
                 Button(
@@ -78,7 +78,7 @@ fun WorkdayTrackerScreen(
                         viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.DATE, show = false))
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
-                ) { Text(Loc.general_save) }
+                ) { Text(Loc.General.save) }
             }
         }
     }
@@ -89,7 +89,7 @@ fun WorkdayTrackerScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(Modifier.fillMaxWidth().padding(bottom = 48.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Select Time", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(text = Loc.Workday.selectTime, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(24.dp))
                 TimePicker(state = timePickerState)
                 Spacer(Modifier.height(24.dp))
@@ -109,7 +109,7 @@ fun WorkdayTrackerScreen(
                         viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.TIME, show = false))
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(Loc.general_select) }
+                ) { Text(Loc.General.select) }
             }
         }
     }
@@ -120,17 +120,17 @@ fun WorkdayTrackerScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(Modifier.fillMaxWidth().padding(bottom = 48.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = Loc.worktime_resetConfirmTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(text = Loc.Workday.resetConfirmTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text(text = Loc.worktime_resetConfirmMsg, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                Text(text = Loc.Workday.resetConfirmMsg, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(32.dp))
                 Button(
                     onClick = { viewModel.onEvent(WorkdayTrackerEvent.ResetSession) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text(Loc.general_delete) }
+                ) { Text(Loc.General.reset) }
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleResetConfirm(show = false)) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.general_cancel) }
+                TextButton(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleResetConfirm(show = false)) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.General.cancel) }
             }
         }
     }
@@ -141,13 +141,13 @@ fun WorkdayTrackerScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(Modifier.fillMaxWidth().padding(bottom = 48.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = Loc.worktime_resetConfirmTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(text = Loc.Workday.resetConfirmTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text(text = "Starting this session will finish your current running session. Proceed?", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                Text(text = Loc.Workday.finishCurrentSessionConfirm, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(32.dp))
-                Button(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ConfirmStartSession) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.general_update) }
+                Button(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ConfirmStartSession) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.General.update) }
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleStartConfirm(false)) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.general_cancel) }
+                TextButton(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleStartConfirm(false)) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.General.cancel) }
             }
         }
     }
@@ -163,7 +163,7 @@ fun WorkdayTrackerScreen(
 
     if (pref == null || pref == WorkTrackingPreferenceEnum.UNSET) {
         TrackingPreferenceBottomSheet(
-            onDismiss = { },
+            onDismiss = { viewModel.onEvent(WorkdayTrackerEvent.SetTrackingPreference(WorkTrackingPreferenceEnum.UNSET)) },
             onPreferenceSelected = { viewModel.onEvent(WorkdayTrackerEvent.SetTrackingPreference(it)) }
         )
     }
@@ -178,7 +178,7 @@ fun WorkdayTrackerScreen(
         sheetDragHandle = { BottomSheetDefaults.DragHandle() },
         topBar = {
             GenericTitle(
-                title = Loc.worktime_workTime,
+                title = Loc.Workday.workTime,
                 onBack = onBack,
                 actions = {
                     IconButton(onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) }) {
@@ -203,7 +203,7 @@ fun WorkdayTrackerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = Loc.worktime_shiftOptions,
+                        text = Loc.Workday.shiftOptions,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -213,9 +213,9 @@ fun WorkdayTrackerScreen(
                             onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleResetConfirm(true)) },
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(Loc.general_delete)
+                            Text(Loc.General.reset)
                         }
                     }
                 }
@@ -234,7 +234,7 @@ fun WorkdayTrackerScreen(
                     ) {
                         Icon(Icons.Default.PlayArrow, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(Loc.worktime_start)
+                        Text(Loc.Workday.start)
                     }
                 }
             }
@@ -269,9 +269,9 @@ fun WorkdayTrackerScreen(
                             ) {
                                 Text(
                                     text = when(mode) {
-                                        WorkModeEnum.QUICK_START -> Loc.worktime_freehand
-                                        WorkModeEnum.LOG_HOURS -> Loc.worktime_manual
-                                        WorkModeEnum.SCHEDULE -> Loc.worktime_weekly
+                                        WorkModeEnum.QUICK_START -> Loc.Workday.freehand
+                                        WorkModeEnum.LOG_HOURS -> Loc.Workday.manual
+                                        WorkModeEnum.SCHEDULE -> Loc.Workday.weekly
                                     },
                                     fontSize = 11.sp,
                                     maxLines = 1
@@ -305,9 +305,9 @@ fun WorkdayTrackerScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
                         ) {
                             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(Loc.calendar_shift, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                Text(Loc.Calendar.shift, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                 Text(
-                                    text = "${shift.startTime} - ${shift.endTime ?: "??"}",
+                                    text = "${shift.startTime} - ${shift.endTime ?: Loc.General.none}",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -317,11 +317,11 @@ fun WorkdayTrackerScreen(
                 } else if (!uiState.isSessionActive) {
                     if (uiState.mode == WorkModeEnum.SCHEDULE) {
                         Spacer(Modifier.height(24.dp))
-                        Text(Loc.worktime_dayOff, color = Color.Gray, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Text(Loc.Workday.dayOff, color = Color.Gray, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                     } else if (uiState.mode == WorkModeEnum.LOG_HOURS) {
                         if (logConfig.isConfirmedOff) {
                             Spacer(Modifier.height(24.dp))
-                            Text(Loc.worktime_dayOff, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                            Text(Loc.Workday.dayOff, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -334,7 +334,7 @@ fun WorkdayTrackerScreen(
 @Composable
 fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel, size: androidx.compose.ui.unit.Dp = 200.dp) {
     val color = if (uiState.isFinished) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val label = if (uiState.isFinished) Loc.worktime_overtime else Loc.worktime_timeLeft
+    val label = if (uiState.isFinished) Loc.Workday.overtime else Loc.Workday.timeLeft
     val time = if (uiState.isFinished) uiState.overtimeMillis else uiState.timeLeftMillis
     
     val showTimer = uiState.isSessionActive
@@ -379,7 +379,7 @@ fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerView
                                 tint = if (isStartDisabled) color.copy(alpha = 0.3f) else color
                             )
                             Text(
-                                Loc.worktime_start, 
+                                Loc.Workday.start, 
                                 fontWeight = FontWeight.Bold,
                                 fontSize = (size.value * 0.08f).sp,
                                 color = if (isStartDisabled) color.copy(alpha = 0.3f) else color
@@ -406,7 +406,7 @@ fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerView
                         ) {
                             Icon(Icons.Default.Done, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(Loc.worktime_finish, fontSize = 12.sp)
+                            Text(Loc.Workday.finish, fontSize = 12.sp)
                         }
                     }
                 }

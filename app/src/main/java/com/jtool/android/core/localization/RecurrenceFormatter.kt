@@ -13,29 +13,29 @@ object RecurrenceFormatter {
     }
 
     private fun formatEnglish(days: Int): String {
-        return if (days == 1) Loc.cleaning_recurrence_everyDay else Loc.cleaning_recurrence_everyXDays.format(days)
+        return if (days == 1) Loc.Cleaning.recurrence_everyDay else Loc.Cleaning.recurrence_everyXDays.format(days)
     }
 
     private fun formatHebrew(days: Int): String {
         return when (days) {
-            1 -> Loc.cleaning_recurrence_everyDay
-            2 -> Loc.cleaning_recurrence_everyTwoDays
-            else -> Loc.cleaning_recurrence_everyXDays.format(days)
+            1 -> Loc.Cleaning.recurrence_everyDay
+            2 -> Loc.Cleaning.recurrence_everyTwoDays
+            else -> Loc.Cleaning.recurrence_everyXDays.format(days)
         }
     }
 
     private fun formatUkrainian(days: Int): String {
-        if (days == 1) return Loc.cleaning_recurrence_everyDay
+        if (days == 1) return Loc.Cleaning.recurrence_everyDay
 
         val lastDigit = days % 10
         val lastTwoDigits = days % 100
 
         return when {
-            lastDigit == 1 && lastTwoDigits != 11 -> Loc.cleaning_recurrence_uk_1.format(days)
+            lastDigit == 1 && lastTwoDigits != 11 -> Loc.Cleaning.recurrence_uk_1.format(days)
 
-            (lastDigit in 2..4) && (lastTwoDigits !in 12..14) -> Loc.cleaning_recurrence_uk_2_4.format(days)
+            (lastDigit in 2..4) && (lastTwoDigits !in 12..14) -> Loc.Cleaning.recurrence_uk_2_4.format(days)
 
-            else -> Loc.cleaning_recurrence_uk_5.format(days)
+            else -> Loc.Cleaning.recurrence_uk_5.format(days)
         }
     }
 }

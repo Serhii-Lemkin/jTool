@@ -27,8 +27,8 @@ import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
-import com.jtool.android.features.cleaning.components.cleaning_task_delete_confirm_slip.CleaningTaskDeleteConfirmSlip
-import com.jtool.android.features.cleaning.components.cleaning_task_edit_slip.CleaningTaskEditSlip
+import com.jtool.android.features.cleaning.components.cleaning_task_delete_confirm_sheet.CleaningTaskDeleteConfirmSheet
+import com.jtool.android.features.cleaning.components.cleaning_task_edit_sheet.CleaningTaskEditSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -66,7 +66,7 @@ fun CleaningScreen(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             GenericTitle(
-                title = if (uiState.showDisabledView) Loc.cleaning_showDisabled else Loc.cleaning_cleaning,
+                title = if (uiState.showDisabledView) Loc.Cleaning.showDisabled else Loc.Cleaning.cleaning,
                 onBack = onBack,
                 isLoading = uiState.isLoading,
                 onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
@@ -82,7 +82,7 @@ fun CleaningScreen(
         floatingActionButton = {
             UnifiedFAB(
                 onClick = { viewModel.onEvent(CleaningEvent.ToggleAddDialog(true)) },
-                contentDescription = Loc.cleaning_addTask
+                contentDescription = Loc.Cleaning.addTask
             )
         }
     ) { padding ->
@@ -133,7 +133,7 @@ fun CleaningScreen(
         var addDays by remember { mutableStateOf("7") }
         var addRecurring by remember { mutableStateOf(true) }
 
-        CleaningTaskEditSlip(
+        CleaningTaskEditSheet(
             title = addTitle,
             days = addDays,
             isRecurring = addRecurring,
@@ -150,7 +150,7 @@ fun CleaningScreen(
     }
 
     if (uiState.taskToDelete != null) {
-        CleaningTaskDeleteConfirmSlip(
+        CleaningTaskDeleteConfirmSheet(
             onDismiss = { viewModel.onEvent(CleaningEvent.RequestDelete(null)) },
             onConfirm = { viewModel.onEvent(CleaningEvent.ConfirmDelete) }
         )
@@ -161,7 +161,7 @@ fun CleaningScreen(
         var editDays by remember { mutableStateOf(uiState.editingTask!!.frequencyDays.toString()) }
         var editRecurring by remember { mutableStateOf(uiState.editingTask!!.isRecurring) }
 
-        CleaningTaskEditSlip(
+        CleaningTaskEditSheet(
             title = editTitle,
             days = editDays,
             isRecurring = editRecurring,
@@ -193,8 +193,8 @@ fun CleaningTaskRow(
     CompactActionListItem(
         onClick = null,
         headline = task.title,
-        supportingText = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.cleaning_oneTime,
-        metadataText = if (task.lastDoneTimestamp > 0) "${Loc.cleaning_lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.general_by} $userName" else null,
+        supportingText = if (task.isRecurring) Loc.getCleaningFrequency(task.frequencyDays) else Loc.Cleaning.oneTime,
+        metadataText = if (task.lastDoneTimestamp > 0) "${Loc.Cleaning.lastDone}: ${dateFormat.format(Date(task.lastDoneTimestamp))} ${Loc.General.by} $userName" else null,
         leadingContent = {
             if (task.isEnabled) {
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -220,12 +220,12 @@ fun CleaningTaskRow(
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     if (task.isEnabled) {
-                        DropdownMenuItem(text = { Text(Loc.general_update) }, onClick = { onEdit(); menuExpanded = false })
-                        DropdownMenuItem(text = { Text(Loc.cleaning_disable) }, onClick = { onDisable(false); menuExpanded = false })
-                        DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.General.update) }, onClick = { onEdit(); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.Cleaning.disable) }, onClick = { onDisable(false); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
                     } else {
-                        DropdownMenuItem(text = { Text(Loc.cleaning_restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
-                        DropdownMenuItem(text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.Cleaning.restoreTask) }, onClick = { onDisable(true); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
                     }
                 }
             }

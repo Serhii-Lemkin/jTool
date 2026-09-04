@@ -10,7 +10,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object Notes : AppProperties(
     AppScreenEnum.NOTES,
     Icons.Default.Description,
-    { Loc.notes_notes }
+    { Loc.Notes.notes }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

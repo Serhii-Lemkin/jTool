@@ -104,7 +104,7 @@ fun TimelineEventCard(
                         maxLines = 1
                     )
                     Text(
-                        text = event.title.ifEmpty { if (isShift) Loc.calendar_shift else Loc.calendar_calendar },
+                        text = event.title.ifEmpty { if (isShift) Loc.Calendar.shift else Loc.Calendar.calendar },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
@@ -143,7 +143,7 @@ fun TimelineEventCard(
                 }
                 
                 Text(
-                    text = event.title.ifEmpty { if (isShift) Loc.calendar_shift else Loc.calendar_calendar },
+                    text = event.title.ifEmpty { if (isShift) Loc.Calendar.shift else Loc.Calendar.calendar },
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
                     maxLines = 2,

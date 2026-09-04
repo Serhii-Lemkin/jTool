@@ -1,5 +1,6 @@
 package com.jtool.android.features.support.logic
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
@@ -82,11 +83,12 @@ class SupportViewModel(
             .distinctUntilChanged()
             .onEach { isAdmin ->
                 clearListeners()
-                _uiState.update { it.copy(isLoading = true) }
+                _isLoading.update { true }
+                _uiState.update { it.copy(requests = emptyList()) }
                 val query = if (isAdmin) {
                     dataManager.getSupportColl().orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 } else {
-                    dataManager.getSupportColl().whereEqualTo("userId", settings.getAppUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    dataManager.getSupportColl().whereEqualTo("userId", settings.getUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 }
 
                 val listener = query.addSnapshotListener { snapshot, _ ->
@@ -97,7 +99,7 @@ class SupportViewModel(
                                 try {
                                     doc.toObject(SupportRequest::class.java)?.copy(id = doc.id)
                                 } catch (e: Exception) {
-                                    android.util.Log.e("SupportVM", "Error deserializing request ${doc.id}", e)
+                                    Log.e("SupportVM", "Error deserializing request ${doc.id}", e)
                                     null
                                 }
                             }
@@ -120,12 +122,13 @@ class SupportViewModel(
                                 }
                                 
                                 val selected = updatedList.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
-                                state.copy(requests = updatedList, selectedRequest = selected, isLoading = false)
+                                state.copy(requests = updatedList, selectedRequest = selected)
                             }
+                            _isLoading.update { false }
                         }
                         addJob(job)
                     } else {
-                        _uiState.update { it.copy(isLoading = false) }
+                        _isLoading.update { false }
                     }
                 }
                 addListener(listener)
@@ -155,8 +158,8 @@ class SupportViewModel(
                 ) }
                 saveFilters()
             }
-            is SupportEvent.SetFilterType -> { /* Legacy, ignoring */ }
-            is SupportEvent.ToggleArchived -> { /* Legacy, ignoring */ }
+            is SupportEvent.SetFilterType -> { }
+            is SupportEvent.ToggleArchived -> { }
             is SupportEvent.ToggleSearch -> _uiState.update { it.copy(isSearchVisible = !it.isSearchVisible, searchQuery = "") }
             is SupportEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query, pagingLimit = 15) }
             SupportEvent.LoadMore -> _uiState.update { it.copy(pagingLimit = it.pagingLimit + 15) }
@@ -177,7 +180,8 @@ class SupportViewModel(
             SupportEvent.Refresh -> performRefresh {
                 _uiState.update { 
                     it.copy(
-                        requests = emptyList(), // Clear local data on refresh
+                        requests = emptyList(),
+                        selectedRequest = null,
                         searchQuery = "",
                         isSearchVisible = false,
                         pagingLimit = 15
@@ -189,9 +193,10 @@ class SupportViewModel(
                 val query = if (isAdmin) {
                     dataManager.getSupportColl().orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 } else {
-                    dataManager.getSupportColl().whereEqualTo("userId", settings.getAppUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    dataManager.getSupportColl().whereEqualTo("userId", settings.getUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 }
                 
+                // Explicitly force fetch from server
                 val snapshot = query.get(com.google.firebase.firestore.Source.SERVER).await()
                 val list = snapshot.documents.mapNotNull { it.toObject(SupportRequest::class.java)?.copy(id = it.id) }
                 
@@ -294,7 +299,7 @@ class SupportViewModel(
                 val request = SupportRequest(
                     type = type,
                     text = text,
-                    userId = settings.getAppUserId(),
+                    userId = settings.getUserId(),
                     userName = settings.getUserName(),
                     timestamp = System.currentTimeMillis(),
                     deviceInfo = DeviceInfoProvider.getDeviceInfo(context),
@@ -317,7 +322,7 @@ class SupportViewModel(
                 }
             } catch (e: Exception) {
                 val errorMessage = if (e.message == "LIMIT_REACHED") {
-                    Loc.support_daily_limit.format(uiState.value.maxRequests, uiState.value.maxRequests)
+                    Loc.Support.daily_limit.format(uiState.value.maxRequests, uiState.value.maxRequests)
                 } else {
                     "Error: ${e.localizedMessage ?: "Unknown error"}"
                 }

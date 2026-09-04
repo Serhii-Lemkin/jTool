@@ -16,19 +16,22 @@
 * **Build Verification**: Always verify that the project builds successfully before finishing a request. If compilation errors are introduced, they must be resolved immediately.
 * **Testing**: Run relevant tests (unit or UI) if applicable to ensure no regressions.
 
-## 3. Page Consistency & Architectural Changes
-* **Structural Consistency:** New pages must conform strictly to existing project layouts, structural patterns, and implementation styles.
-* **Change Approvals:** Any proposed deviations or new architectural implementations must be backed by a clear technical justification and explicitly prompted to the user for approval before applying.
-
 ## 3. Localization & Internationalization
 * **Dynamic Resource Strings**: Never hardcode user-facing strings. Add all new display text to the Localization Service across all supported language files.
 * **Dynamic Language Resolution**: Never hardcode lists of supported languages. Always query and resolve language options dynamically from the implemented language resource files at runtime.
+* **Gender-Neutral Phrasing**: All user-facing strings across all languages (specifically Hebrew and Ukrainian) must use strictly gender-neutral language. 
+    *   **No Slashes**: Avoid gendered slashes (e.g., `את/ה`, `בטוח/ה`, `בחר/і`).
+    *   **Impersonal/Infinitive Forms**: Rephrase verbs to use infinitives (e.g., `חישוב`, `בחירה`) or impersonal/passive constructions (e.g., `בפעולה זאת... האם להמשיך?`, `відхилено`) to ensure a professional and inclusive tone for all users.
 
-## 4. UI Patterns: Popups, Paging & Refresh
-* **Slide-Up Popups (Slips)**: All primary selection dialogs, confirmation prompts, and input pickers must use a slide-up popup pattern (e.g., `ModalBottomSheet`) instead of standard centered `AlertDialogs` or system dialogs. This ensures a consistent interaction model across the application.
-    *   **Modular Structure**: Each Slip must reside in its own dedicated subfolder within a `components` directory.
-    *   **Naming Convention**: All Slip components and their containing subfolders must end with the `Slip` suffix in their names (e.g., `features/settings/groups/components/invite_slip/InviteSlip.kt`).
-    *   **Feature Integration**: Slips should be reusable and isolated from the main screen logic, exposing only necessary callbacks for state management.
+## 4. Page Consistency & Architectural Changes
+* **Structural Consistency:** New pages must conform strictly to existing project layouts, structural patterns, and implementation styles.
+* **Change Approvals:** Any proposed deviations or new architectural implementations must be backed by a clear technical justification and explicitly prompted to the user for approval before applying.
+
+## 5. UI Patterns: Popups, Paging & Refresh
+* **Slide-Up Popups (Sheets)**: All primary selection dialogs, confirmation prompts, and input pickers must use a slide-up popup pattern (e.g., `ModalBottomSheet`) instead of standard centered `AlertDialogs` or system dialogs. This ensures a consistent interaction model across the application.
+    *   **Modular Structure**: Each Sheet must reside in its own dedicated subfolder within a `components` directory.
+    *   **Naming Convention**: All Sheet components and their containing subfolders must end with the `Sheet` suffix in their names (e.g., `features/settings/groups/components/invite_sheet/InviteSheet.kt`).
+    *   **Feature Integration**: Sheets should be reusable and isolated from the main screen logic, exposing only necessary callbacks for state management.
 *   **Refresh Implementation**: Use `androidx.compose.material3.pulltorefresh.PullToRefreshBox`. Bind `isRefreshing` to `uiState.isLoading` and trigger a `Refresh` event.
     *   **ViewModel Pattern**: In the `Refresh` handler, first set `isLoading = true` and `data = emptyList()`. Perform a manual fetch if needed, then resume the real-time listener. This ensures the UI is reset to the server's state and prevents "expired" cached data from lingering.
 *   **Paging Implementation**: 
@@ -38,12 +41,12 @@
     *   Show a "Load More" `TextButton` in the `LazyColumn` footer if `fullData.size > uiState.pagingLimit`.
     *   The `LoadMore` event should increment `pagingLimit` by the page size.
 
-## 5. State & Async Handling
+## 6. State & Async Handling
 * **Safe Loading States:** Guarantee every loading state execution path (success, failure, cancellation, or exception) resolves properly to prevent deadlocks or frozen UIs.
 * **Keyboard Obstruction:** Always ensure that input fields and action buttons are not obstructed by the software keyboard. Use `Modifier.imePadding()` or `WindowInsets.ime` where appropriate to keep the focused element visible.
 * **Error Notification:** If an unresolved loading state risk arises, flag the issue to the developer immediately to determine a resolution.
 
-## 5. Change Logs & Developer Reporting
+## 7. Change Logs & Developer Reporting
 * **Technical Summaries:** End responses with a clear summary of modifications, including technical implementation details and an assessment of potential risks introduced by the changes.
 
 ---

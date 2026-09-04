@@ -10,7 +10,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object WorkTime : AppProperties(
     AppScreenEnum.WORK_TIME,
     Icons.Default.Schedule,
-    { Loc.worktime_workTime }
+    { Loc.Workday.workTime }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

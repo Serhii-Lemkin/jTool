@@ -71,10 +71,10 @@ fun SupportDetailCard(
                         ) {
                             Text(
                                 text = when (displayType) {
-                                    SupportTypeEnum.BUG -> Loc.support_type_bug
-                                    SupportTypeEnum.CRASH -> Loc.support_type_crash
-                                    SupportTypeEnum.FEATURE -> Loc.support_type_feature
-                                    SupportTypeEnum.CHANGE -> Loc.support_type_change
+                                    SupportTypeEnum.BUG -> Loc.Support.type_bug
+                                    SupportTypeEnum.CRASH -> Loc.Support.type_crash
+                                    SupportTypeEnum.FEATURE -> Loc.Support.type_feature
+                                    SupportTypeEnum.CHANGE -> Loc.Support.type_change
                                 },
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (isPending) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
@@ -95,10 +95,10 @@ fun SupportDetailCard(
                                     text = {
                                         Text(
                                             when (type) {
-                                                SupportTypeEnum.BUG -> Loc.support_type_bug
-                                                SupportTypeEnum.CRASH -> Loc.support_type_crash
-                                                SupportTypeEnum.FEATURE -> Loc.support_type_feature
-                                                SupportTypeEnum.CHANGE -> Loc.support_type_change
+                                                SupportTypeEnum.BUG -> Loc.Support.type_bug
+                                                SupportTypeEnum.CRASH -> Loc.Support.type_crash
+                                                SupportTypeEnum.FEATURE -> Loc.Support.type_feature
+                                                SupportTypeEnum.CHANGE -> Loc.Support.type_change
                                             }
                                         )
                                     },
@@ -114,10 +114,10 @@ fun SupportDetailCard(
                     val displayType = request.pendingType ?: request.type
                     Text(
                         text = when (displayType) {
-                            SupportTypeEnum.BUG -> Loc.support_type_bug
-                            SupportTypeEnum.CRASH -> Loc.support_type_crash
-                            SupportTypeEnum.FEATURE -> Loc.support_type_feature
-                            SupportTypeEnum.CHANGE -> Loc.support_type_change
+                            SupportTypeEnum.BUG -> Loc.Support.type_bug
+                            SupportTypeEnum.CRASH -> Loc.Support.type_crash
+                            SupportTypeEnum.FEATURE -> Loc.Support.type_feature
+                            SupportTypeEnum.CHANGE -> Loc.Support.type_change
                         },
                         style = MaterialTheme.typography.labelMedium,
                         color = if (request.pendingType != null) MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondary
@@ -135,10 +135,10 @@ fun SupportDetailCard(
                             label = {
                                 Text(
                                     when (displayStatus) {
-                                        SupportStatusEnum.OPENED -> Loc.support_status_opened
-                                        SupportStatusEnum.IN_PROGRESS -> Loc.support_status_in_progress
-                                        SupportStatusEnum.CLOSED -> Loc.support_status_closed
-                                        SupportStatusEnum.CUT -> Loc.support_status_cut
+                                        SupportStatusEnum.OPENED -> Loc.Support.status_opened
+                                        SupportStatusEnum.IN_PROGRESS -> Loc.Support.status_in_progress
+                                        SupportStatusEnum.CLOSED -> Loc.Support.status_closed
+                                        SupportStatusEnum.CUT -> Loc.Support.status_cut
                                     }
                                 )
                             },
@@ -160,10 +160,10 @@ fun SupportDetailCard(
                                     text = {
                                         Text(
                                             when (status) {
-                                                SupportStatusEnum.OPENED -> Loc.support_status_opened
-                                                SupportStatusEnum.IN_PROGRESS -> Loc.support_status_in_progress
-                                                SupportStatusEnum.CLOSED -> Loc.support_status_closed
-                                                SupportStatusEnum.CUT -> Loc.support_status_cut
+                                                SupportStatusEnum.OPENED -> Loc.Support.status_opened
+                                                SupportStatusEnum.IN_PROGRESS -> Loc.Support.status_in_progress
+                                                SupportStatusEnum.CLOSED -> Loc.Support.status_closed
+                                                SupportStatusEnum.CUT -> Loc.Support.status_cut
                                             }
                                         )
                                     },
@@ -188,7 +188,7 @@ fun SupportDetailCard(
                     }
                     DropdownMenu(expanded = actionMenuExpanded, onDismissRequest = { actionMenuExpanded = false }) {
                         DropdownMenuItem(
-                            text = { Text(Loc.settings_copyId) },
+                            text = { Text(Loc.Settings.copyId) },
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(request.id))
                                 Toast.makeText(context, "ID Copied", Toast.LENGTH_SHORT).show()
@@ -198,7 +198,7 @@ fun SupportDetailCard(
                         )
                         if (isAdmin || request.status == SupportStatusEnum.CUT) {
                             DropdownMenuItem(
-                                text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
+                                text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     actionMenuExpanded = false
                                     showDeleteConfirm = true
@@ -217,7 +217,7 @@ fun SupportDetailCard(
         
         if (request.crashLog != null) {
             Spacer(Modifier.height(24.dp))
-            Text(text = Loc.support_crash_log, style = MaterialTheme.typography.titleSmall)
+            Text(text = Loc.Support.crash_log, style = MaterialTheme.typography.titleSmall)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,7 +238,7 @@ fun SupportDetailCard(
         
         if (isAdmin || request.deviceInfo.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
-            Text(text = Loc.support_device_info, style = MaterialTheme.typography.titleSmall)
+            Text(text = Loc.Support.device_info, style = MaterialTheme.typography.titleSmall)
             request.deviceInfo.forEach { (key, value) ->
                 Row(modifier = Modifier.padding(vertical = 2.dp)) {
                     Text(text = "$key: ", fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -266,16 +266,16 @@ fun SupportDetailCard(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(Loc.general_confirmDeleteTitle) },
-            text = { Text(Loc.general_confirmDeleteMsg) },
+            title = { Text(Loc.General.confirmDeleteTitle) },
+            text = { Text(Loc.General.confirmDeleteMsg) },
             confirmButton = {
                 TextButton(onClick = { onDelete(); showDeleteConfirm = false }) {
-                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.General.delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(Loc.general_cancel)
+                    Text(Loc.General.cancel)
                 }
             }
         )

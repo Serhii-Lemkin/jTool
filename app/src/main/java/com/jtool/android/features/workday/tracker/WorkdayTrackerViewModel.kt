@@ -88,12 +88,12 @@ class WorkdayTrackerViewModel(
         val currentMode = _uiState.value.mode
         if (pref == null || pref == WorkTrackingPreferenceEnum.UNSET) {
             if (currentMode != WorkModeEnum.QUICK_START) {
-                onEvent(WorkdayTrackerEvent.ChangeMode(WorkModeEnum.QUICK_START))
+                _uiState.update { it.copy(mode = WorkModeEnum.QUICK_START) }
             }
         } else if (pref == WorkTrackingPreferenceEnum.LOG_HOURS && currentMode == WorkModeEnum.SCHEDULE) {
-            onEvent(WorkdayTrackerEvent.ChangeMode(WorkModeEnum.LOG_HOURS))
+            _uiState.update { it.copy(mode = WorkModeEnum.LOG_HOURS) }
         } else if (pref == WorkTrackingPreferenceEnum.SCHEDULE && currentMode == WorkModeEnum.LOG_HOURS) {
-            onEvent(WorkdayTrackerEvent.ChangeMode(WorkModeEnum.SCHEDULE))
+            _uiState.update { it.copy(mode = WorkModeEnum.SCHEDULE) }
         }
     }
 
@@ -201,9 +201,12 @@ class WorkdayTrackerViewModel(
                 saveOptions()
             }
             is WorkdayTrackerEvent.SetTrackingPreference -> {
-                _uiState.update { it.copy(trackingPreference = event.preference) }
-                val targetMode = if (event.preference == WorkTrackingPreferenceEnum.LOG_HOURS) WorkModeEnum.LOG_HOURS else WorkModeEnum.SCHEDULE
-                onEvent(WorkdayTrackerEvent.ChangeMode(targetMode))
+                val targetMode = when (event.preference) {
+                    WorkTrackingPreferenceEnum.LOG_HOURS -> WorkModeEnum.LOG_HOURS
+                    WorkTrackingPreferenceEnum.SCHEDULE -> WorkModeEnum.SCHEDULE
+                    else -> WorkModeEnum.QUICK_START
+                }
+                _uiState.update { it.copy(trackingPreference = event.preference, mode = targetMode) }
                 saveOptions()
             }
             is WorkdayTrackerEvent.SetFreehandStart -> {
@@ -294,7 +297,7 @@ class WorkdayTrackerViewModel(
                             type = CalendarEventTypeEnum.SHIFT,
                             date = start.toLocalDate().toString(),
                             startTime = start.toLocalTime().toString(),
-                            endTime = null, // In progress
+                            endTime = null,
                             createdBy = userId,
                             status = CalendarEventStatusEnum.REGULAR
                         )
@@ -419,7 +422,7 @@ class WorkdayTrackerViewModel(
         )
         
         settingsManager.saveWorktimeOptions(options)
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             dataManager.pushUserSettings()
         }
     }

@@ -40,18 +40,18 @@ fun AppUpdatesScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.settings_versionInfo, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 16.dp))
+            Text(Loc.Settings.versionInfo, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 16.dp))
             
             val statusText = if (uiState.availableVersionCode != null && uiState.availableVersionName != null) {
                 if (uiState.availableVersionCode!! > uiState.currentVersionCode) {
-                    Loc.settings_updateAvailableMsg.format(uiState.currentVersionName, uiState.availableVersionName)
+                    Loc.Settings.updateAvailableMsg.format(uiState.currentVersionName, uiState.availableVersionName)
                 } else {
-                    Loc.settings_upToDateMsg.format(uiState.currentVersionName)
+                    Loc.Settings.upToDateMsg.format(uiState.currentVersionName)
                 }
             } else if (uiState.isChecking) {
-                Loc.settings_checkingUpdates
+                Loc.Settings.checkingUpdates
             } else {
-                Loc.settings_currentVersionLabel.format(uiState.currentVersionName)
+                Loc.Settings.currentVersionLabel.format(uiState.currentVersionName)
             }
 
             Text(
@@ -79,7 +79,7 @@ fun AppUpdatesScreen(
                 ) {
                     Icon(Icons.Default.SystemUpdate, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(Loc.settings_updateNow)
+                    Text(Loc.Settings.updateNow)
                 }
             } else {
                 OutlinedButton(
@@ -89,12 +89,12 @@ fun AppUpdatesScreen(
                 ) {
                     Icon(Icons.Default.Sync, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(if (uiState.isChecking) Loc.settings_checking else Loc.settings_checkForUpdates)
+                    Text(if (uiState.isChecking) Loc.Settings.checking else Loc.Settings.checkForUpdates)
                 }
                 
                 if (uiState.availableVersionCode != null && uiState.availableVersionCode!! <= uiState.currentVersionCode) {
                     Text(
-                        Loc.settings_latestVersionMsg,
+                        Loc.Settings.latestVersionMsg,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
@@ -109,9 +109,9 @@ fun AppUpdatesScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.settings_playStoreUpdates, style = MaterialTheme.typography.titleSmall)
+            Text(Loc.Settings.playStoreUpdates, style = MaterialTheme.typography.titleSmall)
             Text(
-                Loc.settings_playStoreUpdatesDesc,
+                Loc.Settings.playStoreUpdatesDesc,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -128,7 +128,7 @@ fun AppUpdatesScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(Loc.settings_viewInPlayStore)
+                Text(Loc.Settings.viewInPlayStore)
             }
         }
     }

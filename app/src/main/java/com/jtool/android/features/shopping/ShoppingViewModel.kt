@@ -68,12 +68,6 @@ class ShoppingViewModel(
         dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
             .launchIn(viewModelScope)
-            
-        dataManager.suggestionsFlow()
-            .onEach { suggestions: List<String> -> 
-                _uiState.update { it.copy(remoteSuggestions = suggestions) } 
-            }
-            .launchIn(viewModelScope)
     }
 
     fun onEvent(event: ShoppingEvent) {

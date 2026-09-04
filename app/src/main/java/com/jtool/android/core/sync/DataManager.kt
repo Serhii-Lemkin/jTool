@@ -12,9 +12,7 @@ import com.jtool.android.core.sync.helpers.SystemDatabaseHelper
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-
 
 class DataManager(private val context: Context) {
     private val firestore = FirebaseFirestore.getInstance()
@@ -27,8 +25,6 @@ class DataManager(private val context: Context) {
     private val systemHelper: SystemDatabaseHelper = SystemDatabaseHelper(firestore)
     private val workdayHelper: com.jtool.android.core.sync.helpers.WorkdayDatabaseHelper = com.jtool.android.core.sync.helpers.WorkdayDatabaseHelper(firestore)
     private val calendarHelper: com.jtool.android.core.sync.helpers.CalendarDatabaseHelper = com.jtool.android.core.sync.helpers.CalendarDatabaseHelper(firestore)
-
-    private fun getSuggestionsColl() = firestore.collection("suggestions")
 
     fun getPrivateCalendarEventsFlow(userId: String, fromDate: String, toDate: String) = calendarHelper.getPrivateEventsFlow(userId, fromDate, toDate)
     fun getSharedCalendarEventsFlow(groupId: String, fromDate: String, toDate: String) = calendarHelper.getSharedEventsFlow(groupId, fromDate, toDate)
@@ -52,21 +48,12 @@ class DataManager(private val context: Context) {
     suspend fun deleteSupportRequest(id: String) = supportHelper.deleteRequest(id)
     suspend fun logRequestedLanguage(name: String, code: String) = systemHelper.logRequestedLanguage(name, code)
 
-    fun suggestionsFlow(): kotlinx.coroutines.flow.Flow<List<String>> = kotlinx.coroutines.flow.callbackFlow {
-        val listener = getSuggestionsColl().addSnapshotListener { snapshot, _ ->
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { it.getString("text") }.distinct()
-                trySend(list)
-            }
-        }
-        awaitClose { listener.remove() }
-    }
-
     fun currentGroupIdFlow(): Flow<String?> = groupOpsHelper.currentGroupIdFlow()
     suspend fun getUserGroups(): List<String> = groupOpsHelper.getUserGroups()
-    suspend fun createGroup(groupName: String): String? = groupOpsHelper.createGroup(groupName)
+    suspend fun createGroup(groupName: String, isPrivate: Boolean = false): String? = groupOpsHelper.createGroup(groupName, isPrivate)
+    suspend fun ensurePrivateGroupExists(): Boolean = groupOpsHelper.ensurePrivateGroupExists()
     suspend fun updateGroupName(groupId: String, newName: String): Boolean = groupOpsHelper.updateGroupName(groupId, newName)
-    suspend fun joinGroup(groupId: String, isInviteAcceptance: Boolean = false): com.jtool.android.core.models.group.enums.JoinGroupResultEnum = groupOpsHelper.joinGroup(groupId, isInviteAcceptance)
+    suspend fun joinGroup(groupId: String, isInviteAcceptance: Boolean = false) = groupOpsHelper.joinGroup(groupId, isInviteAcceptance)
     suspend fun leaveGroup(groupId: String) = groupOpsHelper.leaveGroup(groupId)
     suspend fun switchGroup(groupId: String) = groupOpsHelper.switchGroup(groupId)
     fun clearLocalCache() = groupOpsHelper.clearLocalCache()

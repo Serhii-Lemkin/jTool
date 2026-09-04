@@ -10,7 +10,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object Cleaning : AppProperties(
     AppScreenEnum.CLEANING,
     Icons.Default.Brush,
-    { Loc.cleaning_cleaning }
+    { Loc.Cleaning.cleaning }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

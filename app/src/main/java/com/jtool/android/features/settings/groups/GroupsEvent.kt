@@ -10,6 +10,6 @@ sealed interface GroupsEvent {
     data class SendInvite(val email: String, val groupId: String) : GroupsEvent
     object DismissCreatedDialog : GroupsEvent
     object DismissMessage : GroupsEvent
-    object DismissJoinRequestSentSlip : GroupsEvent
+    object DismissJoinRequestSentSheet : GroupsEvent
     object Refresh : GroupsEvent
 }

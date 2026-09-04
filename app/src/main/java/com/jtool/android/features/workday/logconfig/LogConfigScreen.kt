@@ -49,7 +49,7 @@ fun LogConfigScreen(
 
     val handleBack = {
         if (uiState.hasUnsavedChanges) {
-            viewModel.onEvent(LogConfigEvent.ToggleExitConfirm(true))
+            viewModel.onEvent(LogConfigEvent.ToggleExitConfirm(show = true))
         } else {
             onBack()
         }
@@ -76,14 +76,14 @@ fun LogConfigScreen(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = Loc.worktime_unsavedChangesTitle,
+                    text = Loc.Workday.unsavedChangesTitle,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = Loc.worktime_unsavedChangesMsg,
+                    text = Loc.Workday.unsavedChangesMsg,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -94,14 +94,14 @@ fun LogConfigScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(Loc.worktime_exit)
+                    Text(Loc.Workday.exit)
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.onEvent(LogConfigEvent.ToggleExitConfirm(false)) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(Loc.worktime_keepEditing)
+                    Text(Loc.Workday.keepEditing)
                 }
             }
         }
@@ -125,10 +125,13 @@ fun LogConfigScreen(
         modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
         topBar = {
             GenericTitle(
-                title = Loc.worktime_manual,
+                title = Loc.Workday.manual,
                 onBack = handleBack,
                 actions = {
-                    IconButton(onClick = { viewModel.onEvent(LogConfigEvent.Save); onBack() }) {
+                    IconButton(onClick = { 
+                        viewModel.onEvent(LogConfigEvent.Save)
+                        onBack() 
+                    }) {
                         Icon(Icons.Default.Save, null)
                     }
                 }
@@ -143,8 +146,8 @@ fun LogConfigScreen(
                 .verticalScroll(scrollState)
         ) {
             ActionListItem(
-                headline = Loc.worktime_approximateHours,
-                supportingText = Loc.worktime_approximateHoursExpl,
+                headline = Loc.Workday.approximateHours,
+                supportingText = Loc.Workday.approximateHoursExpl,
                 leadingContent = { Icon(Icons.Default.Schedule, null, tint = MaterialTheme.colorScheme.primary) },
                 onClick = { viewModel.onEvent(LogConfigEvent.ToggleApproximateHoursPicker(true)) },
                 supportingMaxLines = Int.MAX_VALUE
@@ -161,7 +164,7 @@ fun LogConfigScreen(
 
             sortedDays.forEach { day ->
                 val logHours = uiState.tempWeeklySchedule[day] ?: DayLogHours()
-                val isSet = logHours.hours > 0 || logHours.minutes > 0
+                val isSet = (logHours.hours > 0) || (logHours.minutes > 0)
                 val dayColor = if (logHours.isConfirmedOff) Color(0xFF4CAF50) else if (isSet) Color(0xFF2196F3) else MaterialTheme.colorScheme.onSurface
 
                 Row(
@@ -179,7 +182,7 @@ fun LogConfigScreen(
                         
                         if (!logHours.isConfirmedOff && !approxStart.isNullOrEmpty()) {
                             Text(
-                                text = "$approxStart - ${approxEnd ?: "??"}",
+                                text = "$approxStart - ${approxEnd ?: Loc.General.none}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
                             )
@@ -194,7 +197,7 @@ fun LogConfigScreen(
                                     val v = s.filter { it.isDigit() }.toIntOrNull() ?: 0
                                     if (v < 24) viewModel.onEvent(LogConfigEvent.UpdateTempSchedule(day, logHours.copy(hours = v)))
                                 },
-                                label = { Text(Loc.general_hourSymbol.uppercase(), fontSize = 10.sp) },
+                                label = { Text(Loc.General.hourSymbol.uppercase(), fontSize = 10.sp) },
                                 modifier = Modifier.weight(1f),
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                                 singleLine = true,
@@ -206,7 +209,7 @@ fun LogConfigScreen(
                                     val v = s.filter { it.isDigit() }.toIntOrNull() ?: 0
                                     if (v < 60) viewModel.onEvent(LogConfigEvent.UpdateTempSchedule(day, logHours.copy(minutes = v)))
                                 },
-                                label = { Text(Loc.general_minuteSymbol.uppercase(), fontSize = 10.sp) },
+                                label = { Text(Loc.General.minuteSymbol.uppercase(), fontSize = 10.sp) },
                                 modifier = Modifier.weight(1f),
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                                 singleLine = true,
@@ -215,7 +218,7 @@ fun LogConfigScreen(
                         }
                     } else {
                         Text(
-                            Loc.worktime_off, 
+                            Loc.Workday.off, 
                             style = MaterialTheme.typography.labelMedium, 
                             color = Color(0xFF4CAF50),
                             modifier = Modifier.padding(end = 16.dp)
@@ -270,7 +273,7 @@ fun ApproximateHoursBottomSheet(
             ) {
                 Column(Modifier.padding(24.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = if (dayForTitle.isNotEmpty()) "Select Start Time for $dayForTitle" else "Select Start Time",
+                        text = if (dayForTitle.isNotEmpty()) Loc.Workday.selectStartTimeForDay.format(dayForTitle) else Loc.Workday.selectStartTime,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -291,7 +294,7 @@ fun ApproximateHoursBottomSheet(
                         }
                         pickingForStart = null
                     }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                        Text(Loc.general_select)
+                        Text(Loc.General.select)
                     }
                 }
             }
@@ -309,7 +312,7 @@ fun ApproximateHoursBottomSheet(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = Loc.worktime_hoursConfig,
+                text = Loc.Workday.hoursConfig,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -322,14 +325,14 @@ fun ApproximateHoursBottomSheet(
                     onClick = { onUpdateConfig(true, null, null) },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                 ) {
-                    Text(Loc.worktime_stableHours)
+                    Text(Loc.Workday.stableHours)
                 }
                 SegmentedButton(
                     selected = !uiState.pendingUseStable,
                     onClick = { onUpdateConfig(false, null, null) },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                 ) {
-                    Text(Loc.worktime_setByDay)
+                    Text(Loc.Workday.setByDay)
                 }
             }
 
@@ -345,14 +348,14 @@ fun ApproximateHoursBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedButton(
+                        IconButton(
                             onClick = { pickingForStart = true },
                             modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.medium
                         ) {
                             Icon(Icons.Default.AccessTime, null)
                             Spacer(Modifier.width(8.dp))
-                            Text(uiState.pendingStableStart ?: Loc.worktime_start)
+                            Text(uiState.pendingStableStart ?: Loc.Workday.start)
                         }
                         
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary)
@@ -368,7 +371,7 @@ fun ApproximateHoursBottomSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = uiState.pendingStableEnd ?: "--:--",
+                                    text = uiState.pendingStableEnd ?: Loc.General.none,
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -406,13 +409,18 @@ fun ApproximateHoursBottomSheet(
                                             contentPadding = PaddingValues(4.dp),
                                             shape = MaterialTheme.shapes.small
                                         ) {
-                                            Text(logHours.approximateStartTime ?: "Start", fontSize = 13.sp)
+                                            Text(logHours.approximateStartTime ?: Loc.Workday.start, fontSize = 13.sp)
                                         }
                                         
-                                        Icon(Icons.Default.ArrowForward, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.ArrowForward,
+                                            null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
 
                                         Text(
-                                            text = logHours.approximateEndTime ?: "--:--",
+                                            text = logHours.approximateEndTime ?: Loc.General.none,
                                             modifier = Modifier.weight(1f),
                                             fontSize = 13.sp,
                                             textAlign = TextAlign.Center,
@@ -421,7 +429,7 @@ fun ApproximateHoursBottomSheet(
                                     }
                                 } else {
                                     Text(
-                                        text = Loc.worktime_off,
+                                        text = Loc.Workday.off,
                                         color = Color(0xFF4CAF50),
                                         style = MaterialTheme.typography.labelSmall,
                                         modifier = Modifier.padding(end = 16.dp)
@@ -439,7 +447,7 @@ fun ApproximateHoursBottomSheet(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
-                Text(Loc.general_close)
+                Text(Loc.General.close)
             }
         }
     }

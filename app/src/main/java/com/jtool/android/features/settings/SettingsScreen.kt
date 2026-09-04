@@ -30,7 +30,6 @@ import com.jtool.android.features.settings.groups.GroupsScreen
 import com.jtool.android.features.settings.general.GeneralSettingsScreen
 import com.jtool.android.features.settings.updates.AppUpdatesScreen
 import com.jtool.android.features.settings.visibility.AppVisibilityScreen
-import com.jtool.android.features.support.screens.SupportHubScreen
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.models.common.enums.AppScreenEnum
@@ -60,9 +59,12 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(startOnUpdates, startOnGroups, startOnAccount) {
-        if (startOnUpdates) viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_UPDATES))
-        else if (startOnGroups) viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_GROUPS))
-        else if (startOnAccount) viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_ACCOUNT))
+        when {
+            startOnUpdates -> viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_UPDATES))
+            startOnGroups -> viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_GROUPS))
+            startOnAccount -> viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS_ACCOUNT))
+            else -> viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS))
+        }
     }
 
     if (uiState.currentSubScreen != AppScreenEnum.SETTINGS) {
@@ -72,14 +74,14 @@ fun SettingsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
-            if (uiState.currentSubScreen != AppScreenEnum.SETTINGS_REQUESTS && uiState.currentSubScreen != AppScreenEnum.SETTINGS_GROUPS) {
+            if (uiState.currentSubScreen != AppScreenEnum.SETTINGS_GROUPS) {
                 GenericTitle(
                     title = when(uiState.currentSubScreen) {
-                        AppScreenEnum.SETTINGS_ACCOUNT -> Loc.settings_account
-                        AppScreenEnum.SETTINGS_GENERAL -> Loc.settings_generalSettings
-                        AppScreenEnum.SETTINGS_UPDATES -> Loc.settings_appUpdates
-                        AppScreenEnum.SETTINGS_VISIBILITY -> Loc.settings_visibilityTitle
-                        else -> Loc.launcher_settings
+                        AppScreenEnum.SETTINGS_ACCOUNT -> Loc.Settings.account
+                        AppScreenEnum.SETTINGS_GENERAL -> Loc.Settings.generalSettings
+                        AppScreenEnum.SETTINGS_UPDATES -> Loc.Settings.appUpdates
+                        AppScreenEnum.SETTINGS_VISIBILITY -> Loc.Settings.interfaceAndApps
+                        else -> Loc.Launcher.settings
                     },
                     onBack = { 
                         if (uiState.currentSubScreen == AppScreenEnum.SETTINGS) onBack() else viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) 
@@ -88,7 +90,7 @@ fun SettingsScreen(
             }
         }
     ) { padding ->
-        val boxModifier = if (uiState.currentSubScreen == AppScreenEnum.SETTINGS_REQUESTS || uiState.currentSubScreen == AppScreenEnum.SETTINGS_GROUPS) {
+        val boxModifier = if (uiState.currentSubScreen == AppScreenEnum.SETTINGS_GROUPS) {
             Modifier.fillMaxSize()
         } else {
             Modifier.padding(padding).fillMaxSize()
@@ -128,11 +130,6 @@ fun SettingsScreen(
                     backupManager = backupManager
                 )
                 AppScreenEnum.SETTINGS_VISIBILITY -> AppVisibilityScreen(
-                    settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) }
-                )
-                AppScreenEnum.SETTINGS_REQUESTS -> SupportHubScreen(
-                    dataManager = dataManager,
                     settingsManager = settingsManager,
                     onBack = { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) }
                 )

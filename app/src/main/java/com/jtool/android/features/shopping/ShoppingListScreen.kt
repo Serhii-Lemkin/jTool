@@ -1,7 +1,6 @@
 package com.jtool.android.features.shopping
 
 import android.widget.Toast
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,10 +28,10 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
-import com.jtool.android.features.shopping.components.aisle_selection_slip.AisleSelectionSlip
-import com.jtool.android.features.shopping.components.filter_selection_slip.FilterSelectionSlip
-import com.jtool.android.features.shopping.components.item_delete_confirm_slip.ItemDeleteConfirmSlip
-import com.jtool.android.features.shopping.components.item_rename_slip.ItemRenameSlip
+import com.jtool.android.features.shopping.components.aisle_selection_sheet.AisleSelectionSheet
+import com.jtool.android.features.shopping.components.filter_selection_sheet.FilterSelectionSheet
+import com.jtool.android.features.shopping.components.item_delete_confirm_sheet.ItemDeleteConfirmSheet
+import com.jtool.android.features.shopping.components.item_rename_sheet.ItemRenameSheet
 
 val AisleIcons = mapOf(
     ShoppingAisleEnum.COMMON to Icons.AutoMirrored.Filled.Label,
@@ -53,7 +52,6 @@ val AisleIcons = mapOf(
 @Composable
 fun ShoppingListScreen(
     manager: ShoppingListManager,
-    backupManager: BackupManager,
     settingsManager: SettingsManager,
     dataManager: DataManager,
     onBack: () -> Unit,
@@ -67,10 +65,10 @@ fun ShoppingListScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    var showFilterSlip by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     if (uiState.showAislePicker) {
-        AisleSelectionSlip(
+        AisleSelectionSheet(
             selectedAisle = uiState.selectedItem?.aisle ?: uiState.selectedAisle,
             onAisleSelected = { viewModel.onEvent(ShoppingEvent.SelectAisle(it)) },
             onDismiss = { 
@@ -80,20 +78,20 @@ fun ShoppingListScreen(
         )
     }
 
-    if (showFilterSlip) {
-        FilterSelectionSlip(
+    if (showFilterSheet) {
+        FilterSelectionSheet(
             activeAisles = uiState.activeAisles,
             selectedAisleFilters = uiState.activeAisleFilters,
             currentFilterType = uiState.filterType,
             onToggleAisle = { viewModel.onEvent(ShoppingEvent.ToggleAisleFilter(it)) },
             onShowAll = { viewModel.onEvent(ShoppingEvent.ClearAisleFilters) },
             onShowInactive = { viewModel.onEvent(ShoppingEvent.UpdateFilter("Unactive")) },
-            onDismiss = { showFilterSlip = false }
+            onDismiss = { showFilterSheet = false }
         )
     }
 
     if (uiState.itemToRename != null) {
-        ItemRenameSlip(
+        ItemRenameSheet(
             currentName = uiState.itemToRename!!.text,
             onDismiss = { viewModel.onEvent(ShoppingEvent.RequestRename(null)) },
             onConfirm = { 
@@ -103,7 +101,7 @@ fun ShoppingListScreen(
     }
 
     if (uiState.itemToDelete != null) {
-        ItemDeleteConfirmSlip(
+        ItemDeleteConfirmSheet(
             onDismiss = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) },
             onConfirm = { viewModel.onEvent(ShoppingEvent.ConfirmDelete) }
         )
@@ -122,12 +120,12 @@ fun ShoppingListScreen(
                     else -> Icons.Default.FilterList
                 }
                 GenericTitle(
-                    title = Loc.shoplist_shoppingList,
+                    title = Loc.ShopList.shoppingList,
                     onBack = onBack,
                     isLoading = uiState.isLoading,
                     onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
                     actions = {
-                        IconButton(onClick = { showFilterSlip = true }) {
+                        IconButton(onClick = { showFilterSheet = true }) {
                             Icon(filterIcon, contentDescription = "Filter")
                         }
                     }
@@ -174,7 +172,7 @@ fun ShoppingListScreen(
                             item {
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                                 Text(
-                                    text = Loc.shoplist_recentlyChecked,
+                                    text = Loc.ShopList.recentlyChecked,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.secondary
@@ -211,8 +209,8 @@ fun ShoppingListScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
-                            .navigationBarsPadding() // Account for system buttons
-                            .imePadding() // Avoid keyboard obstruction
+                            .navigationBarsPadding()
+                            .imePadding()
                     ) {
                         if (uiState.suggestions.isNotEmpty()) {
                             Surface(
@@ -247,7 +245,7 @@ fun ShoppingListScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Text(
-                                                    text = Loc.shoplist_restore,
+                                                    text = Loc.ShopList.restore,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.primary
@@ -285,7 +283,7 @@ fun ShoppingListScreen(
                                 TextField(
                                     value = uiState.newItemText,
                                     onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
-                                    placeholder = { Text(Loc.shoplist_addItem) },
+                                    placeholder = { Text(Loc.ShopList.addItem) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                     colors = TextFieldDefaults.colors(
@@ -303,11 +301,11 @@ fun ShoppingListScreen(
                                             val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
                                             
                                             if (existingItem != null && !existingItem.isChecked) {
-                                                Toast.makeText(context, Loc.shoplist_itemAlreadyInList, Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, Loc.ShopList.itemAlreadyInList, Toast.LENGTH_SHORT).show()
                                             } else {
                                                 viewModel.onEvent(ShoppingEvent.AddItem)
-                                                if (existingItem != null && existingItem.isChecked) {
-                                                    Toast.makeText(context, Loc.shoplist_restoredExisting, Toast.LENGTH_SHORT).show()
+                                                if (existingItem != null) {
+                                                    Toast.makeText(context, Loc.ShopList.restoredExisting, Toast.LENGTH_SHORT).show()
                                                 }
                                             }
                                         }
@@ -346,7 +344,7 @@ fun ShoppingItemRow(
         onClick = null,
         headline = item.text,
         isStrikethrough = item.isChecked,
-        metadataText = "${Loc.general_by} $userName",
+        metadataText = "${Loc.General.by} $userName",
         leadingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -380,7 +378,7 @@ fun ShoppingItemRow(
                 ) {
                     DropdownMenuItem(
                         leadingIcon = { Icon(Icons.Default.Edit, null) },
-                        text = { Text(Loc.shoplist_changeAisle) },
+                        text = { Text(Loc.ShopList.changeAisle) },
                         onClick = {
                             onChangeAisle()
                             menuExpanded = false
@@ -396,7 +394,7 @@ fun ShoppingItemRow(
                     )
                     DropdownMenuItem(
                         leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                        text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
+                        text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
                         onClick = {
                             onDelete()
                             menuExpanded = false

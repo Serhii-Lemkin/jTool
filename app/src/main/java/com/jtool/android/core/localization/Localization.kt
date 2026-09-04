@@ -1,19 +1,24 @@
 package com.jtool.android.core.localization
 
+import android.util.Log
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.LayoutDirection
+import com.jtool.android.core.localization.domains.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Serializable
 data class LanguageMetadata(
     val name: String,
     val shortCode: String,
     val locale: String,
-    val direction: String = "ltr"
+    val direction: String = "ltr",
 )
 
 @Serializable
@@ -22,7 +27,7 @@ data class LocaleFileData(
     val shortCode: String,
     val locale: String,
     val direction: String = "ltr",
-    val strings: Map<String, String>
+    val strings: Map<String, String>,
 )
 
 object Loc {
@@ -43,7 +48,7 @@ object Loc {
             metadata = LanguageMetadata(data.name, data.shortCode, data.locale, data.direction)
             lang = locale
         } catch (e: Exception) {
-            android.util.Log.e("Loc", "Failed to load locale: $locale", e)
+            Log.e("Loc", "Failed to load locale: $locale", e)
         }
     }
 
@@ -60,411 +65,58 @@ object Loc {
         }
     }
 
-    private fun s(key: String, fallback: String): String {
+    internal fun s(key: String, fallback: String): String {
         return loadedStrings[key] ?: fallback
     }
 
-    val launcher_hello get() = s("launcher_hello", "Hello")
-    val launcher_settings get() = s("launcher_settings", "Settings")
+    val Launcher = LauncherLoc
+    val Workday = WorkdayLoc
+    val Calendar = CalendarLoc
+    val Admin = AdminLoc
+    val TimeCalc = TimeCalcLoc
+    val ShopList = ShopListLoc
+    val Notes = NotesLoc
+    val Comments = CommentsLoc
+    val Links = LinksLoc
+    val Cleaning = CleaningLoc
+    val Settings = SettingsLoc
+    val Support = SupportLoc
+    val General = GeneralLoc
+    val Crash = CrashLoc
 
-    val worktime_today get() = s("worktime_today", "Today")
-    val worktime_requiredHours get() = s("worktime_requiredHours", "Required Hours")
-    val worktime_startTime get() = s("worktime_startTime", "Start Time")
-    val worktime_calculate get() = s("worktime_calculate", "Calculate")
-    val worktime_remember get() = s("worktime_remember", "Remember")
-    val worktime_forgetTitle get() = s("worktime_forgetTitle", "Forget Time?")
-    val worktime_forgetConfirm get() = s("worktime_forgetConfirm", "Do you want to delete the saved start time for today?")
-    val worktime_finishAt get() = s("worktime_finishAt", "Finish at")
-    val worktime_forget get() = s("worktime_forget", "Forget")
-    val worktime_workFinished get() = s("worktime_workFinished", "Work day finished!")
-    val worktime_timeLeft get() = s("worktime_timeLeft", "Time left")
-    val worktime_invalidFormat get() = s("worktime_invalidFormat", "Invalid format. Try 6.13, 613, or 06:13")
-    val worktime_noWorkScheduled get() = s("worktime_noWorkScheduled", "No work hours scheduled for today!")
-    val worktime_editHours get() = s("worktime_editHours", "Edit Hours")
-    val worktime_resetToNow get() = s("worktime_resetToNow", "Reset to Now")
-    val worktime_editWorkHours get() = s("worktime_editWorkHours", "Edit Shifts")
-    val worktime_setHoursManually get() = s("worktime_setHoursManually", "Set your work hours manually to start.")
-    val worktime_workTime get() = s("worktime_workTime", "Workday")
-    val worktime_freehand get() = s("worktime_freehand", "Quick Start")
-    val worktime_weekly get() = s("worktime_weekly", "Fixed Schedule")
-    val worktime_manual get() = s("worktime_manual", "Shift Goals")
-    val worktime_goalsExpl get() = s("worktime_goalsExpl", "Set a target duration for each day. Perfect for flexible hours or freelancers.")
-    val worktime_scheduleExpl get() = s("worktime_scheduleExpl", "Set fixed start and end times for your shifts. Perfect for regular office or shift work.")
-    val worktime_adjust get() = s("worktime_adjust", "Adjust Today")
-    val worktime_noHoursScheduled get() = s("worktime_noHoursScheduled", "No hours were posted for today.")
-    val worktime_promptUpdateSchedule get() = s("worktime_promptUpdateSchedule", "Please update your schedule using the gear icon.")
-    val worktime_weeklyStartDay get() = s("worktime_weeklyStartDay", "Work Week Starts On")
-    val worktime_setEndTime get() = s("worktime_setEndTime", "Set End Time")
-    val worktime_setDuration get() = s("worktime_setDuration", "Set Duration")
-    val worktime_overtime get() = s("worktime_overtime", "Overtime")
-    val worktime_duration get() = s("worktime_duration", "Duration")
-    val worktime_start get() = s("worktime_start", "Start")
-    val worktime_finish get() = s("worktime_finish", "Finish")
-    val worktime_hours get() = s("worktime_hours", "Hours")
-    val worktime_mode get() = s("worktime_mode", "Mode")
-    val worktime_todayOnly get() = s("worktime_todayOnly", "Today Only")
-    val worktime_useDuration get() = s("worktime_useDuration", "Use Duration")
-    val worktime_dayOff get() = s("worktime_dayOff", "No work hours detected for today")
-    val worktime_trackingMethod get() = s("worktime_trackingMethod", "Tracking Method")
-    val worktime_trackingPreference get() = s("worktime_trackingPreference", "Tracking Preference")
-    val worktime_unsetPreference get() = s("worktime_unsetPreference", "Not Set (Quick Start Only)")
-    val worktime_choosePreferenceTitle get() = s("worktime_choosePreferenceTitle", "How do you track your time?")
-    val worktime_choosePreferenceMsg get() = s("worktime_choosePreferenceMsg", "Select the method that best fits your work style.")
-    val worktime_off get() = s("worktime_off", "Off")
-    val worktime_setWorkHours get() = s("worktime_setWorkHours", "Set Work Hours")
-    val worktime_setSchedule get() = s("worktime_setSchedule", "Set Schedule")
-    val worktime_unsavedChangesTitle get() = s("worktime_unsavedChangesTitle", "Unsaved Changes")
-    val worktime_unsavedChangesMsg get() = s("worktime_unsavedChangesMsg", "You have unsaved changes. Exit?")
-    val worktime_keepEditing get() = s("worktime_keepEditing", "Keep Editing")
-    val worktime_exit get() = s("worktime_exit", "Exit")
-    val worktime_finishSession get() = s("worktime_finishSession", "Finish Session")
-    val worktime_history get() = s("worktime_history", "History")
-    val worktime_enableHistory get() = s("worktime_enableHistory", "Enable History")
-    val worktime_historyGreeting get() = s("worktime_historyGreeting", "By enabling history, all finished shifts will be saved. You can then view your past work sessions by date.")
-    val worktime_noDataFound get() = s("worktime_noDataFound", "No data found")
-    val worktime_fromDate get() = s("worktime_fromDate", "From")
-    val worktime_toDate get() = s("worktime_toDate", "To")
-    val worktime_deleteAllData get() = s("worktime_deleteAllData", "Delete All Data")
-    val worktime_deleteAllDataConfirmTitle get() = s("worktime_deleteAllDataConfirmTitle", "Delete All Work Data?")
-    val worktime_deleteAllDataConfirmMsg get() = s("worktime_deleteAllDataConfirmMsg", "This will permanently remove your schedules, tracking history, and current session settings. This cannot be undone.")
-    val worktime_deleteSettingsOnly get() = s("worktime_deleteSettingsOnly", "Delete Settings Only")
-    val worktime_deleteAllSettingsAndHistory get() = s("worktime_deleteAllSettingsAndHistory", "Delete All (Settings & History)")
-    val worktime_whatToDelete get() = s("worktime_whatToDelete", "What would you like to delete?")
-    val worktime_resetToDefaults get() = s("worktime_resetToDefaults", "Reset everything to defaults")
-    val worktime_resetConfirmTitle get() = s("worktime_resetConfirmTitle", "Reset Session?")
-    val worktime_resetConfirmMsg get() = s("worktime_resetConfirmMsg", "Are you sure you want to reset the current session?")
-    val worktime_schedulingConflict get() = s("worktime_schedulingConflict", "Scheduling Conflict")
-    val worktime_copyFromPrevWeek get() = s("worktime_copyFromPrevWeek", "Copy from Previous Week")
-    val worktime_noShiftsAdded get() = s("worktime_noShiftsAdded", "No shifts added")
-    val worktime_nextDay get() = s("worktime_nextDay", "Next Day")
-    val worktime_shiftOptions get() = s("worktime_shiftOptions", "Shift Options")
-    val worktime_approximateHours get() = s("worktime_approximateHours", "Approximate Hours")
-    val worktime_approximateHoursExpl get() = s("worktime_approximateHoursExpl", "Set regular working hours to show up in your calendar as recurring shifts.")
-    val worktime_stableHours get() = s("worktime_stableHours", "Stable Hours")
-    val worktime_setByDay get() = s("worktime_setByDay", "Set By Day")
-    val worktime_hoursConfig get() = s("worktime_hoursConfig", "Hours Configuration")
-
-    val admin_cleanupLegacyWorkHours get() = s("admin_cleanupLegacyWorkHours", "Cleanup Legacy Work Hours")
-    val admin_cleanupLegacyWorkHoursConfirm get() = s("admin_cleanupLegacyWorkHoursConfirm", "Proceed with cleanup?")
-
-    val timecalc_baseDateTime get() = s("timecalc_baseDateTime", "Base Date/Time")
-    val timecalc_addSub get() = s("timecalc_addSub", "Add / Subtract")
-    val timecalc_sub get() = s("timecalc_sub", "Sub")
-    val timecalc_history get() = s("timecalc_history", "History (Tap to restore)")
-    val timecalc_added get() = s("timecalc_added", "Added")
-    val timecalc_subtracted get() = s("timecalc_subtracted", "Subtracted")
-    val timecalc_resultedIn get() = s("timecalc_resultedIn", "Resulted in")
-    val timecalc_year get() = s("timecalc_year", "Year")
-    val timecalc_month get() = s("timecalc_month", "Mo")
-    val timecalc_day get() = s("timecalc_day", "Day")
-
-    fun getDayOfWeekName(day: java.time.DayOfWeek): String {
+    fun getDayOfWeekName(day: DayOfWeek): String {
         if (lang == "uk") {
-            return when(day) {
-                java.time.DayOfWeek.SUNDAY -> s("timecalc_day_Sunday", "Неділя")
-                java.time.DayOfWeek.MONDAY -> s("timecalc_day_Monday", "Понеділок")
-                java.time.DayOfWeek.TUESDAY -> s("timecalc_day_Tuesday", "Вівторок")
-                java.time.DayOfWeek.WEDNESDAY -> s("timecalc_day_Wednesday", "Середа")
-                java.time.DayOfWeek.THURSDAY -> s("timecalc_day_Thursday", "Четвер")
-                java.time.DayOfWeek.FRIDAY -> s("timecalc_day_Friday", "П'ятниця")
-                java.time.DayOfWeek.SATURDAY -> s("timecalc_day_Saturday", "Субота")
+            return when (day) {
+                DayOfWeek.SUNDAY -> s("timecalc_day_Sunday", "Неділя")
+                DayOfWeek.MONDAY -> s("timecalc_day_Monday", "Понеділок")
+                DayOfWeek.TUESDAY -> s("timecalc_day_Tuesday", "Вівторок")
+                DayOfWeek.WEDNESDAY -> s("timecalc_day_Wednesday", "Середа")
+                DayOfWeek.THURSDAY -> s("timecalc_day_Thursday", "Четвер")
+                DayOfWeek.FRIDAY -> s("timecalc_day_Friday", "П'ятниця")
+                DayOfWeek.SATURDAY -> s("timecalc_day_Saturday", "Субота")
             }
         }
-        return day.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.forLanguageTag(lang))
+        return day.getDisplayName(TextStyle.FULL, Locale.forLanguageTag(lang))
     }
 
-    val timecalc_hour get() = s("timecalc_hour", "Hr")
-    val timecalc_minute get() = s("timecalc_minute", "Min")
-    val timecalc_timeCalc get() = s("timecalc_timeCalc", "Time")
-
-    val shoplist_shoppingList get() = s("shoplist_shoppingList", "ShopList")
-    val shoplist_addItem get() = s("shoplist_addItem", "Add Item")
-    val shoplist_recentlyChecked get() = s("shoplist_recentlyChecked", "Recently Checked")
-    val shoplist_restore get() = s("shoplist_restore", "Restore")
-    val shoplist_itemAlreadyInList get() = s("shoplist_itemAlreadyInList", "Item already in list")
-    val shoplist_restoredExisting get() = s("shoplist_restoredExisting", "Restored existing item")
-    val shoplist_all get() = s("shoplist_all", "All")
-    val shoplist_unactive get() = s("shoplist_unactive", "Unactive")
-    val shoplist_selectAisle get() = s("shoplist_selectAisle", "Select Aisle")
-    val shoplist_changeAisle get() = s("shoplist_changeAisle", "Change Aisle")
-    
     fun getAisleName(aisle: com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum): String {
-        return when(aisle) {
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.COMMON -> s("shoplist_aisle_common", "Common")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.VEGGIES -> s("shoplist_aisle_veggies", "Veggies")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.MEAT -> s("shoplist_aisle_meat", "Meat")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.FISH -> s("shoplist_aisle_fish", "Fish")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.DAIRY -> s("shoplist_aisle_dairy", "Dairy")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.BAKERY -> s("shoplist_aisle_bakery", "Bakery")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.DRINKS -> s("shoplist_aisle_drinks", "Drinks")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.FROZEN -> s("shoplist_aisle_frozen", "Frozen")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.SNACKS -> s("shoplist_aisle_snacks", "Snacks")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.HOUSEHOLD -> s("shoplist_aisle_household", "Household")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PERSONAL -> s("shoplist_aisle_personal", "Personal")
-            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PETS -> s("shoplist_aisle_pets", "Pets")
+        return when (aisle) {
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.COMMON -> ShopList.aisle_common
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.VEGGIES -> ShopList.aisle_veggies
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.MEAT -> ShopList.aisle_meat
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.FISH -> ShopList.aisle_fish
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.DAIRY -> ShopList.aisle_dairy
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.BAKERY -> ShopList.aisle_bakery
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.DRINKS -> ShopList.aisle_drinks
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.FROZEN -> ShopList.aisle_frozen
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.SNACKS -> ShopList.aisle_snacks
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.HOUSEHOLD -> ShopList.aisle_household
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PERSONAL -> ShopList.aisle_personal
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PETS -> ShopList.aisle_pets
         }
     }
-
-    val notes_notes get() = s("notes_notes", "Notes")
-    val notes_textNote get() = s("notes_textNote", "Text Note")
-    val notes_checklistNote get() = s("notes_checklistNote", "Checklist")
-    val notes_noteContentHint get() = s("notes_noteContentHint", "Note content...")
-    val notes_noteSaved get() = s("notes_noteSaved", "Note saved!")
-    val notes_deleteNoteTitle get() = s("notes_deleteNoteTitle", "Delete Note?")
-    val notes_noteTitlePlaceholder get() = s("notes_noteTitlePlaceholder", "Title")
-    val notes_untitledNote get() = s("notes_untitledNote", "Untitled")
-
-    val calendar_calendar get() = s("calendar_calendar", "Calendar")
-    val calendar_noEvents get() = s("calendar_noEvents", "No events for this day")
-    val calendar_eventTitle get() = s("calendar_eventTitle", "Event Title")
-    val calendar_addEvent get() = s("calendar_addEvent", "Add Event")
-    val calendar_editEvent get() = s("calendar_editEvent", "Edit Event")
-    val calendar_shift get() = s("calendar_shift", "Shift")
-    val calendar_common get() = s("calendar_common", "Common")
-    val calendar_date get() = s("calendar_date", "Date")
-    val calendar_time get() = s("calendar_time", "Time")
-    val calendar_type get() = s("calendar_type", "Type")
-    val calendar_noEventFound get() = s("calendar_noEventFound", "No event found")
-    val calendar_regular get() = s("calendar_regular", "Regular")
-    val calendar_unfinishedWorkday get() = s("calendar_unfinishedWorkday", "Unfinished Workday")
-    val calendar_finishedWorkday get() = s("calendar_finishedWorkday", "Finished Workday")
-    val calendar_note get() = s("calendar_note", "Note")
-
-    val comments_comments get() = s("comments_comments", "Comments")
-    val comments_addComment get() = s("comments_addComment", "Add a comment...")
-    val comments_reply get() = s("comments_reply", "Reply")
-    val comments_edit get() = s("comments_edit", "Edit")
-    val comments_edited get() = s("comments_edited", "edited")
-    val comments_replying get() = s("comments_replying", "Replying...")
-
-    val links_links get() = s("links_links", "Links")
-    val links_searchLinks get() = s("links_searchLinks", "Search links...")
-    val links_linkTitle get() = s("links_linkTitle", "Title")
-    val links_linkUrl get() = s("links_linkUrl", "URL")
-    val links_addLink get() = s("links_addLink", "Add Link")
-    val links_invalidUrl get() = s("links_invalidUrl", "Invalid URL")
-    val links_copy get() = s("links_copy", "Copy")
-    val links_copied get() = s("links_copied", "Copied!")
-    val links_urlHint get() = s("links_urlHint", "https://...")
-    val links_confirmDeleteLinkTitle get() = s("links_confirmDeleteLinkTitle", "Delete Link?")
-    val links_confirmDeleteLinkMsg get() = s("links_confirmDeleteLinkMsg", "Are you sure you want to delete this link?")
-
-    val cleaning_cleaning get() = s("cleaning_cleaning", "Cleaning")
-    val cleaning_taskTitle get() = s("cleaning_taskTitle", "Task Title")
-    val cleaning_everyXDays get() = s("cleaning_everyXDays", "Every X Days")
-    val cleaning_recurring get() = s("cleaning_recurring", "Recurring")
-    val cleaning_addTask get() = s("cleaning_addTask", "Add Task")
-    val cleaning_lastDone get() = s("cleaning_lastDone", "Last done")
-    val cleaning_oneTime get() = s("cleaning_oneTime", "One-time")
-    val cleaning_disable get() = s("cleaning_disable", "Disable")
-    val cleaning_restoreTask get() = s("cleaning_restoreTask", "Restore")
-    val cleaning_showDisabled get() = s("cleaning_showDisabled", "Show Disabled Tasks")
-    val cleaning_activeTasks get() = s("cleaning_activeTasks", "Active Tasks")
-    val cleaning_editTask get() = s("cleaning_editTask", "Edit Task")
-
-    val cleaning_recurrence_everyDay get() = s("cleaning_recurrence_everyDay", "Every day")
-    val cleaning_recurrence_everyTwoDays get() = s("cleaning_recurrence_everyTwoDays", "Every 2 days")
-    val cleaning_recurrence_everyXDays get() = s("cleaning_recurrence_everyXDays", "Every %d days")
-    val cleaning_recurrence_uk_1 get() = s("cleaning_recurrence_uk_1", "кожен %d день")
-    val cleaning_recurrence_uk_2_4 get() = s("cleaning_recurrence_uk_2_4", "кожні %d дні")
-    val cleaning_recurrence_uk_5 get() = s("cleaning_recurrence_uk_5", "кожні %d днів")
 
     fun getCleaningFrequency(days: Int): String {
         return RecurrenceFormatter.formatEveryXDays(days, lang)
     }
-
-    val settings_displayName get() = s("settings_displayName", "Display Name")
-    val settings_userSettings get() = s("settings_userSettings", "User Settings")
-    val settings_syncSubtitle get() = s("settings_syncSubtitle", "Cloud sync for your data")
-    val settings_appUpdates get() = s("settings_appUpdates", "App Updates")
-    val settings_appUpdatesSubtitle get() = s("settings_appUpdatesSubtitle", "Check for new versions on Google Play")
-    val settings_visibilityTitle get() = s("settings_visibilityTitle", "App Visibility")
-    val settings_visibilitySubtitle get() = s("settings_visibilitySubtitle", "Hide or show apps on main menu")
-    val settings_layoutType get() = s("settings_layoutType", "Menu Layout")
-    val settings_gridLayout get() = s("settings_gridLayout", "Grid")
-    val settings_listLayout get() = s("settings_listLayout", "List")
-    val settings_cloudFolder get() = s("settings_cloudFolder", "Cloud Folder")
-    val settings_selectFolderDesc get() = s("settings_selectFolderDesc", "Select the shared Google Drive folder for sync.")
-    val settings_linkSyncFolder get() = s("settings_linkSyncFolder", "Link Sync Folder")
-    val settings_pushData get() = s("settings_pushData", "Push Data")
-    val settings_pullData get() = s("settings_pullData", "Pull Data")
-    val settings_openInDrive get() = s("settings_openInDrive", "Open in Drive")
-    val settings_syncInterval get() = s("settings_syncInterval", "Sync Interval (seconds)")
-    val settings_unlinkFolder get() = s("settings_unlinkFolder", "Unlink Folder")
-    val settings_manualBackup get() = s("settings_manualBackup", "Manual Backup File")
-    val settings_export get() = s("settings_export", "Export")
-    val settings_import get() = s("settings_import", "Import")
-    val settings_versionInfo get() = s("settings_versionInfo", "Version Info")
-    val settings_checkForUpdates get() = s("settings_checkForUpdates", "Check for Updates")
-    val settings_updateNow get() = s("settings_updateNow", "Update Now")
-    val settings_updateAvailableTitle get() = s("settings_updateAvailableTitle", "Update Available")
-    val settings_later get() = s("settings_later", "Later")
-    val settings_install get() = s("settings_install", "Install")
-    val settings_goToUpdates get() = s("settings_goToUpdates", "Go to Updates")
-    val settings_upToDateMsg get() = s("settings_upToDateMsg", "You are on version %s and you are up to date.")
-    val settings_updateAvailableMsg get() = s("settings_updateAvailableMsg", "You are on version %s and there is version %s available on Google Play.")
-    val settings_linkFolderToUpdate get() = s("settings_linkFolderToUpdate", "You must link a shared folder in 'Sync' first to check for updates.")
-    val settings_openSecuritySettings get() = s("settings_openSecuritySettings", "Open Security Settings")
-    val settings_checkingUpdates get() = s("settings_checkingUpdates", "Checking for updates...")
-    val settings_currentVersionLabel get() = s("currentVersionLabel", "Current version: %s")
-    val settings_checking get() = s("settings_checking", "Checking...")
-    val settings_latestVersionMsg get() = s("latestVersionMsg", "You are on the latest version!")
-    val settings_playStoreUpdates get() = s("playStoreUpdates", "Play Store Updates")
-    val settings_playStoreUpdatesDesc get() = s("playStoreUpdatesDesc", "Updates are managed automatically by Google Play. If you encounter issues, you can check the store listing manually.")
-    val settings_viewInPlayStore get() = s("viewInPlayStore", "View in Play Store")
-    val settings_nameSaved get() = s("settings_nameSaved", "Name saved!")
-    val settings_dangerZone get() = s("settings_dangerZone", "Danger Zone")
-    val settings_deleteAccountData get() = s("settings_deleteAccountData", "Delete Account & Data")
-    val settings_confirmEmailTitle get() = s("settings_confirmEmailTitle", "Confirm Email")
-    val settings_confirmEmailMsg get() = s("settings_confirmEmailMsg", "To proceed, please enter your email address: %s")
-    val settings_email get() = s("settings_email", "Email")
-    val settings_verify get() = s("settings_verify", "Verify")
-    val settings_deleteAccountPermanentMsg get() = s("settings_deleteAccountPermanentMsg", "THIS ACTION IS PERMANENT. All your personal settings, group memberships, and public profile will be deleted forever. Do you wish to proceed?")
-    val settings_logout get() = s("settings_logout", "Logout")
-    val settings_confirmLogoutTitle get() = s("settings_confirmLogoutTitle", "Logout?")
-    val settings_confirmLogoutMsg get() = s("settings_confirmLogoutMsg", "Are you sure you want to log out?")
-    val settings_signInWithGoogle get() = s("settings_signInWithGoogle", "Sign in with Google")
-    val settings_notSignedIn get() = s("settings_notSignedIn", "You are not signed in.")
-    val settings_pleaseSignInLink get() = s("settings_pleaseSignInLink", "Please sign in here")
-    val settings_cloudSyncFirebase get() = s("settings_cloudSyncFirebase", "Google Account (Firebase)")
-    val settings_appearanceLanguage get() = s("settings_appearanceLanguage", "Appearance & Language")
-    val settings_darkMode get() = s("settings_darkMode", "Dark Mode")
-    val settings_lightMode get() = s("settings_lightMode", "Light Mode")
-    val settings_language get() = s("settings_language", "Language")
-    val settings_generalSettings get() = s("settings_generalSettings", "General Settings")
-    val settings_account get() = s("settings_account", "Account")
-    val settings_privacyPolicy get() = s("settings_privacyPolicy", "Privacy Policy")
-    val settings_privacySubtitle get() = s("settings_privacySubtitle", "Read how we handle your data")
-    val settings_linkedGroupId get() = s("settings_linkedGroupId", "Linked Group")
-    val settings_shareIdDesc get() = s("settings_shareIdDesc", "Copy ID and share it with others to get into the group")
-    val settings_unlinkGroup get() = s("settings_unlinkGroup", "Leave")
-    val settings_activeGroup get() = s("settings_activeGroup", "Active Group:")
-    val settings_noneSelected get() = s("settings_noneSelected", "None selected")
-    val settings_addNewGroup get() = s("settings_addNewGroup", "Add New Group")
-    val settings_groupName get() = s("settings_groupName", "Group Name")
-    val settings_createNewGroup get() = s("settings_createNewGroup", "Create New Group")
-    val settings_groupIdToJoin get() = s("settings_groupIdToJoin", "Group ID to Join")
-    val settings_joinGroup get() = s("settings_joinGroup", "Request Join Group")
-    val settings_sendRequest get() = s("settings_sendRequest", "Send Request")
-    val settings_noGroupsMsg get() = s("settings_noGroupsMsg", "You are not a member in any group, please create one yourself or ask a friend to invite you in.")
-    val settings_activeGroupLabel get() = s("settings_activeGroupLabel", "Group: %s")
-    val settings_noActiveGroup get() = s("settings_noActiveGroup", "No group selected. Click here to join one!")
-    val settings_manualSync get() = s("settings_manualSync", "Manual Sync (Merge)")
-    val settings_groups get() = s("settings_groups", "Groups")
-    val settings_groupInvite get() = s("settings_groupInvite", "Invite to Group")
-    val settings_enterEmail get() = s("settings_enterEmail", "Enter user email...")
-    val settings_confirmUnlinkTitle get() = s("settings_confirmUnlinkTitle", "Leave Group?")
-    val settings_confirmUnlinkMsg get() = s("settings_confirmUnlinkMsg", "Are you sure you want to leave this group?")
-    val settings_copyId get() = s("settings_copyId", "Copy ID")
-    val settings_ownerLabel get() = s("settings_ownerLabel", "Owner")
-    val settings_groupMembers get() = s("settings_groupMembers", "Group Members")
-    val settings_deleteGroupTitle get() = s("settings_deleteGroupTitle", "Delete Group?")
-    val settings_lastMemberLeaveMsg get() = s("settings_lastMemberLeaveMsg", "Because you are the last person to leave the group, on leave the group will be permanently deleted. Are you sure?")
-    val settings_groupCreated get() = s("settings_groupCreated", "Group Created!")
-    val settings_groupIdLabel get() = s("settings_groupIdLabel", "Group ID: %s")
-    val settings_editGroupName get() = s("settings_editGroupName", "Edit Group Name")
-    val settings_groupInvitation get() = s("settings_groupInvitation", "Group Invitation")
-    val settings_invitationRejected get() = s("settings_invitationRejected", "Invitation Rejected")
-    val settings_invitationRejectedMsg get() = s("settings_invitationRejectedMsg", "%s rejected your invitation to %s")
-    val settings_memberJoined get() = s("settings_memberJoined", "Member Joined")
-    val settings_memberJoinedMsg get() = s("settings_memberJoinedMsg", "%s joined the group")
-    val settings_memberLeft get() = s("settings_memberLeft", "Member Left")
-    val settings_memberLeftMsg get() = s("settings_memberLeftMsg", "%s left the group")
-    val settings_groupCreatedNotif get() = s("settings_groupCreatedNotif", "New Group Created")
-    val settings_groupCreatedMsg get() = s("settings_groupCreatedMsg", "%s was created")
-    val settings_noNotifications get() = s("settings_noNotifications", "No pending notifications")
-    val settings_invitedToJoin get() = s("settings_invitedToJoin", "You were invited to join %s")
-    val settings_fromLabel get() = s("settings_fromLabel", "From: %s")
-    val settings_wantsToJoin get() = s("settings_wantsToJoin", "%s wants to join your group")
-    val settings_joinRequests get() = s("settings_joinRequests", "Join Requests")
-    val settings_joinRequestsExpl get() = s("settings_joinRequestsExpl", "These users want to join your group")
-    val settings_accept get() = s("settings_accept", "Accept")
-    val settings_decline get() = s("settings_decline", "Decline")
-    val settings_joinRequestSent get() = s("settings_joinRequestSent", "Join request sent! Please wait for a member to approve it.")
-    val settings_alreadyRequested get() = s("settings_alreadyRequested", "Join Request Pending")
-    val settings_alreadyRequestedExpl get() = s("settings_alreadyRequestedExpl", "You have already sent a request to join this group. Please wait for a member to approve it.")
-    val settings_alreadyMember get() = s("settings_alreadyMember", "Already a Member")
-    val settings_alreadyMemberExpl get() = s("settings_alreadyMemberExpl", "You are already a member of this group.")
-    val settings_joinRequestFailed get() = s("settings_joinRequestFailed", "Failed to send join request.")
-    val settings_requestApproved get() = s("settings_requestApproved", "Join Request Approved")
-    val settings_requestDeclined get() = s("settings_requestDeclined", "Join Request Declined")
-    val settings_addedToGroup get() = s("settings_addedToGroup", "You have been added to %s")
-    val settings_requestToJoinDeclined get() = s("settings_requestToJoinDeclined", "Your request to join %s was declined")
-    val settings_requestToJoin get() = s("settings_requestToJoin", "Request to Join")
-    val settings_joinRequestExplForRequester get() = s("settings_joinRequestExplForRequester", "At least one member of the group must approve your request before you can join.")
-
-    val support_hub_title get() = s("support_hub_title", "Support Hub")
-    val support_type_bug get() = s("support_type_bug", "Bug")
-    val support_type_crash get() = s("support_type_crash", "Crash")
-    val support_type_feature get() = s("support_type_feature", "Feature")
-    val support_type_change get() = s("support_type_change", "Change")
-    val support_status_opened get() = s("support_status_opened", "Opened")
-    val support_status_in_progress get() = s("support_status_in_progress", "In Progress")
-    val support_status_closed get() = s("support_status_closed", "Closed")
-    val support_status_cut get() = s("support_status_cut", "Cut")
-    val support_new_request get() = s("support_new_request", "New Request")
-    val support_show_archived get() = s("support_show_archived", "Show Archived")
-    val support_submit get() = s("support_submit", "Submit")
-    val support_welcome_title get() = s("support_welcome_title", "Welcome to the Support Hub!")
-    val support_welcome_msg get() = s("support_welcome_msg", "Here you can open a ticket for the developer to look into any issues you are experiencing. To start, please press the plus icon in the bottom right corner.")
-    val support_no_requests get() = s("support_no_requests", "No requests found.")
-    val support_request_number get() = s("support_request_number", "#%d")
-    val support_device_info get() = s("support_device_info", "Device Info")
-    val support_crash_log get() = s("support_crash_log", "Crash Log")
-    val support_daily_limit get() = s("support_daily_limit", "Daily limit reached (%d/%d).")
-    val support_set_status get() = s("support_set_status", "Set Status")
-    val support_enter_details get() = s("support_enter_details", "Enter details here...")
-    val support_sent_success get() = s("support_sent_success", "Support request sent!")
-
-    val admin_adminPanel get() = s("admin_adminPanel", "Admin Panel")
-    val admin_users get() = s("admin_users", "Users")
-    val admin_usersSubtitle get() = s("admin_usersSubtitle", "Manage user permissions")
-    val admin_searchUsers get() = s("admin_searchUsers", "Search Users")
-    val admin_groupsSubtitle get() = s("admin_groupsSubtitle", "Maintenance and cleanup")
-    val admin_deleteUserPermanently get() = s("admin_deleteUserPermanently", "this will permanently delete all user data do you wish to proceed")
-    val admin_deleteGroupPermanently get() = s("admin_deleteGroupPermanently", "This will permanently delete the group and all its data. Do you wish to proceed?")
-    val admin_deleteGroup get() = s("admin_deleteGroup", "Delete Group")
-    val admin_makeAdmin get() = s("admin_makeAdmin", "Make Admin")
-    val admin_removeAdmin get() = s("admin_removeAdmin", "Remove Admin")
-
-    val general_hourSymbol get() = s("general_hourSymbol", "h")
-    val general_minuteSymbol get() = s("general_minuteSymbol", "m")
-    val general_hours get() = s("general_hours", "Hours")
-    val general_minutes get() = s("general_minutes", "Minutes")
-    val general_yearShort get() = s("general_yearShort", "y")
-    val general_monthShort get() = s("general_monthShort", "mo")
-    val general_dayShort get() = s("general_dayShort", "d")
-    val general_notifications get() = s("general_notifications", "Notifications")
-    val general_zeroUnits get() = s("general_zeroUnits", "0 units")
-    val general_add get() = s("general_add", "Add")
-    val general_update get() = s("general_update", "Update")
-    val general_delete get() = s("general_delete", "Delete")
-    val general_cancel get() = s("general_cancel", "Cancel")
-    val general_save get() = s("general_save", "Save")
-    val general_select get() = s("general_select", "Select")
-    val general_selectLater get() = s("general_selectLater", "Select Later")
-    val worktime_selectLaterExpl get() = s("worktime_selectLaterExpl", "Keep only the basic Quick Start timer for now. You can choose a tracking method later.")
-    val general_loadMore get() = s("general_loadMore", "Load More")
-    val general_close get() = s("general_close", "Close")
-    val general_back get() = s("general_back", "< Back")
-    val general_by get() = s("general_by", "By")
-    val general_or get() = s("general_or", "OR")
-    val general_confirmDeleteTitle get() = s("general_confirmDeleteTitle", "Delete Item?")
-    val general_confirmDeleteMsg get() = s("general_confirmDeleteMsg", "Are you sure you want to delete this item?")
-    val general_unknown get() = s("general_unknown", "Unknown")
-    val general_search get() = s("general_search", "Search")
-    val general_searchGroups get() = s("general_searchGroups", "Search Groups")
-    val general_areYouSure get() = s("general_areYouSure", "Are you sure?")
-    val general_refreshing get() = s("general_refreshing", "Refreshing...")
-    val general_pullToRefresh get() = s("general_pullToRefresh", "Pull to refresh")
-    val general_seeAll get() = s("general_seeAll", "See All")
-    val general_item get() = s("general_item", "item")
-    val general_items get() = s("general_items", "items")
-
-    val crash_title get() = s("crash_title", "Oops! App Crashed")
-    val crash_msg get() = s("crash_msg", "A fatal error occurred. You can report this to the developer.")
-    val crash_reportBug get() = s("crash_reportBug", "Report bug")
-    val crash_automatedReport get() = s("crash_automatedReport", "Automated Crash Report")
-    val crash_sentSuccess get() = s("crash_sentSuccess", "Report sent! Thank you.")
-    val crash_goHome get() = s("crash_goHome", "Go to Home")
 }

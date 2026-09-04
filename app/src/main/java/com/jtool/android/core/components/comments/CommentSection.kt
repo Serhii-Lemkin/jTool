@@ -48,7 +48,7 @@ fun CommentSection(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "${Loc.comments_comments} (${getTotalCommentsCount(comments)})",
+                text = "${Loc.Comments.comments} (${getTotalCommentsCount(comments)})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -63,7 +63,7 @@ fun CommentSection(
                             modifier = Modifier.padding(bottom = 4.dp)
                         ) {
                             Text(
-                                text = Loc.comments_replying,
+                                text = Loc.Comments.replying,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -94,7 +94,7 @@ fun CommentSection(
                         OutlinedTextField(
                             value = state.commentInput,
                             onValueChange = { state.commentInput = it },
-                            placeholder = { Text(Loc.comments_addComment) },
+                            placeholder = { Text(Loc.Comments.addComment) },
                             modifier = Modifier.weight(1f),
                             maxLines = 3
                         )

@@ -15,7 +15,7 @@ sealed class AppProperties(
 
     companion object {
         val allApps = listOf(WorkTime, TimeCalc, ShopList, Notes, Links, Cleaning, Calendar)
-        val allScreens = listOf(Launcher, WorkTime, WorkTimeSettingsMain, WorkTimeSchedule, WorkTimeLogConfig, TimeCalc, ShopList, Notes, Links, Cleaning, Calendar, CalendarDay, CalendarEventDetail, AdminPanel, Settings, SettingsAccount)
+        val allScreens = listOf(Launcher, WorkTime, WorkTimeSettingsMain, WorkTimeSchedule, WorkTimeLogConfig, TimeCalc, ShopList, Notes, Links, Cleaning, Calendar, CalendarDay, CalendarEventDetail, AdminPanel, Settings, SettingsAccount, SupportHub)
         
         fun fromId(id: AppScreenEnum): AppProperties? = allScreens.find { it.id == id }
     }

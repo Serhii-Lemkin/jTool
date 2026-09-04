@@ -1,5 +1,6 @@
 package com.jtool.android.features.notes
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -80,7 +81,7 @@ class NotesViewModel(
                                     }
                                     note
                                 } catch (e: Exception) {
-                                    android.util.Log.e("NotesVM", "Error deserializing note ${doc.id}", e)
+                                    Log.e("NotesVM", "Error deserializing note ${doc.id}", e)
                                     null
                                 }
                             }

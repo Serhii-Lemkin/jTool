@@ -17,7 +17,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.calendar.components.AddEditEventDialog
-import com.jtool.android.features.calendar.components.delete_event_confirm_slip.DeleteEventConfirmSlip
+import com.jtool.android.features.calendar.components.delete_event_confirm_sheet.DeleteEventConfirmSheet
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,15 +28,15 @@ fun CalendarEventDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val event = uiState.event
-    var showDeleteSlip by remember { mutableStateOf(false) }
+    var showDeleteSheet by remember { mutableStateOf(false) }
     
     LaunchedEffect(Unit) {
         viewModel.refresh()
     }
 
-    if (showDeleteSlip) {
-        DeleteEventConfirmSlip(
-            onDismiss = { showDeleteSlip = false },
+    if (showDeleteSheet) {
+        DeleteEventConfirmSheet(
+            onDismiss = { showDeleteSheet = false },
             onConfirm = {
                 viewModel.deleteEvent()
                 onBack()
@@ -58,14 +58,14 @@ fun CalendarEventDetailScreen(
     Scaffold(
         topBar = {
             GenericTitle(
-                title = event?.title?.ifEmpty { Loc.calendar_calendar } ?: Loc.calendar_calendar,
+                title = event?.title?.ifEmpty { Loc.Calendar.calendar } ?: Loc.Calendar.calendar,
                 onBack = onBack
             )
         }
     ) { padding ->
         if (event == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(Loc.calendar_noEventFound)
+                Text(Loc.Calendar.noEventFound)
             }
         } else {
             Column(
@@ -76,16 +76,16 @@ fun CalendarEventDetailScreen(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                InfoRow(Icons.Default.Event, Loc.calendar_date, event.date)
-                InfoRow(Icons.Default.AccessTime, Loc.calendar_time, "${event.startTime}${event.endTime?.let { " - $it" } ?: ""}")
+                InfoRow(Icons.Default.Event, Loc.Calendar.date, event.date)
+                InfoRow(Icons.Default.AccessTime, Loc.Calendar.time, "${event.startTime}${event.endTime?.let { " - $it" } ?: ""}")
                 InfoRow(
                     imageVector = if (event.type == CalendarEventTypeEnum.SHIFT) Icons.Default.Work else Icons.Default.Category,
-                    label = Loc.calendar_type,
-                    value = if (event.type == CalendarEventTypeEnum.SHIFT) Loc.calendar_shift else Loc.calendar_common
+                    label = Loc.Calendar.type,
+                    value = if (event.type == CalendarEventTypeEnum.SHIFT) Loc.Calendar.shift else Loc.Calendar.common
                 )
                 
                 if (event.note.isNotEmpty()) {
-                    InfoRow(Icons.Default.Notes, Loc.calendar_note, event.note)
+                    InfoRow(Icons.Default.Notes, Loc.Calendar.note, event.note)
                 }
 
                 Spacer(Modifier.weight(1f))
@@ -97,19 +97,19 @@ fun CalendarEventDetailScreen(
                     ) {
                         Icon(Icons.Default.Edit, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(Loc.general_update)
+                        Text(Loc.General.update)
                     }
                     
                     Spacer(Modifier.height(8.dp))
                     
                     OutlinedButton(
-                        onClick = { showDeleteSlip = true },
+                        onClick = { showDeleteSheet = true },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     ) {
                         Icon(Icons.Default.Delete, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(Loc.general_delete)
+                        Text(Loc.General.delete)
                     }
                 }
             }

@@ -29,8 +29,8 @@ import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
-import com.jtool.android.features.links.components.link_delete_confirm_slip.LinkDeleteConfirmSlip
-import com.jtool.android.features.links.components.link_edit_slip.LinkEditSlip
+import com.jtool.android.features.links.components.link_delete_confirm_sheet.LinkDeleteConfirmSheet
+import com.jtool.android.features.links.components.link_edit_sheet.LinkEditSheet
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -63,7 +63,7 @@ fun LinksScreen(
     Scaffold(
         topBar = {
             GenericTitle(
-                title = Loc.links_links, 
+                title = Loc.Links.links, 
                 onBack = onBack,
                 isLoading = uiState.isLoading,
                 onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
@@ -77,7 +77,7 @@ fun LinksScreen(
                 onSearchTriggered = {
                     viewModel.onEvent(LinksEvent.UpdateSearchQuery(draftSearchQuery))
                 },
-                searchPlaceholder = Loc.links_searchLinks,
+                searchPlaceholder = Loc.Links.searchLinks,
                 actions = {
                     TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
                 }
@@ -86,7 +86,7 @@ fun LinksScreen(
         floatingActionButton = {
             UnifiedFAB(
                 onClick = { viewModel.onEvent(LinksEvent.ToggleAddDialog(true)) },
-                contentDescription = Loc.links_addLink
+                contentDescription = Loc.Links.addLink
             )
         },
         modifier = Modifier.fillMaxSize().imePadding()
@@ -116,12 +116,12 @@ fun LinksScreen(
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, Loc.links_invalidUrl, Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, Loc.Links.invalidUrl, Toast.LENGTH_SHORT).show()
                                 }
                             },
                             headline = link.title,
                             supportingText = link.url,
-                            metadataText = "${Loc.general_by} ${uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
+                            metadataText = "${Loc.General.by} ${uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
                             trailingContent = {
                                 Box {
                                     IconButton(
@@ -134,16 +134,16 @@ fun LinksScreen(
                                         onDismissRequest = { itemMenuExpanded = false }
                                     ) {
                                         DropdownMenuItem(
-                                            text = { Text(Loc.links_copy) },
+                                            text = { Text(Loc.Links.copy) },
                                             onClick = {
                                                 clipboardManager.setText(AnnotatedString(link.url))
-                                                Toast.makeText(context, Loc.links_copied, Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, Loc.Links.copied, Toast.LENGTH_SHORT).show()
                                                 itemMenuExpanded = false
                                             },
                                             leadingIcon = { Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(18.dp)) }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text(Loc.general_delete) },
+                                            text = { Text(Loc.General.delete) },
                                             onClick = {
                                                 viewModel.onEvent(LinksEvent.RequestDelete(link))
                                                 itemMenuExpanded = false
@@ -166,7 +166,7 @@ fun LinksScreen(
     }
 
     if (uiState.showAddDialog) {
-        LinkEditSlip(
+        LinkEditSheet(
             title = uiState.newTitle,
             url = uiState.newUrl,
             onTitleChange = { viewModel.onEvent(LinksEvent.UpdateNewTitle(it)) },
@@ -177,7 +177,7 @@ fun LinksScreen(
     }
 
     if (uiState.linkToDelete != null) {
-        LinkDeleteConfirmSlip(
+        LinkDeleteConfirmSheet(
             onDismiss = { viewModel.onEvent(LinksEvent.RequestDelete(null)) },
             onConfirm = { viewModel.onEvent(LinksEvent.ConfirmDelete) }
         )

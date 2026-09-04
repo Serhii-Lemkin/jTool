@@ -39,8 +39,8 @@ fun SettingsMainScreen(
     ) {
         item {
             SettingsMenuItem(
-                title = Loc.settings_account,
-                subtitle = Loc.settings_cloudSyncFirebase,
+                title = Loc.Settings.account,
+                subtitle = Loc.Settings.cloudSyncFirebase,
                 icon = Icons.Default.AccountCircle,
                 onClick = { onNavigate(AppScreenEnum.SETTINGS_ACCOUNT) }
             )
@@ -50,8 +50,8 @@ fun SettingsMainScreen(
         if (uiState.currentUser != null) {
             item {
                 SettingsMenuItem(
-                    title = Loc.settings_groups,
-                    subtitle = Loc.settings_syncSubtitle,
+                    title = Loc.Settings.groups,
+                    subtitle = Loc.Settings.syncSubtitle,
                     icon = Icons.Default.Group,
                     onClick = { onNavigate(AppScreenEnum.SETTINGS_GROUPS) }
                 )
@@ -59,8 +59,8 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.settings_generalSettings,
-                    subtitle = Loc.settings_appearanceLanguage,
+                    title = Loc.Settings.generalSettings,
+                    subtitle = Loc.Settings.appearanceLanguage,
                     icon = Icons.Default.Settings,
                     onClick = { onNavigate(AppScreenEnum.SETTINGS_GENERAL) }
                 )
@@ -68,8 +68,8 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.settings_appUpdates,
-                    subtitle = Loc.settings_appUpdatesSubtitle,
+                    title = Loc.Settings.appUpdates,
+                    subtitle = Loc.Settings.appUpdatesSubtitle,
                     icon = Icons.Default.SystemUpdate,
                     onClick = { onNavigate(AppScreenEnum.SETTINGS_UPDATES) }
                 )
@@ -77,19 +77,10 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.settings_visibilityTitle,
-                    subtitle = Loc.settings_visibilitySubtitle,
+                    title = Loc.Settings.interfaceAndApps,
+                    subtitle = Loc.Settings.visibilitySubtitle,
                     icon = Icons.Default.Visibility,
                     onClick = { onNavigate(AppScreenEnum.SETTINGS_VISIBILITY) }
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-            }
-            item {
-                SettingsMenuItem(
-                    title = Loc.support_hub_title,
-                    subtitle = Loc.support_new_request,
-                    icon = Icons.Default.Feedback,
-                    onClick = { onNavigate(AppScreenEnum.SETTINGS_REQUESTS) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
@@ -97,8 +88,8 @@ fun SettingsMainScreen(
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val scope = rememberCoroutineScope()
                 SettingsMenuItem(
-                    title = Loc.settings_privacyPolicy,
-                    subtitle = Loc.settings_privacySubtitle,
+                    title = Loc.Settings.privacyPolicy,
+                    subtitle = Loc.Settings.privacySubtitle,
                     icon = Icons.Default.PrivacyTip,
                     onClick = {
                         val dataManager = DataManager(context)

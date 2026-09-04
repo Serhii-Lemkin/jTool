@@ -1,5 +1,6 @@
 package com.jtool.android.core.utils
 
+import android.util.Log
 import kotlinx.coroutines.delay
 import kotlin.system.measureTimeMillis
 
@@ -14,7 +15,7 @@ object SyncUtils {
             try {
                 block()
             } catch (e: Exception) {
-                android.util.Log.e("SyncUtils", "Refresh failed", e)
+                Log.e("SyncUtils", "Refresh failed", e)
             }
         }
         if (elapsed < minDelay) {

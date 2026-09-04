@@ -3,6 +3,7 @@ package com.jtool.android.ui.navigation
 import androidx.compose.runtime.Composable
 import com.jtool.android.ui.LauncherScreen
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import kotlinx.coroutines.launch
 
 object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
     @Composable
@@ -16,6 +17,7 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             onCleaningClick = { deps.setScreen(AppScreenEnum.CLEANING) },
             onCalendarClick = { deps.setScreen(AppScreenEnum.CALENDAR) },
             onSettingsClick = { deps.setScreen(AppScreenEnum.SETTINGS) },
+            onSupportClick = { deps.setScreen(AppScreenEnum.SUPPORT_HUB) },
             onAccountClick = { deps.setScreen(AppScreenEnum.SETTINGS_ACCOUNT) },
             settingsManager = deps.settingsManager,
             currentGroupId = deps.currentGroupId,
@@ -23,6 +25,10 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             onJoinGroupClick = { 
                 deps.setNavigateToGroups(true)
                 deps.setScreen(AppScreenEnum.SETTINGS)
+            },
+            onGroupSelected = { id ->
+                deps.onGroupChanged(id)
+                deps.scope.launch { deps.dataManager.switchGroup(id) }
             },
             isAdmin = deps.isAdmin,
             onAdminClick = { deps.setScreen(AppScreenEnum.ADMIN_PANEL) },

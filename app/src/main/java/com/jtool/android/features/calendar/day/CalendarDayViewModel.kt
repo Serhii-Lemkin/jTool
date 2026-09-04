@@ -19,6 +19,21 @@ class CalendarDayViewModel(
     private val _uiState = MutableStateFlow(CalendarDayUiState())
     val uiState: StateFlow<CalendarDayUiState> = _uiState.asStateFlow()
 
+    fun getWorkdayStartHour(): Int {
+        val options = settingsManager.getWorktimeOptions()
+        val timeStr = if (options.useStableApproximateHours) {
+            options.stableApproximateStart
+        } else {
+            options.logSchedule[LocalDate.now().dayOfWeek.name]?.approximateStartTime
+        } ?: options.scheduleStart ?: "08:00"
+        
+        return try {
+            timeStr.split(":")[0].toInt()
+        } catch (_: Exception) {
+            8
+        }
+    }
+
     init {
         refresh()
     }

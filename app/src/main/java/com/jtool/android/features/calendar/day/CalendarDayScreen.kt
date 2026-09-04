@@ -56,8 +56,9 @@ fun CalendarDayScreen(
 
     LaunchedEffect(uiState.selectedDate) {
         viewModel.refresh()
-        // Scroll to 8 AM by default
-        val scrollPos = with(density) { (8 * hourHeight).dp.toPx() }
+        // Scroll to workday start hour by default
+        val startHour = viewModel.getWorkdayStartHour()
+        val scrollPos = with(density) { (startHour * hourHeight).dp.toPx() }
         scrollState.scrollTo(scrollPos.toInt())
     }
 
@@ -91,7 +92,7 @@ fun CalendarDayScreen(
         floatingActionButton = {
             UnifiedFAB(
                 onClick = { viewModel.toggleAddEditDialog(true) },
-                contentDescription = Loc.calendar_addEvent
+                contentDescription = Loc.Calendar.addEvent
             )
         }
     ) { padding ->

@@ -8,7 +8,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object WorkTimeSettingsMain : AppProperties(
     AppScreenEnum.WORK_TIME_SETTINGS_MAIN,
     null,
-    { Loc.launcher_settings }
+    { Loc.Launcher.settings }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

@@ -19,6 +19,7 @@ data class UserData(
     val hours: Map<String, Double> = emptyMap(),
     val lastSupportDate: String = "",
     val dailySupportCount: Int = 0,
+    val notifications: List<com.jtool.android.core.models.common.UserNotification> = emptyList(),
     val worktimeOptions: WorktimeOptions = WorktimeOptions(),
     val privateCalendarEvents: Map<String, CalendarEvent> = emptyMap()
 )

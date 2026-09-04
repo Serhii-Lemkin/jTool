@@ -1,15 +1,22 @@
 package com.jtool.android.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +31,7 @@ import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.ui.navigation.AppProperties
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.features.settings.groups.components.group_selection_sheet.GroupSelectionSheet
 
 @Composable
 fun LauncherScreen(
@@ -35,10 +43,12 @@ fun LauncherScreen(
     onCleaningClick: () -> Unit,
     onCalendarClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onSupportClick: () -> Unit,
     settingsManager: SettingsManager,
     currentGroupId: String?,
     groups: Map<String, GroupInfo>,
     onJoinGroupClick: () -> Unit,
+    onGroupSelected: (String) -> Unit,
     isAdmin: Boolean,
     onAdminClick: () -> Unit,
     onAccountClick: () -> Unit,
@@ -46,8 +56,13 @@ fun LauncherScreen(
     notificationCount: Int = 0,
     onNotificationsClick: () -> Unit = {}
 ) {
+    var showGroupSheet by remember { mutableStateOf(false) }
+
     val groupName = remember(currentGroupId, groups) {
-        currentGroupId?.let { groups[it]?.name ?: it }
+        currentGroupId?.let { id ->
+            val group = groups[id]
+            if (group?.isPrivate == true) Loc.Settings.privateGroup else group?.name ?: id
+        }
     }
 
     val clickHandlers = mapOf(
@@ -60,161 +75,179 @@ fun LauncherScreen(
         AppScreenEnum.CALENDAR to onCalendarClick
     )
 
+    if (showGroupSheet) {
+        GroupSelectionSheet(
+            groups = groups,
+            currentGroupId = currentGroupId,
+            onGroupSelected = onGroupSelected,
+            onDismiss = { showGroupSheet = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
-            .padding(top = 0.dp, start = 24.dp, end = 12.dp, bottom = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Custom Top Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (notificationCount > 0) {
-                Surface(
-                    color = androidx.compose.ui.graphics.Color(0xFF4CAF50), // Green 500
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    modifier = Modifier.padding(end = 4.dp)
-                ) {
-                    Text(
-                        text = notificationCount.toString(),
-                        color = androidx.compose.ui.graphics.Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onSupportClick) {
+                    Icon(
+                        imageVector = Icons.Default.SupportAgent,
+                        contentDescription = Loc.Launcher.supportHub,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = Loc.Launcher.settings,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (currentUser != null && isAdmin) {
+                    IconButton(onClick = onAdminClick) {
+                        Icon(
+                            imageVector = Icons.Default.AdminPanelSettings,
+                            contentDescription = Loc.Launcher.adminPanel,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
-            
-            IconButton(onClick = onNotificationsClick) {
+
+            val hasNotifications = notificationCount > 0
+            IconButton(
+                onClick = onNotificationsClick,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(if (hasNotifications) MaterialTheme.colorScheme.error.copy(alpha = 0.2f) else Color.Transparent)
+            ) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = if (notificationCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    contentDescription = Loc.General.notifications,
+                    tint = if (hasNotifications) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
-        if (currentUser != null) {
-            Text(
-                text = "${Loc.launcher_hello}, ${settingsManager.getUserName()}!",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            
-            if (groupName != null) {
+        // Greeting & Group Info
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (currentUser != null) {
                 Text(
-                    text = Loc.settings_activeGroupLabel.format(groupName),
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.secondary,
+                    text = "${Loc.Launcher.hello}, ${settingsManager.getUserName()}!",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
-            } else {
-                TextButton(onClick = onJoinGroupClick) {
-                    Text(
-                        text = Loc.settings_noActiveGroup,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.error,
-                        textDecoration = TextDecoration.Underline,
-                        textAlign = TextAlign.Center
-                    )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Surface(
+                    onClick = { if (groups.isNotEmpty()) showGroupSheet = true else onJoinGroupClick() },
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                    modifier = Modifier.clip(RoundedCornerShape(24.dp))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Groups, 
+                            null, 
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = groupName ?: Loc.Settings.noGroupsMsg,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        if (groups.size > 1) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(16.dp))
+                        }
+                    }
                 }
-            }
-        } else {
-            Text(
-                text = "${Loc.launcher_hello}!",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(Loc.settings_notSignedIn, fontSize = 14.sp, textAlign = TextAlign.Center)
-                TextButton(onClick = onAccountClick) {
-                    Text(
-                        text = Loc.settings_pleaseSignInLink,
-                        fontSize = 14.sp,
-                        textDecoration = TextDecoration.Underline,
-                        textAlign = TextAlign.Center
-                    )
+            } else {
+                Text(
+                    text = "${Loc.Launcher.hello}!",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    onClick = onAccountClick,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(Loc.Settings.notSignedIn, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = Loc.Settings.pleaseSignInLink,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
                 }
             }
         }
         
         Spacer(modifier = Modifier.height(48.dp))
         
+        // App Grid/List
         if (settingsManager.isGridLayout()) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                if (currentUser != null) {
-                    AppProperties.allApps.forEach { app ->
-                        if (settingsManager.isAppVisible(app.id)) {
-                            item {
-                                AppIcon(
-                                    name = app.getName(),
-                                    icon = app.icon!!,
-                                    onClick = clickHandlers[app.id] ?: {}
-                                )
-                            }
+                AppProperties.allApps.forEach { app ->
+                    if (settingsManager.isAppVisible(app.id)) {
+                        item {
+                            AppIcon(
+                                name = app.getName(),
+                                icon = app.icon!!,
+                                onClick = clickHandlers[app.id] ?: {}
+                            )
                         }
-                    }
-                }
-                
-                item {
-                    AppIcon(
-                        name = Loc.launcher_settings,
-                        icon = Icons.Default.Settings,
-                        onClick = onSettingsClick
-                    )
-                }
-
-                if (currentUser != null && isAdmin) {
-                    item {
-                        AppIcon(
-                            name = Loc.admin_adminPanel,
-                            icon = Icons.Default.AdminPanelSettings,
-                            onClick = onAdminClick
-                        )
                     }
                 }
             }
         } else {
-            androidx.compose.foundation.lazy.LazyColumn(
+            LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                if (currentUser != null) {
-                    AppProperties.allApps.forEach { app ->
-                        if (settingsManager.isAppVisible(app.id)) {
-                            item {
-                                AppListRow(
-                                    name = app.getName(),
-                                    icon = app.icon!!,
-                                    onClick = clickHandlers[app.id] ?: {}
-                                )
-                            }
+                AppProperties.allApps.forEach { app ->
+                    if (settingsManager.isAppVisible(app.id)) {
+                        item {
+                            AppListRow(
+                                name = app.getName(),
+                                icon = app.icon!!,
+                                onClick = clickHandlers[app.id] ?: {}
+                            )
                         }
-                    }
-                }
-
-                item {
-                    AppListRow(name = Loc.launcher_settings, icon = Icons.Default.Settings, onClick = onSettingsClick)
-                }
-
-                if (currentUser != null && isAdmin) {
-                    item {
-                        AppListRow(name = Loc.admin_adminPanel, icon = Icons.Default.AdminPanelSettings, onClick = onAdminClick)
                     }
                 }
             }
@@ -227,18 +260,32 @@ fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon, 
+                        contentDescription = null, 
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = name,
-                fontSize = if (name.length > 12) 14.sp else 18.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -258,18 +305,16 @@ fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit) {
 fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .padding(4.dp)
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
     ) {
         Card(
             onClick = onClick,
-            modifier = Modifier
-                .aspectRatio(1f)
-                .padding(8.dp),
+            modifier = Modifier.aspectRatio(1f),
+            shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+                containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -278,19 +323,19 @@ fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit) {
                 Icon(
                     imageVector = icon,
                     contentDescription = name,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = name,
-            fontSize = if (name.length > 10) 10.sp else 12.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Clip,
-            modifier = Modifier.padding(top = 4.dp)
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

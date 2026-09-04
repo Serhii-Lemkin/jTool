@@ -29,7 +29,7 @@ fun GenericTitle(
     onSearchQueryChange: (String) -> Unit = {},
     onSearchClose: () -> Unit = {},
     onSearchTriggered: () -> Unit = {},
-    searchPlaceholder: String = Loc.general_search,
+    searchPlaceholder: String = Loc.General.search,
     actions: @Composable RowScope.() -> Unit = {},
     customTitle: @Composable (() -> Unit)? = null,
     navigationIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack
@@ -71,7 +71,7 @@ fun GenericTitle(
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
-                            Icon(navigationIcon, Loc.general_back)
+                            Icon(navigationIcon, Loc.General.back)
                         }
                     }
                 }
@@ -94,7 +94,7 @@ fun GenericTitle(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = navigationIcon,
-                                contentDescription = Loc.general_back
+                                contentDescription = Loc.General.back
                             )
                         }
                     }

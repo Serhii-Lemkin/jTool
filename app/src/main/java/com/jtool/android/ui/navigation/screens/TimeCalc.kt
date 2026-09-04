@@ -10,7 +10,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object TimeCalc : AppProperties(
     AppScreenEnum.TIME_CALC,
     Icons.Default.Calculate,
-    { Loc.timecalc_timeCalc }
+    { Loc.TimeCalc.timeCalc }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

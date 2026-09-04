@@ -1,5 +1,6 @@
 package com.jtool.android.core.auth
 
+import android.util.Log
 import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -17,7 +18,6 @@ class AuthManager(private val context: Context) {
     
     fun getSignInClient(): GoogleSignInClient {
         val webClientId = context.getString(R.string.default_web_client_id)
-        android.util.Log.d("jTool", "Using Web Client ID: $webClientId")
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(webClientId)
             .requestEmail()
@@ -34,7 +34,7 @@ class AuthManager(private val context: Context) {
             auth.signInWithCredential(credential).await()
             true
         } catch (e: Exception) {
-            android.util.Log.e("jTool", "Firebase Authentication Failed: ${e.message}", e)
+            Log.e("jTool", "Firebase Authentication Failed: ${e.message}", e)
             false
         }
     }

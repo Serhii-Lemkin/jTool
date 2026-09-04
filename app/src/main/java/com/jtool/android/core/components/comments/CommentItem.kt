@@ -50,7 +50,7 @@ fun CommentItem(
             if (comment.isEdited) {
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = "(${Loc.comments_edited})",
+                    text = "(${Loc.Comments.edited})",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )
@@ -71,7 +71,7 @@ fun CommentItem(
                     onDismissRequest = { menuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text(Loc.comments_reply) },
+                        text = { Text(Loc.Comments.reply) },
                         onClick = {
                             onReplyRequest(comment.id)
                             menuExpanded = false
@@ -80,7 +80,7 @@ fun CommentItem(
                     )
                     if (isOwner(comment) && !comment.isPending) {
                         DropdownMenuItem(
-                            text = { Text(Loc.comments_edit) },
+                            text = { Text(Loc.Comments.edit) },
                             onClick = {
                                 isEditing = true
                                 menuExpanded = false
@@ -88,7 +88,7 @@ fun CommentItem(
                             leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }
                         )
                         DropdownMenuItem(
-                            text = { Text(Loc.general_delete, color = MaterialTheme.colorScheme.error) },
+                            text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
                             onClick = {
                                 onEvent(CommentEvent.Delete(comment.id))
                                 menuExpanded = false

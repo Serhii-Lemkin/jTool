@@ -48,8 +48,16 @@ fun AppNavigation(
     var currentScreen by remember { mutableStateOf(AppScreenEnum.LAUNCHER) }
     val screenStack = remember { mutableStateListOf(AppScreenEnum.LAUNCHER) }
 
+    var navigateToUpdates by remember { mutableStateOf(false) }
+    var navigateToGroups by remember { mutableStateOf(false) }
+    var updateVersionCode by remember { mutableStateOf<Int?>(null) }
+    var updateVersionName by remember { mutableStateOf<String?>(null) }
+
     fun navigateTo(screen: AppScreenEnum) {
         if (currentScreen != screen) {
+            if (screen != AppScreenEnum.SETTINGS) {
+                navigateToGroups = false
+            }
             screenStack.add(screen)
             currentScreen = screen
         }
@@ -63,11 +71,6 @@ fun AppNavigation(
             currentScreen = AppScreenEnum.LAUNCHER
         }
     }
-
-    var navigateToUpdates by remember { mutableStateOf(false) }
-    var navigateToGroups by remember { mutableStateOf(false) }
-    var updateVersionCode by remember { mutableStateOf<Int?>(null) }
-    var updateVersionName by remember { mutableStateOf<String?>(null) }
     
     val scope = rememberCoroutineScope()
     val isAdmin by dataManager.isAdminFlow().collectAsState(initial = false)
@@ -87,8 +90,6 @@ fun AppNavigation(
     }.collectAsState(initial = emptyList())
 
     var activeInvite by remember { mutableStateOf<Invite?>(null) }
-
-    // Manual check on startup/re-auth
 
     val userGroupIds by remember(currentUser) { 
         dataManager.userGroupsFlow() 
@@ -120,6 +121,7 @@ fun AppNavigation(
     }
 
     val deps = NavigationDependencies(
+        scope = scope,
         settingsManager = settingsManager,
         shoppingListManager = shoppingListManager,
         notesManager = notesManager,

@@ -25,7 +25,7 @@ import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.features.support.components.*
-import com.jtool.android.features.support.components.support_filter_slip.SupportFilterSlip
+import com.jtool.android.features.support.components.support_filter_sheet.SupportFilterSheet
 import com.jtool.android.features.support.logic.*
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleDropdownMenu
@@ -56,11 +56,12 @@ fun SupportHubScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var showFilterSlip by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var showTypeSheet by remember { mutableStateOf(false) }
     
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
-            android.widget.Toast.makeText(context, Loc.support_sent_success, android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, Loc.Support.sent_success, android.widget.Toast.LENGTH_SHORT).show()
             viewModel.onEvent(SupportEvent.ResetStatus)
         }
     }
@@ -74,14 +75,24 @@ fun SupportHubScreen(
 
     val globalUserNames by dataManager.userNamesFlow().collectAsState(initial = emptyMap())
 
-    if (showFilterSlip) {
-        SupportFilterSlip(
+    if (showFilterSheet) {
+        SupportFilterSheet(
             activeTypes = uiState.activeTypeFilters,
             activeStatuses = uiState.activeStatusFilters,
             onToggleType = { viewModel.onEvent(SupportEvent.ToggleTypeFilter(it)) },
             onToggleStatus = { viewModel.onEvent(SupportEvent.ToggleStatusFilter(it)) },
             onClearAll = { viewModel.onEvent(SupportEvent.ClearFilters) },
-            onDismiss = { showFilterSlip = false }
+            onDismiss = { showFilterSheet = false }
+        )
+    }
+
+    if (showTypeSheet) {
+        com.jtool.android.features.support.components.type_selection_sheet.SupportTypeSelectionSheet(
+            onTypeSelected = { type ->
+                viewModel.onEvent(SupportEvent.SetFilterType(type))
+                viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.NEW_FORM))
+            },
+            onDismiss = { showTypeSheet = false }
         )
     }
 
@@ -111,20 +122,21 @@ fun SupportHubScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.onEvent(SupportEvent.Refresh)
+    }
+
     Scaffold(
         topBar = {
-            val appUserId = viewModel.getAppUserId()
-            val authUid = viewModel.getAuthUserId()
-            
             var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
             
             LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
             GenericTitle(
                 title = when (uiState.currentSubScreen) {
-                    SupportScreenTypeEnum.HUB -> Loc.support_hub_title
-                    SupportScreenTypeEnum.DETAIL -> Loc.support_request_number.format(uiState.selectedRequest?.number ?: 0)
-                    SupportScreenTypeEnum.NEW_FORM -> Loc.support_new_request
+                    SupportScreenTypeEnum.HUB -> Loc.Support.hub_title
+                    SupportScreenTypeEnum.DETAIL -> Loc.Support.request_number.format(uiState.selectedRequest?.number ?: 0)
+                    SupportScreenTypeEnum.NEW_FORM -> Loc.Support.new_request
                 },
                 onBack = {
                     if (uiState.currentSubScreen != SupportScreenTypeEnum.HUB) {
@@ -148,8 +160,7 @@ fun SupportHubScreen(
                 actions = {
                     if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
                         TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
-                        
-                        TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSlip = true })
+                        TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSheet = true })
                     }
                 }
             )
@@ -157,29 +168,8 @@ fun SupportHubScreen(
         floatingActionButton = {
             if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
                 UnifiedFAB(
-                    onClick = {},
-                    dropdownContent = { onDismiss ->
-                        SupportTypeEnum.entries.filter { it != SupportTypeEnum.CRASH }.forEach { type ->
-                            DropdownMenuItem(
-                                leadingIcon = { Icon(SupportTypeEnumIcons[type] ?: Icons.Default.Circle, null) },
-                                text = {
-                                    Text(
-                                        when (type) {
-                                            SupportTypeEnum.BUG -> Loc.support_type_bug
-                                            SupportTypeEnum.FEATURE -> Loc.support_type_feature
-                                            SupportTypeEnum.CHANGE -> Loc.support_type_change
-                                            else -> ""
-                                        }
-                                    )
-                                },
-                                onClick = {
-                                    onDismiss()
-                                    viewModel.onEvent(SupportEvent.SetFilterType(type))
-                                    viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.NEW_FORM))
-                                }
-                            )
-                        }
-                    }
+                    onClick = { showTypeSheet = true },
+                    contentDescription = Loc.General.add
                 )
             }
         },
@@ -193,8 +183,7 @@ fun SupportHubScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 when (uiState.currentSubScreen) {
                     SupportScreenTypeEnum.HUB -> {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            if (filteredRequests.isEmpty()) {
+                        if (filteredRequests.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -203,14 +192,14 @@ fun SupportHubScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = Loc.support_welcome_title,
+                                        text = Loc.Support.welcome_title,
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
                                     Spacer(Modifier.height(16.dp))
                                     Text(
-                                        text = Loc.support_welcome_msg,
+                                        text = Loc.Support.welcome_msg,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -231,7 +220,7 @@ fun SupportHubScreen(
                                     item {
                                         Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                             TextButton(onClick = { viewModel.onEvent(SupportEvent.LoadMore) }) {
-                                                Text("Load More")
+                                                Text(Loc.General.seeAll)
                                             }
                                         }
                                     }
@@ -243,41 +232,40 @@ fun SupportHubScreen(
                             }
                         }
                     }
-                }
-                SupportScreenTypeEnum.DETAIL -> {
-                    uiState.selectedRequest?.let { request ->
-                        val appUserId = viewModel.getAppUserId()
-                        val authUid = viewModel.getAuthUserId()
-                        val comments by viewModel.comments.collectAsState(initial = emptyList())
-                        
-                        SupportDetailCard(
-                            request = request.copy(comments = comments),
-                            isAdmin = uiState.isAdmin,
-                            currentUserId = appUserId,
-                            onStatusUpdate = { viewModel.onEvent(SupportEvent.UpdateStatus(request.id, it)) },
-                            onTypeUpdate = { viewModel.onEvent(SupportEvent.UpdateType(request.id, it)) },
-                            onDelete = { viewModel.onEvent(SupportEvent.DeleteRequest(request.id)) },
-                            onCommentEvent = { event ->
-                                when (event) {
-                                    is CommentEvent.Add -> viewModel.onEvent(SupportEvent.AddComment(request.id, event.content, event.parentId))
-                                    is CommentEvent.Edit -> viewModel.onEvent(SupportEvent.EditComment(request.id, event.commentId, event.newContent))
-                                    is CommentEvent.Delete -> viewModel.onEvent(SupportEvent.DeleteComment(request.id, event.commentId))
-                                }
-                            },
-                            userNames = globalUserNames,
-                            isOwner = { it.userId == appUserId || it.userId == authUid }
+                    SupportScreenTypeEnum.DETAIL -> {
+                        uiState.selectedRequest?.let { request ->
+                            val appUserId = viewModel.getAppUserId()
+                            val authUid = viewModel.getAuthUserId()
+                            val comments by viewModel.comments.collectAsState(initial = emptyList())
+                            
+                            SupportDetailCard(
+                                request = request.copy(comments = comments),
+                                isAdmin = uiState.isAdmin,
+                                currentUserId = appUserId,
+                                onStatusUpdate = { viewModel.onEvent(SupportEvent.UpdateStatus(request.id, it)) },
+                                onTypeUpdate = { viewModel.onEvent(SupportEvent.UpdateType(request.id, it)) },
+                                onDelete = { viewModel.onEvent(SupportEvent.DeleteRequest(request.id)) },
+                                onCommentEvent = { event ->
+                                    when (event) {
+                                        is CommentEvent.Add -> viewModel.onEvent(SupportEvent.AddComment(request.id, event.content, event.parentId))
+                                        is CommentEvent.Edit -> viewModel.onEvent(SupportEvent.EditComment(request.id, event.commentId, event.newContent))
+                                        is CommentEvent.Delete -> viewModel.onEvent(SupportEvent.DeleteComment(request.id, event.commentId))
+                                    }
+                                },
+                                userNames = globalUserNames,
+                                isOwner = { it.userId == appUserId || it.userId == authUid }
+                            )
+                        }
+                    }
+                    SupportScreenTypeEnum.NEW_FORM -> {
+                        SupportNewRequestForm(
+                            text = uiState.requestText,
+                            onTextChange = { viewModel.onEvent(SupportEvent.UpdateRequestText(it)) },
+                            isSending = uiState.isSending,
+                            selectedType = uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG,
+                            onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG, context)) }
                         )
                     }
-                }
-                SupportScreenTypeEnum.NEW_FORM -> {
-                    SupportNewRequestForm(
-                        text = uiState.requestText,
-                        onTextChange = { viewModel.onEvent(SupportEvent.UpdateRequestText(it)) },
-                        isSending = uiState.isSending,
-                        selectedType = uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG,
-                        onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG, context)) }
-                    )
-                }
                 }
             }
         }

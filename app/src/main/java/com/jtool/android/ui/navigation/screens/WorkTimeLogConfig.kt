@@ -12,7 +12,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 object WorkTimeLogConfig : AppProperties(
     AppScreenEnum.WORK_TIME_LOG_CONFIG,
     null,
-    { Loc.worktime_manual }
+    { Loc.Workday.manual }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

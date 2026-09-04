@@ -51,9 +51,7 @@ fun ScheduleSettingsScreen(
     val timePickerState = rememberTimePickerState()
 
     LaunchedEffect(uiState.scrollToShiftKey) {
-        uiState.scrollToShiftKey?.let { key ->
-            // Highlighting and scrolling logic could go here if needed
-            // For now just clearing the request
+        uiState.scrollToShiftKey?.let { _ ->
             kotlinx.coroutines.delay(3000)
             viewModel.onEvent(ScheduleEvent.ClearScroll)
         }
@@ -97,14 +95,14 @@ fun ScheduleSettingsScreen(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = Loc.worktime_unsavedChangesTitle,
+                    text = Loc.Workday.unsavedChangesTitle,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = Loc.worktime_unsavedChangesMsg,
+                    text = Loc.Workday.unsavedChangesMsg,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -115,14 +113,14 @@ fun ScheduleSettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(Loc.worktime_exit)
+                    Text(Loc.Workday.exit)
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.onEvent(ScheduleEvent.ToggleExitConfirm(false)) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(Loc.worktime_keepEditing)
+                    Text(Loc.Workday.keepEditing)
                 }
             }
         }
@@ -140,7 +138,7 @@ fun ScheduleSettingsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = Loc.general_select,
+                    text = Loc.General.select,
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -152,7 +150,7 @@ fun ScheduleSettingsScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(Loc.general_select)
+                    Text(Loc.General.select)
                 }
             }
         }
@@ -177,7 +175,7 @@ fun ScheduleSettingsScreen(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = Loc.worktime_schedulingConflict,
+                    text = Loc.Workday.schedulingConflict,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error,
@@ -194,7 +192,7 @@ fun ScheduleSettingsScreen(
                     onClick = { viewModel.onEvent(ScheduleEvent.ClearError) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(Loc.general_close)
+                    Text(Loc.General.close)
                 }
             }
         }
@@ -204,7 +202,7 @@ fun ScheduleSettingsScreen(
         modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
         topBar = {
             GenericTitle(
-                title = Loc.worktime_editWorkHours,
+                title = Loc.Workday.editWorkHours,
                 onBack = handleBack,
                 isLoading = uiState.isLoading,
                 actions = {
@@ -262,7 +260,7 @@ fun ScheduleSettingsScreen(
                 ) {
                     Icon(Icons.Default.ContentCopy, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(Loc.worktime_copyFromPrevWeek)
+                    Text(Loc.Workday.copyFromPrevWeek)
                 }
             }
 
@@ -340,10 +338,10 @@ fun ScheduleSettingsScreen(
                             }
                         }
                         if (daySchedule.shifts.isEmpty()) {
-                            Text(Loc.worktime_noShiftsAdded, style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
+                            Text(Loc.Workday.noShiftsAdded, style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
                         }
                     } else {
-                        Text(Loc.worktime_off, style = MaterialTheme.typography.labelMedium, color = Color(0xFF4CAF50), modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
+                        Text(Loc.Workday.off, style = MaterialTheme.typography.labelMedium, color = Color(0xFF4CAF50), modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
                     }
                     
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -372,7 +370,7 @@ fun ShiftRow(
         
         val h = duration.toHours()
         val m = duration.toMinutes() % 60
-        "(${h}h ${m}m)"
+        "(${h}${Loc.General.hourSymbol} ${m}${Loc.General.minuteSymbol})"
     } else ""
 
     val endsNextDay = shift.start != null && shift.end != null && (end.isBefore(start) || end == start)
@@ -388,7 +386,7 @@ fun ShiftRow(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             colors = if (isError) ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error) else ButtonDefaults.outlinedButtonColors()
         ) {
-            Text(shift.start ?: "--:--", fontSize = 13.sp)
+            Text(shift.start ?: Loc.General.none, fontSize = 13.sp)
         }
         
         Text("-", style = MaterialTheme.typography.bodyMedium)
@@ -399,13 +397,13 @@ fun ShiftRow(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             colors = if (isError) ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error) else ButtonDefaults.outlinedButtonColors()
         ) {
-            Text(shift.end ?: "--:--", fontSize = 13.sp)
+            Text(shift.end ?: Loc.General.none, fontSize = 13.sp)
         }
 
         Column(modifier = Modifier.width(80.dp)) {
             Text(durationText, style = MaterialTheme.typography.labelSmall, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             if (endsNextDay) {
-                Text(Loc.worktime_nextDay, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                Text(Loc.Workday.nextDay, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             }
         }
 

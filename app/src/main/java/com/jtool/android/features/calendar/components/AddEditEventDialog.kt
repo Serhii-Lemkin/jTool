@@ -46,7 +46,7 @@ fun AddEditEventDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (event == null) Loc.calendar_addEvent else Loc.calendar_editEvent,
+                text = if (event == null) Loc.Calendar.addEvent else Loc.Calendar.editEvent,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -58,12 +58,12 @@ fun AddEditEventDialog(
                     selected = type == CalendarEventTypeEnum.COMMON,
                     onClick = { type = CalendarEventTypeEnum.COMMON },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) { Text(Loc.calendar_common) }
+                ) { Text(Loc.Calendar.common) }
                 SegmentedButton(
                     selected = type == CalendarEventTypeEnum.SHIFT,
                     onClick = { type = CalendarEventTypeEnum.SHIFT },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) { Text(Loc.calendar_shift) }
+                ) { Text(Loc.Calendar.shift) }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -71,7 +71,7 @@ fun AddEditEventDialog(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text(Loc.calendar_eventTitle) },
+                label = { Text(Loc.Calendar.eventTitle) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -82,7 +82,7 @@ fun AddEditEventDialog(
                 OutlinedTextField(
                     value = startTime, 
                     onValueChange = { startTime = it }, 
-                    label = { Text(Loc.worktime_start) }, 
+                    label = { Text(Loc.Workday.start) }, 
                     placeholder = { Text("09:00") },
                     modifier = Modifier.weight(1f),
                     singleLine = true
@@ -90,7 +90,7 @@ fun AddEditEventDialog(
                 OutlinedTextField(
                     value = endTime, 
                     onValueChange = { endTime = it }, 
-                    label = { Text(Loc.worktime_finish) }, 
+                    label = { Text(Loc.Workday.finish) }, 
                     placeholder = { Text("18:00") },
                     modifier = Modifier.weight(1f),
                     singleLine = true
@@ -102,7 +102,7 @@ fun AddEditEventDialog(
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text(Loc.calendar_note) },
+                label = { Text(Loc.Calendar.note) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
@@ -128,7 +128,7 @@ fun AddEditEventDialog(
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
-                Text(Loc.general_save)
+                Text(Loc.General.save)
             }
         }
     }

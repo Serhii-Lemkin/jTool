@@ -44,7 +44,7 @@ fun CalendarGridScreen(
     Scaffold(
         topBar = {
             GenericTitle(
-                title = Loc.calendar_calendar,
+                title = Loc.Calendar.calendar,
                 onBack = onBack,
                 actions = {
                 }
@@ -106,7 +106,7 @@ fun CalendarGridScreen(
                 ) {
                     Column {
                         Text(
-                            text = Loc.calendar_calendar, // Or "Schedule"
+                            text = Loc.Calendar.calendar, // Or "Schedule"
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -120,7 +120,7 @@ fun CalendarGridScreen(
                         viewModel.onDateSelected(uiState.selectedDate)
                         onNavigate(AppScreenEnum.CALENDAR_DAY) 
                     }) {
-                        Text(Loc.general_seeAll)
+                        Text(Loc.General.seeAll)
                         Icon(Icons.Default.ChevronRight, null)
                     }
                 }
@@ -129,14 +129,14 @@ fun CalendarGridScreen(
 
                 if (selectedDayEvents.isEmpty()) {
                     Box(Modifier.fillMaxSize().padding(bottom = 32.dp), contentAlignment = Alignment.Center) {
-                        Text(Loc.calendar_noEvents, color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                        Text(Loc.Calendar.noEvents, color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (event in selectedDayEvents.take(3)) {
                             val isVirtual = event.id.startsWith("virtual_")
                             ActionListItem(
-                                headline = event.title.ifEmpty { "[${Loc.calendar_calendar}]" },
+                                headline = event.title.ifEmpty { "[${Loc.Calendar.calendar}]" },
                                 supportingText = "${event.startTime}${event.endTime?.let { " - $it" } ?: ""}",
                                 modifier = if (isVirtual) Modifier.alpha(0.6f) else Modifier,
                                 leadingContent = {

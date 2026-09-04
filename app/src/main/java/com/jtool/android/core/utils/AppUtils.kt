@@ -3,7 +3,6 @@ package com.jtool.android.core.utils
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 
@@ -36,8 +35,8 @@ object AppUtils {
                     java.security.MessageDigest.getInstance("SHA-1").digest(signature.toByteArray())
                 }
             }
-        } catch (e: Exception) {
-            Log.e("jTool", "Failed to log signature", e)
+        } catch (ignored: Exception) {
+            // Error logging signature
         }
     }
 }

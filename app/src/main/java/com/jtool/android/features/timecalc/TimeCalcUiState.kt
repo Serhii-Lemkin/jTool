@@ -10,12 +10,12 @@ data class HistoryItem(
 ) {
     val summary: String get() {
         val parts = mutableListOf<String>()
-        if (y.isNotEmpty()) parts.add("${y}${Loc.general_yearShort}")
-        if (mo.isNotEmpty()) parts.add("${mo}${Loc.general_monthShort}")
-        if (d.isNotEmpty()) parts.add("${d}${Loc.general_dayShort}")
-        if (h.isNotEmpty()) parts.add("${h}${Loc.general_hourSymbol}")
-        if (mi.isNotEmpty()) parts.add("${mi}${Loc.general_minuteSymbol}")
-        return if (parts.isEmpty()) Loc.general_zeroUnits else parts.joinToString(" ")
+        if (y.isNotEmpty()) parts.add("${y}${Loc.General.yearShort}")
+        if (mo.isNotEmpty()) parts.add("${mo}${Loc.General.monthShort}")
+        if (d.isNotEmpty()) parts.add("${d}${Loc.General.dayShort}")
+        if (h.isNotEmpty()) parts.add("${h}${Loc.General.hourSymbol}")
+        if (mi.isNotEmpty()) parts.add("${mi}${Loc.General.minuteSymbol}")
+        return if (parts.isEmpty()) Loc.General.zeroUnits else parts.joinToString(" ")
     }
 }
 

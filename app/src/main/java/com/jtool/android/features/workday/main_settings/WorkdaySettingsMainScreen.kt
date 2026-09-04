@@ -127,7 +127,7 @@ fun WorkdaySettingsMainScreen(
                     .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
             ) {
                 Text(
-                    text = Loc.worktime_weeklyStartDay, 
+                    text = Loc.Workday.weeklyStartDay, 
                     style = MaterialTheme.typography.titleLarge, 
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -155,7 +155,7 @@ fun WorkdaySettingsMainScreen(
     Scaffold(
         topBar = {
             GenericTitle(
-                title = Loc.launcher_settings,
+                title = Loc.Launcher.settings,
                 onBack = onBack
             )
         }
@@ -166,11 +166,11 @@ fun WorkdaySettingsMainScreen(
                 .fillMaxSize()
         ) {
             ActionListItem(
-                headline = Loc.worktime_trackingMethod,
+                headline = Loc.Workday.trackingMethod,
                 supportingText = when (trackingPreference) {
-                    WorkTrackingPreferenceEnum.LOG_HOURS -> Loc.worktime_manual
-                    WorkTrackingPreferenceEnum.SCHEDULE -> Loc.worktime_weekly
-                    WorkTrackingPreferenceEnum.UNSET -> Loc.worktime_unsetPreference
+                    WorkTrackingPreferenceEnum.LOG_HOURS -> Loc.Workday.manual
+                    WorkTrackingPreferenceEnum.SCHEDULE -> Loc.Workday.weekly
+                    WorkTrackingPreferenceEnum.UNSET -> Loc.Workday.unsetPreference
                 },
                 leadingContent = { Icon(Icons.Default.Tune, null) },
                 onClick = { showPreferencePicker = true }
@@ -179,7 +179,7 @@ fun WorkdaySettingsMainScreen(
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
             ActionListItem(
-                headline = Loc.worktime_weeklyStartDay,
+                headline = Loc.Workday.weeklyStartDay,
                 supportingText = Loc.getDayOfWeekName(startDay),
                 leadingContent = { Icon(Icons.Default.CalendarToday, null) },
                 onClick = { showDayPicker = true }
@@ -189,7 +189,7 @@ fun WorkdaySettingsMainScreen(
 
             if (trackingPreference == WorkTrackingPreferenceEnum.LOG_HOURS || trackingPreference == WorkTrackingPreferenceEnum.UNSET) {
                 ActionListItem(
-                    headline = Loc.worktime_setWorkHours,
+                    headline = Loc.Workday.setWorkHours,
                     supportingText = "Configure daily duration goals",
                     leadingContent = { Icon(Icons.Default.Timer, null) },
                     onClick = { onNavigate(AppScreenEnum.WORK_TIME_LOG_CONFIG) }
@@ -199,7 +199,7 @@ fun WorkdaySettingsMainScreen(
             
             if (trackingPreference == WorkTrackingPreferenceEnum.SCHEDULE || trackingPreference == WorkTrackingPreferenceEnum.UNSET) {
                 ActionListItem(
-                    headline = Loc.worktime_setSchedule,
+                    headline = Loc.Workday.setSchedule,
                     supportingText = "Manage weekly shift times",
                     leadingContent = { Icon(Icons.Default.DateRange, null) },
                     onClick = { onNavigate(AppScreenEnum.WORK_TIME_SCHEDULE) }
@@ -271,7 +271,7 @@ fun WorkdaySettingsMainScreen(
                             onClick = { showDeletePrompt = false },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(Loc.general_cancel)
+                            Text(Loc.General.cancel)
                         }
                     }
                 }

@@ -42,16 +42,16 @@ fun NotesScreen(
     if (uiState.noteToDelete != null) {
         AlertDialog(
             onDismissRequest = { viewModel.onEvent(NotesEvent.RequestDelete(null)) },
-            title = { Text(Loc.notes_deleteNoteTitle) },
-            text = { Text(Loc.general_confirmDeleteMsg) },
+            title = { Text(Loc.Notes.deleteNoteTitle) },
+            text = { Text(Loc.General.confirmDeleteMsg) },
             confirmButton = {
                 TextButton(onClick = { viewModel.onEvent(NotesEvent.ConfirmDelete) }) {
-                    Text(Loc.general_delete, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.General.delete, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(NotesEvent.RequestDelete(null)) }) {
-                    Text(Loc.general_cancel)
+                    Text(Loc.General.cancel)
                 }
             }
         )

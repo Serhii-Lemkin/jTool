@@ -3,10 +3,15 @@ package com.jtool.android.features.settings.visibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -30,13 +35,13 @@ fun AppVisibilityScreen(
     val uiState by viewModel.uiState.collectAsState()
     val apps = remember {
         listOf(
-            AppScreenEnum.WORK_TIME to Loc.worktime_workTime,
-            AppScreenEnum.TIME_CALC to Loc.timecalc_timeCalc,
-            AppScreenEnum.SHOP_LIST to Loc.shoplist_shoppingList,
-            AppScreenEnum.NOTES to Loc.notes_notes,
-            AppScreenEnum.LINKS to Loc.links_links,
-            AppScreenEnum.CLEANING to Loc.cleaning_cleaning,
-            AppScreenEnum.CALENDAR to Loc.calendar_calendar
+            AppScreenEnum.WORK_TIME to Loc.Workday.workTime,
+            AppScreenEnum.TIME_CALC to Loc.TimeCalc.timeCalc,
+            AppScreenEnum.SHOP_LIST to Loc.ShopList.shoppingList,
+            AppScreenEnum.NOTES to Loc.Notes.notes,
+            AppScreenEnum.LINKS to Loc.Links.links,
+            AppScreenEnum.CLEANING to Loc.Cleaning.cleaning,
+            AppScreenEnum.CALENDAR to Loc.Calendar.calendar
         )
     }
 
@@ -45,31 +50,36 @@ fun AppVisibilityScreen(
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
+        SectionHeader(title = Loc.Settings.layoutType, icon = Icons.Default.Palette)
+        
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(Loc.settings_layoutType, style = MaterialTheme.typography.titleSmall)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    if (uiState.isGridLayout) Loc.settings_gridLayout else Loc.settings_listLayout, 
-                    modifier = Modifier.padding(end = 8.dp), 
-                    style = MaterialTheme.typography.bodyMedium
+                    text = if (uiState.isGridLayout) Loc.Settings.gridLayout else Loc.Settings.listLayout, 
+                    style = MaterialTheme.typography.bodyLarge
                 )
-                Switch(
-                    checked = uiState.isGridLayout,
-                    onCheckedChange = { viewModel.onEvent(AppVisibilityEvent.ToggleGridLayout) }
+                Text(
+                    text = Loc.Settings.layoutDescription, 
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Switch(
+                checked = uiState.isGridLayout,
+                onCheckedChange = { viewModel.onEvent(AppVisibilityEvent.ToggleGridLayout) }
+            )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+        SectionHeader(title = Loc.Settings.visibilityTitle, icon = Icons.Default.Visibility)
 
         Column(modifier = Modifier.fillMaxWidth()) {
             apps.forEach { (id, name) ->
@@ -95,5 +105,27 @@ fun AppVisibilityScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SectionHeader(title: String, icon: ImageVector) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(bottom = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon, 
+            contentDescription = null, 
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title, 
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

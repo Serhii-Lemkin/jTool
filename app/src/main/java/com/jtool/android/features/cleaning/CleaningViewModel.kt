@@ -1,5 +1,6 @@
 package com.jtool.android.features.cleaning
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jtool.android.core.models.feature.cleaning.CleaningTask
@@ -56,7 +57,7 @@ class CleaningViewModel(
                     try {
                         doc.toObject(CleaningTask::class.java)?.apply { id = doc.id }
                     } catch (e: Exception) {
-                        android.util.Log.e("CleaningVM", "Error deserializing task ${doc.id}", e)
+                        Log.e("CleaningVM", "Error deserializing task ${doc.id}", e)
                         null
                     }
                 }

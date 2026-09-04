@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.selection.SelectionContainer
 import com.jtool.android.core.components.layout.GenericTitle
-import com.jtool.android.features.notes.components.title_suggestion_slip.TitleSuggestionSlip
+import com.jtool.android.features.notes.components.title_suggestion_sheet.TitleSuggestionSheet
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
 import com.jtool.android.core.localization.Loc
@@ -34,17 +34,17 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
-    var showTitleSlip by remember { mutableStateOf(false) }
+    var showTitleSheet by remember { mutableStateOf(false) }
 
-    if (showTitleSlip) {
-        TitleSuggestionSlip(
-            onDismiss = { showTitleSlip = false },
+    if (showTitleSheet) {
+        TitleSuggestionSheet(
+            onDismiss = { showTitleSheet = false },
             onConfirm = {
                 if (it.isNotBlank()) {
                     viewModel.onEvent(NotesEvent.UpdateDraftTitle(it))
                 }
                 viewModel.onEvent(NotesEvent.SaveNote)
-                showTitleSlip = false
+                showTitleSheet = false
             }
         )
     }
@@ -62,7 +62,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                         OutlinedTextField(
                             value = uiState.draftTitle,
                             onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftTitle(it)) },
-                            placeholder = { Text(Loc.notes_noteTitlePlaceholder) },
+                            placeholder = { Text(Loc.Notes.noteTitlePlaceholder) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
@@ -73,7 +73,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                         )
                     } else {
                         Text(
-                            text = if (uiState.draftTitle.isBlank()) Loc.notes_untitledNote else uiState.draftTitle,
+                            text = if (uiState.draftTitle.isBlank()) Loc.Notes.untitledNote else uiState.draftTitle,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -83,7 +83,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                     if (uiState.isEditMode) {
                         IconButton(onClick = { 
                             if (uiState.draftTitle.isBlank()) {
-                                showTitleSlip = true
+                                showTitleSheet = true
                             } else {
                                 viewModel.onEvent(NotesEvent.SaveNote)
                             }
@@ -117,7 +117,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                                 value = uiState.draftContent,
                                 onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftContent(it)) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp),
-                                placeholder = { Text(Loc.notes_noteContentHint) },
+                                placeholder = { Text(Loc.Notes.noteContentHint) },
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
@@ -141,7 +141,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                                 TextField(
                                     value = uiState.checklistInput,
                                     onValueChange = { viewModel.onEvent(NotesEvent.UpdateChecklistInput(it)) },
-                                    placeholder = { Text(Loc.shoplist_addItem) },
+                                    placeholder = { Text(Loc.ShopList.addItem) },
                                     modifier = Modifier.weight(1f),
                                     colors = TextFieldDefaults.colors(
                                         focusedContainerColor = Color.Transparent,
@@ -198,7 +198,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
-                            text = "${Loc.general_by} ${uiState.userNames[uiState.editingNote?.lastUpdatedBy] ?: uiState.editingNote?.lastUpdatedBy ?: "Me"}",
+                            text = "${Loc.General.by} ${uiState.userNames[uiState.editingNote?.lastUpdatedBy] ?: uiState.editingNote?.lastUpdatedBy ?: "Me"}",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )

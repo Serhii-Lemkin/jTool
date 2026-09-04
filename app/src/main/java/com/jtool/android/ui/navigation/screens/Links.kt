@@ -10,7 +10,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 object Links : AppProperties(
     AppScreenEnum.LINKS,
     Icons.Default.Link,
-    { Loc.links_links }
+    { Loc.Links.links }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

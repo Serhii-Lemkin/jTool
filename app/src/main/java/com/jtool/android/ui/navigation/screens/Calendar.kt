@@ -14,7 +14,7 @@ import com.jtool.android.features.calendar.grid.CalendarGridViewModel
 object Calendar : AppProperties(
     id = AppScreenEnum.CALENDAR,
     icon = Icons.Default.CalendarMonth,
-    getName = { Loc.calendar_calendar }
+    getName = { Loc.Calendar.calendar }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

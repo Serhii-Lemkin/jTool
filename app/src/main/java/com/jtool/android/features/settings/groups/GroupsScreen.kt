@@ -22,16 +22,18 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.ActionListItem
-import com.jtool.android.features.settings.groups.components.create_group_slip.CreateGroupSlip
-import com.jtool.android.features.settings.groups.components.delete_group_confirm_slip.DeleteGroupConfirmSlip
-import com.jtool.android.features.settings.groups.components.edit_group_name_slip.EditGroupNameSlip
-import com.jtool.android.features.settings.groups.components.group_created_slip.GroupCreatedSlip
-import com.jtool.android.features.settings.groups.components.group_member_item_slip.GroupMemberItem
-import com.jtool.android.features.settings.groups.components.group_selection_slip.GroupSelectionSlip
-import com.jtool.android.features.settings.groups.components.invite_slip.InviteSlip
-import com.jtool.android.features.settings.groups.components.join_group_slip.JoinGroupSlip
-import com.jtool.android.features.settings.groups.components.leave_group_slip.LeaveGroupSlip
-import com.jtool.android.features.settings.groups.components.join_request_sent_slip.JoinRequestSentSlip
+import com.jtool.android.core.components.layout.TitleActionIcon
+import com.jtool.android.features.settings.groups.components.create_group_sheet.CreateGroupSheet
+import com.jtool.android.features.settings.groups.components.delete_group_confirm_sheet.DeleteGroupConfirmSheet
+import com.jtool.android.features.settings.groups.components.edit_group_name_sheet.EditGroupNameSheet
+import com.jtool.android.features.settings.groups.components.group_created_sheet.GroupCreatedSheet
+import com.jtool.android.features.settings.groups.components.group_member_item_sheet.GroupMemberItem
+import com.jtool.android.features.settings.groups.components.group_selection_sheet.GroupSelectionSheet
+import com.jtool.android.features.settings.groups.components.invite_sheet.InviteSheet
+import com.jtool.android.features.settings.groups.components.join_group_sheet.JoinGroupSheet
+import com.jtool.android.features.settings.groups.components.leave_group_sheet.LeaveGroupSheet
+import com.jtool.android.features.settings.groups.components.join_request_sent_sheet.JoinRequestSentSheet
+import com.jtool.android.features.settings.groups.components.groups_info_sheet.GroupsInfoSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +70,7 @@ fun GroupsScreen(
     var showLeaveConfirmSheet by remember { mutableStateOf(false) }
     var showInviteSheet by remember { mutableStateOf(false) }
     var showEditGroupNameDialog by remember { mutableStateOf(false) }
+    var showGroupsInfoSheet by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     
     var showCreateGroupSheet by remember { mutableStateOf(false) }
@@ -93,7 +96,7 @@ fun GroupsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             GenericTitle(
-                title = Loc.settings_groups,
+                title = Loc.Settings.groups,
                 onBack = onBack,
                 isLoading = uiState.isLoading,
                 onRefresh = { viewModel.onEvent(GroupsEvent.Refresh) },
@@ -103,6 +106,7 @@ fun GroupsScreen(
                 onSearchClose = { isSearching = false; groupSearchQuery = "" },
                 actions = {
                     if (!isSearching) {
+                        TitleActionIcon(icon = Icons.Default.Info, onClick = { showGroupsInfoSheet = true })
                         IconButton(onClick = { isSearching = true }) {
                             Icon(Icons.Default.Search, null)
                         }
@@ -116,10 +120,11 @@ fun GroupsScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val activeGroup = uiState.groups[uiState.currentGroupId]
-            val activeName = activeGroup?.name ?: uiState.currentGroupId ?: Loc.settings_noneSelected
+            val isPrivate = activeGroup?.isPrivate == true
+            val activeName = if (isPrivate) Loc.Settings.privateGroup else activeGroup?.name ?: uiState.currentGroupId ?: Loc.Settings.noneSelected
 
             if (allGroupIds.isNotEmpty()) {
-                SectionHeader(Loc.settings_activeGroup)
+                SectionHeader(Loc.Settings.activeGroup)
                 ActionListItem(
                     headline = activeName,
                     leadingContent = { Icon(Icons.Default.Group, null, tint = MaterialTheme.colorScheme.primary) },
@@ -128,9 +133,9 @@ fun GroupsScreen(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
                 
-                if (uiState.currentGroupId != null) {
+                if (uiState.currentGroupId != null && !isPrivate) {
                     ActionListItem(
-                        headline = Loc.settings_editGroupName,
+                        headline = Loc.Settings.editGroupName,
                         leadingContent = { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = { 
                             newGroupName = activeName
@@ -142,15 +147,15 @@ fun GroupsScreen(
                 Spacer(Modifier.height(16.dp))
             } else if (!hasAnyGroups && !uiState.isLoading) {
                 Card(modifier = Modifier.fillMaxWidth().padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f))) {
-                    Text(text = Loc.settings_noGroupsMsg, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Text(text = Loc.Settings.noGroupsMsg, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
 
-            if (uiState.currentGroupId != null && !uiState.isLoading) {
+            if (uiState.currentGroupId != null && !uiState.isLoading && !isPrivate) {
                 SectionHeader("Group Management")
                 
                 ActionListItem(
-                    headline = Loc.settings_groupInvite,
+                    headline = Loc.Settings.groupInvite,
                     supportingText = "Invite members via email",
                     leadingContent = { Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.primary) },
                     onClick = { showInviteSheet = true },
@@ -158,7 +163,7 @@ fun GroupsScreen(
                 )
                 
                 ActionListItem(
-                    headline = Loc.settings_copyId,
+                    headline = Loc.Settings.copyId,
                     supportingText = uiState.currentGroupId,
                     leadingContent = { Icon(Icons.Default.ContentCopy, null, tint = MaterialTheme.colorScheme.primary) },
                     onClick = { clipboardManager.setText(AnnotatedString(uiState.currentGroupId!!)) },
@@ -166,7 +171,7 @@ fun GroupsScreen(
                 )
                 
                 ActionListItem(
-                    headline = Loc.settings_unlinkGroup,
+                    headline = Loc.Settings.unlinkGroup,
                     supportingText = "Remove this group from your account",
                     leadingContent = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = MaterialTheme.colorScheme.error) },
                     headlineColor = MaterialTheme.colorScheme.error,
@@ -176,25 +181,25 @@ fun GroupsScreen(
                 Spacer(Modifier.height(24.dp))
             }
 
-            SectionHeader(Loc.settings_addNewGroup)
+            SectionHeader(Loc.Settings.addNewGroup)
             ActionListItem(
-                headline = Loc.settings_createNewGroup,
+                headline = Loc.Settings.createNewGroup,
                 leadingContent = { Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary) },
                 onClick = { showCreateGroupSheet = true },
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
             ActionListItem(
-                headline = Loc.settings_joinGroup,
+                headline = Loc.Settings.joinGroup,
                 leadingContent = { Icon(Icons.Default.GroupAdd, null, tint = MaterialTheme.colorScheme.primary) },
                 onClick = { showJoinGroupSheet = true },
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            if (uiState.currentGroupId != null && groupMemberIds.isNotEmpty() && !uiState.isLoading) {
+            if (uiState.currentGroupId != null && groupMemberIds.isNotEmpty() && !uiState.isLoading && !isPrivate) {
                 Spacer(Modifier.height(32.dp))
-                SectionHeader(Loc.settings_groupMembers)
+                SectionHeader(Loc.Settings.groupMembers)
                 groupMemberIds.forEach { uid ->
-                    val name = globalUserNames[uid] ?: Loc.general_unknown
+                    val name = globalUserNames[uid] ?: Loc.General.unknown
                     val isOwner = activeGroup?.ownerUid == uid
                     GroupMemberItem(name = name, isOwner = isOwner)
                 }
@@ -203,8 +208,12 @@ fun GroupsScreen(
         }
     }
 
+    if (showGroupsInfoSheet) {
+        GroupsInfoSheet(onDismiss = { showGroupsInfoSheet = false })
+    }
+
     if (showGroupSelectionSheet) {
-        GroupSelectionSlip(
+        GroupSelectionSheet(
             groups = uiState.groups,
             currentGroupId = uiState.currentGroupId,
             onGroupSelected = { viewModel.onEvent(GroupsEvent.SwitchGroup(it)) },
@@ -213,21 +222,21 @@ fun GroupsScreen(
     }
 
     if (showCreateGroupSheet) {
-        CreateGroupSlip(
+        CreateGroupSheet(
             onDismiss = { showCreateGroupSheet = false },
             onConfirm = { viewModel.onEvent(GroupsEvent.CreateGroup(it)); showCreateGroupSheet = false }
         )
     }
     
     if (showJoinGroupSheet) {
-        JoinGroupSlip(
+        JoinGroupSheet(
             onDismiss = { showJoinGroupSheet = false },
             onConfirm = { viewModel.onEvent(GroupsEvent.JoinGroup(it)); showJoinGroupSheet = false }
         )
     }
 
     if (showLeaveConfirmSheet) {
-        LeaveGroupSlip(
+        LeaveGroupSheet(
             isLastMember = groupMemberIds.size <= 1,
             onDismiss = { showLeaveConfirmSheet = false },
             onConfirm = { viewModel.onEvent(GroupsEvent.LeaveGroup(uiState.currentGroupId!!)); showLeaveConfirmSheet = false }
@@ -235,22 +244,22 @@ fun GroupsScreen(
     }
 
     if (showInviteSheet) {
-        InviteSlip(
+        InviteSheet(
             onDismiss = { showInviteSheet = false },
             onConfirm = { viewModel.onEvent(GroupsEvent.SendInvite(it, uiState.currentGroupId!!)); showInviteSheet = false }
         )
     }
 
     if (showEditGroupNameDialog) {
-        EditGroupNameSlip(initialName = newGroupName, onDismiss = { showEditGroupNameDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.UpdateGroupName(uiState.currentGroupId!!, it)); showEditGroupNameDialog = false })
+        EditGroupNameSheet(initialName = newGroupName, onDismiss = { showEditGroupNameDialog = false }, onConfirm = { viewModel.onEvent(GroupsEvent.UpdateGroupName(uiState.currentGroupId!!, it)); showEditGroupNameDialog = false })
     }
     
     if (uiState.lastCreatedGroupId != null) {
-        GroupCreatedSlip(groupId = uiState.lastCreatedGroupId!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissCreatedDialog) }, onCopy = { clipboardManager.setText(AnnotatedString(it)) })
+        GroupCreatedSheet(groupId = uiState.lastCreatedGroupId!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissCreatedDialog) }, onCopy = { clipboardManager.setText(AnnotatedString(it)) })
     }
 
     if (uiState.joinRequestResult != null) {
-        JoinRequestSentSlip(result = uiState.joinRequestResult!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissJoinRequestSentSlip) })
+        JoinRequestSentSheet(result = uiState.joinRequestResult!!, onDismiss = { viewModel.onEvent(GroupsEvent.DismissJoinRequestSentSheet) })
     }
 }
 

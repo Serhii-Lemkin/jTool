@@ -12,7 +12,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 object WorkTimeSchedule : AppProperties(
     AppScreenEnum.WORK_TIME_SCHEDULE,
     null,
-    { Loc.worktime_editWorkHours }
+    { Loc.Workday.editWorkHours }
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {

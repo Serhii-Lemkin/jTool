@@ -29,10 +29,11 @@ fun SupportListItem(
     
     ActionListItem(
         onClick = onClick,
-        headline = Loc.support_request_number.format(request.number),
+        headline = Loc.Support.request_number.format(request.number),
         headlineColor = MaterialTheme.colorScheme.primary,
         supportingText = request.text,
         supportingColor = MaterialTheme.colorScheme.onSurface,
+        supportingMaxLines = Int.MAX_VALUE,
         metadataText = buildString {
             append(dateFormat.format(Date(request.timestamp)))
             append(" • ")
@@ -56,10 +57,10 @@ fun SupportListItem(
 @Composable
 fun TypeLabel(type: SupportTypeEnum, isPending: Boolean = false) {
     val text = when (type) {
-        SupportTypeEnum.BUG -> Loc.support_type_bug
-        SupportTypeEnum.FEATURE -> Loc.support_type_feature
-        SupportTypeEnum.CHANGE -> Loc.support_type_change
-        SupportTypeEnum.CRASH -> Loc.support_type_crash
+        SupportTypeEnum.BUG -> Loc.Support.type_bug
+        SupportTypeEnum.FEATURE -> Loc.Support.type_feature
+        SupportTypeEnum.CHANGE -> Loc.Support.type_change
+        SupportTypeEnum.CRASH -> Loc.Support.type_crash
     }
     Text(
         text = text.uppercase(),
@@ -72,10 +73,10 @@ fun TypeLabel(type: SupportTypeEnum, isPending: Boolean = false) {
 @Composable
 fun StatusBadge(status: SupportStatusEnum, isPending: Boolean = false) {
     val (text, color) = when (status) {
-        SupportStatusEnum.OPENED -> Loc.support_status_opened to MaterialTheme.colorScheme.error
-        SupportStatusEnum.IN_PROGRESS -> Loc.support_status_in_progress to MaterialTheme.colorScheme.primary
-        SupportStatusEnum.CLOSED -> Loc.support_status_closed to MaterialTheme.colorScheme.secondary
-        SupportStatusEnum.CUT -> Loc.support_status_cut to MaterialTheme.colorScheme.outline
+        SupportStatusEnum.OPENED -> Loc.Support.status_opened to MaterialTheme.colorScheme.error
+        SupportStatusEnum.IN_PROGRESS -> Loc.Support.status_in_progress to MaterialTheme.colorScheme.primary
+        SupportStatusEnum.CLOSED -> Loc.Support.status_closed to MaterialTheme.colorScheme.secondary
+        SupportStatusEnum.CUT -> Loc.Support.status_cut to MaterialTheme.colorScheme.outline
     }
     
     Surface(

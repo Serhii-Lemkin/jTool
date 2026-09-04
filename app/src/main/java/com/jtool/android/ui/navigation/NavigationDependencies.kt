@@ -11,9 +11,11 @@ import com.jtool.android.features.cleaning.CleaningManager
 import com.jtool.android.features.links.LinksManager
 import com.jtool.android.features.notes.NotesManager
 import com.jtool.android.features.shopping.ShoppingListManager
+import kotlinx.coroutines.CoroutineScope
 
 data class NavigationDependencies(
-    val settingsManager: SettingsManager,
+    val scope: CoroutineScope,
+    val settingsManager: SettingsManager, 
     val shoppingListManager: ShoppingListManager,
     val notesManager: NotesManager,
     val cleaningManager: CleaningManager,

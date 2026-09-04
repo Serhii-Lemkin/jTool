@@ -3,8 +3,12 @@ package com.jtool.android.features.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.models.common.UserNotification
+import com.jtool.android.core.models.common.enums.NotificationTypeEnum
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class AdminViewModel(
     private val dataManager: DataManager
@@ -79,9 +83,45 @@ class AdminViewModel(
                     _uiState.update { it.copy(showGroupDeleteConfirm2 = null) }
                 }
             }
-            AdminEvent.CleanupLegacyWorkHours -> {
+            is AdminEvent.UpdateNotifUserSearch -> _uiState.update { it.copy(notifUserSearchQuery = event.query) }
+            AdminEvent.ApplyNotifUserSearch -> _uiState.update { it.copy(appliedNotifUserSearch = it.notifUserSearchQuery) }
+            is AdminEvent.UpdateNotifGroupSearch -> _uiState.update { it.copy(notifGroupSearchQuery = event.query) }
+            AdminEvent.ApplyNotifGroupSearch -> _uiState.update { it.copy(appliedNotifGroupSearch = it.notifGroupSearchQuery) }
+            is AdminEvent.SendPersonalNotification -> {
                 viewModelScope.launch {
-                    dataManager.cleanupLegacyWorkHours()
+                    val notification = UserNotification(
+                        id = java.util.UUID.randomUUID().toString(),
+                        title = event.title,
+                        message = event.message,
+                        timestamp = System.currentTimeMillis(),
+                        type = event.type,
+                        isGroupLevel = false
+                    )
+                    FirebaseFirestore.getInstance()
+                        .collection("user_data")
+                        .document(event.uid)
+                        .update("notifications", com.google.firebase.firestore.FieldValue.arrayUnion(notification))
+                        .await()
+                }
+            }
+            is AdminEvent.SendGroupNotification -> {
+                viewModelScope.launch {
+                    val notification = UserNotification(
+                        id = java.util.UUID.randomUUID().toString(),
+                        groupId = event.gid,
+                        title = event.title,
+                        message = event.message,
+                        timestamp = System.currentTimeMillis(),
+                        type = event.type,
+                        isGroupLevel = true
+                    )
+                    FirebaseFirestore.getInstance()
+                        .collection("groups")
+                        .document(event.gid)
+                        .collection("group_notifications")
+                        .document(notification.id)
+                        .set(notification)
+                        .await()
                 }
             }
             AdminEvent.Refresh -> {

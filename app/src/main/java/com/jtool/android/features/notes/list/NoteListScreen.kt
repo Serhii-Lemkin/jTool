@@ -26,7 +26,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.UnifiedFAB
-import com.jtool.android.features.notes.components.new_note_slip.NewNoteSlip
+import com.jtool.android.features.notes.components.new_note_sheet.NewNoteSheet
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,13 +34,13 @@ import java.util.*
 @Composable
 fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () -> Unit) {
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
-    var showNewNoteSlip by remember { mutableStateOf(false) }
+    var showNewNoteSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
-    if (showNewNoteSlip) {
-        NewNoteSlip(
-            onDismiss = { showNewNoteSlip = false },
+    if (showNewNoteSheet) {
+        NewNoteSheet(
+            onDismiss = { showNewNoteSheet = false },
             onTypeSelected = { viewModel.onEvent(NotesEvent.StartNewNote(it)) }
         )
     }
@@ -48,7 +48,7 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
     Scaffold(
         topBar = {
             GenericTitle(
-                title = Loc.notes_notes,
+                title = Loc.Notes.notes,
                 onBack = onBack,
                 isLoading = uiState.isLoading || uiState.isRefreshing,
                 onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
@@ -74,17 +74,17 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
                         }
                         DropdownMenu(expanded = filterExpanded, onDismissRequest = { filterExpanded = false }) {
                             DropdownMenuItem(
-                                text = { Text(Loc.shoplist_all) },
+                                text = { Text(Loc.ShopList.all) },
                                 onClick = { viewModel.onEvent(NotesEvent.SetFilterType(null)); filterExpanded = false },
                                 trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
                             )
                             DropdownMenuItem(
-                                text = { Text(Loc.notes_textNote) },
+                                text = { Text(Loc.Notes.textNote) },
                                 onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.TEXT)); filterExpanded = false },
                                 trailingIcon = { if (uiState.filterType == NoteTypeEnum.TEXT) Icon(Icons.Default.Check, null) }
                             )
                             DropdownMenuItem(
-                                text = { Text(Loc.notes_checklistNote) },
+                                text = { Text(Loc.Notes.checklistNote) },
                                 onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.CHECKLIST)); filterExpanded = false },
                                 trailingIcon = { if (uiState.filterType == NoteTypeEnum.CHECKLIST) Icon(Icons.Default.Check, null) }
                             )
@@ -95,8 +95,8 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
         },
         floatingActionButton = {
             UnifiedFAB(
-                onClick = { showNewNoteSlip = true },
-                contentDescription = Loc.general_add
+                onClick = { showNewNoteSheet = true },
+                contentDescription = Loc.General.add
             )
         }
     ) { padding ->
@@ -133,16 +133,16 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
         if (note.checklistCount <= 0) {
             ""
         } else {
-            "${note.checklistCount} ${if (note.checklistCount == 1) Loc.general_item else Loc.general_items}"
+            "${note.checklistCount} ${if (note.checklistCount == 1) Loc.General.item else Loc.General.items}"
         }
     }
 
     ActionListItem(
         onClick = { viewModel.onEvent(NotesEvent.OpenNote(note, false)) },
-        headline = note.title.ifBlank { Loc.notes_untitledNote },
+        headline = note.title.ifBlank { Loc.Notes.untitledNote },
         supportingText = contentPreview,
         metadataText = buildString {
-            append("${Loc.general_by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}")
+            append("${Loc.General.by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}")
             append(" • ")
             append(dateFormat.format(Date(note.timestamp)))
             if (note.commentCount > 0) {
@@ -166,7 +166,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(
-                        text = { Text(Loc.general_update) },
+                        text = { Text(Loc.General.update) },
                         onClick = { 
                             viewModel.onEvent(NotesEvent.OpenNote(note, true))
                             menuExpanded = false
@@ -174,7 +174,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
                         leadingIcon = { Icon(Icons.Default.Edit, null) }
                     )
                     DropdownMenuItem(
-                        text = { Text(Loc.general_delete) },
+                        text = { Text(Loc.General.delete) },
                         onClick = { 
                             viewModel.onEvent(NotesEvent.RequestDelete(note))
                             menuExpanded = false

@@ -50,7 +50,7 @@ fun AccountScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(Loc.settings_cloudSyncFirebase, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
+        Text(Loc.Settings.cloudSyncFirebase, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
         Spacer(modifier = Modifier.height(12.dp))
         
         if (uiState.currentUserEmail != null) {
@@ -66,7 +66,7 @@ fun AccountScreen(
                     onClick = { showLogoutConfirm = true },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.settings_logout)
+                    Text(Loc.Settings.logout)
                 }
             }
         } else {
@@ -77,7 +77,7 @@ fun AccountScreen(
             ) {
                 Icon(Icons.AutoMirrored.Filled.Login, null)
                 Spacer(Modifier.width(8.dp))
-                Text(Loc.settings_signInWithGoogle)
+                Text(Loc.Settings.signInWithGoogle)
             }
         }
 
@@ -92,13 +92,13 @@ fun AccountScreen(
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(Loc.settings_userSettings, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
+            Text(Loc.Settings.userSettings, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = userNameInput,
                     onValueChange = { userNameInput = it },
-                    label = { Text(Loc.settings_displayName) },
+                    label = { Text(Loc.Settings.displayName) },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
@@ -106,11 +106,11 @@ fun AccountScreen(
                 IconButton(
                     onClick = { 
                         viewModel.onEvent(AccountEvent.UpdateUserName(userNameInput))
-                        android.widget.Toast.makeText(context, Loc.settings_nameSaved, android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, Loc.Settings.nameSaved, android.widget.Toast.LENGTH_SHORT).show()
                     },
                     enabled = userNameInput.isNotBlank()
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = Loc.general_save)
+                    Icon(Icons.Default.Save, contentDescription = Loc.General.save)
                 }
             }
             
@@ -119,7 +119,7 @@ fun AccountScreen(
             Spacer(Modifier.height(24.dp))
             
             Text(
-                text = Loc.settings_dangerZone, 
+                text = Loc.Settings.dangerZone, 
                 style = MaterialTheme.typography.titleSmall, 
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.align(Alignment.Start)
@@ -136,7 +136,7 @@ fun AccountScreen(
             ) {
                 Icon(Icons.Default.DeleteForever, null)
                 Spacer(Modifier.width(8.dp))
-                Text(Loc.settings_deleteAccountData)
+                Text(Loc.Settings.deleteAccountData)
             }
         }
         
@@ -149,20 +149,20 @@ fun AccountScreen(
     if (showLogoutConfirm) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirm = false },
-            title = { Text(Loc.settings_confirmLogoutTitle) },
-            text = { Text(Loc.settings_confirmLogoutMsg) },
+            title = { Text(Loc.Settings.confirmLogoutTitle) },
+            text = { Text(Loc.Settings.confirmLogoutMsg) },
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutConfirm = false
                     viewModel.onEvent(AccountEvent.SignOut)
                     onSignOut()
                 }) {
-                    Text(Loc.settings_logout, color = MaterialTheme.colorScheme.error)
+                    Text(Loc.Settings.logout, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutConfirm = false }) {
-                    Text(Loc.general_cancel)
+                    Text(Loc.General.cancel)
                 }
             }
         )
@@ -171,15 +171,15 @@ fun AccountScreen(
     if (showDeleteStep1) {
         AlertDialog(
             onDismissRequest = { showDeleteStep1 = false },
-            title = { Text(Loc.settings_confirmEmailTitle) },
+            title = { Text(Loc.Settings.confirmEmailTitle) },
             text = {
                 Column {
-                    Text(Loc.settings_confirmEmailMsg.format(uiState.currentUserEmail))
+                    Text(Loc.Settings.confirmEmailMsg.format(uiState.currentUserEmail))
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = emailConfirmationInput,
                         onValueChange = { emailConfirmationInput = it },
-                        label = { Text(Loc.settings_email) },
+                        label = { Text(Loc.Settings.email) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -194,12 +194,12 @@ fun AccountScreen(
                     enabled = emailConfirmationInput.equals(uiState.currentUserEmail, ignoreCase = true),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.settings_verify)
+                    Text(Loc.Settings.verify)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteStep1 = false }) {
-                    Text(Loc.general_cancel)
+                    Text(Loc.General.cancel)
                 }
             }
         )
@@ -208,8 +208,8 @@ fun AccountScreen(
     if (showDeleteStep2) {
         AlertDialog(
             onDismissRequest = { showDeleteStep2 = false },
-            title = { Text(Loc.general_areYouSure) },
-            text = { Text(Loc.settings_deleteAccountPermanentMsg) },
+            title = { Text(Loc.General.areYouSure) },
+            text = { Text(Loc.Settings.deleteAccountPermanentMsg) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -219,12 +219,12 @@ fun AccountScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Loc.general_delete)
+                    Text(Loc.General.delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteStep2 = false }) {
-                    Text(Loc.general_cancel)
+                    Text(Loc.General.cancel)
                 }
             }
         )

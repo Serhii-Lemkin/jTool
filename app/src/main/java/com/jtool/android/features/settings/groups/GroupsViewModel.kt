@@ -61,7 +61,7 @@ class GroupsViewModel(
             is GroupsEvent.SendInvite -> sendInvite(event.email, event.groupId)
             GroupsEvent.DismissCreatedDialog -> _uiState.update { it.copy(lastCreatedGroupId = null) }
             GroupsEvent.DismissMessage -> _uiState.update { it.copy(message = null) }
-            GroupsEvent.DismissJoinRequestSentSlip -> _uiState.update { it.copy(joinRequestResult = null) }
+            GroupsEvent.DismissJoinRequestSentSheet -> _uiState.update { it.copy(joinRequestResult = null) }
             GroupsEvent.Refresh -> refresh()
         }
     }
@@ -100,7 +100,8 @@ class GroupsViewModel(
     private fun joinGroup(id: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null, message = null) }
-            when (dataManager.joinGroup(id, isInviteAcceptance = false)) {
+            val (result, _) = dataManager.joinGroup(id, isInviteAcceptance = false)
+            when (result) {
                 JoinGroupResultEnum.JOINED -> {
                     _uiState.update { it.copy(currentGroupId = id, isLoading = false) }
                 }
@@ -114,7 +115,7 @@ class GroupsViewModel(
                     _uiState.update { it.copy(joinRequestResult = JoinGroupResultEnum.ALREADY_MEMBER, isLoading = false) }
                 }
                 JoinGroupResultEnum.FAILED -> {
-                    _uiState.update { it.copy(error = Loc.settings_joinRequestFailed, isLoading = false) }
+                    _uiState.update { it.copy(error = Loc.Settings.joinRequestFailed, isLoading = false) }
                 }
             }
         }

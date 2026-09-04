@@ -34,11 +34,11 @@ fun TimeCalculatorScreen(
     Scaffold(
         topBar = {
             GenericTitle(
-                title = Loc.timecalc_timeCalc,
+                title = Loc.TimeCalc.timeCalc,
                 onBack = onBack,
                 actions = {
                     IconButton(onClick = { viewModel.onEvent(TimeCalcEvent.ResetToNow) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = Loc.worktime_resetToNow)
+                        Icon(Icons.Default.Refresh, contentDescription = Loc.Workday.resetToNow)
                     }
                 }
             )
@@ -53,13 +53,13 @@ fun TimeCalculatorScreen(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(Loc.timecalc_baseDateTime, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
+            Text(Loc.TimeCalc.baseDateTime, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TimeInputField(Loc.timecalc_year, uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
-                TimeInputField(Loc.timecalc_month, uiState.bMo, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mo = it)) }
-                TimeInputField(Loc.timecalc_day, uiState.bD, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(d = it)) }
-                TimeInputField(Loc.timecalc_hour, uiState.bH, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(h = it)) }
-                TimeInputField(Loc.timecalc_minute, uiState.bMi, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mi = it)) }
+                TimeInputField(Loc.TimeCalc.year, uiState.bY, Modifier.weight(1.2f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(y = it)) }
+                TimeInputField(Loc.TimeCalc.month, uiState.bMo, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mo = it)) }
+                TimeInputField(Loc.TimeCalc.day, uiState.bD, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(d = it)) }
+                TimeInputField(Loc.TimeCalc.hour, uiState.bH, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(h = it)) }
+                TimeInputField(Loc.TimeCalc.minute, uiState.bMi, Modifier.weight(0.8f)) { viewModel.onEvent(TimeCalcEvent.UpdateBase(mi = it)) }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -80,13 +80,13 @@ fun TimeCalculatorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(Loc.timecalc_addSub, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
+            Text(Loc.TimeCalc.addSub, fontSize = 12.sp, modifier = Modifier.align(Alignment.Start))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TimeInputField(Loc.general_yearShort.uppercase(), uiState.yearsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(y = it)) }
-                TimeInputField(Loc.general_monthShort.uppercase(), uiState.monthsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mo = it)) }
-                TimeInputField(Loc.general_dayShort.uppercase(), uiState.daysInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(d = it)) }
-                TimeInputField(Loc.general_hourSymbol.uppercase(), uiState.hoursInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(h = it)) }
-                TimeInputField(Loc.general_minuteSymbol.uppercase(), uiState.minutesInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mi = it)) }
+                TimeInputField(Loc.General.yearShort.uppercase(), uiState.yearsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(y = it)) }
+                TimeInputField(Loc.General.monthShort.uppercase(), uiState.monthsInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mo = it)) }
+                TimeInputField(Loc.General.dayShort.uppercase(), uiState.daysInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(d = it)) }
+                TimeInputField(Loc.General.hourSymbol.uppercase(), uiState.hoursInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(h = it)) }
+                TimeInputField(Loc.General.minuteSymbol.uppercase(), uiState.minutesInput, Modifier.weight(1f)) { viewModel.onEvent(TimeCalcEvent.UpdateOperation(mi = it)) }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -113,7 +113,7 @@ fun TimeCalculatorScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(Loc.timecalc_history, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.Start))
+            Text(Loc.TimeCalc.history, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.Start))
             
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -129,7 +129,7 @@ fun TimeCalculatorScreen(
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
                             Text("${item.operation}: ${item.summary}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text("${Loc.timecalc_resultedIn}: ${item.baseDate.format(formatter)}", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                            Text("${Loc.TimeCalc.resultedIn}: ${item.baseDate.format(formatter)}", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                         }
                     }
                 }

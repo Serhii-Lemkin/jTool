@@ -20,7 +20,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
-import com.jtool.android.features.settings.general.components.language_selection_slip.LanguageSelectionSlip
+import com.jtool.android.features.settings.general.components.language_selection_sheet.LanguageSelectionSheet
 
 @Composable
 fun GeneralSettingsScreen(
@@ -37,20 +37,20 @@ fun GeneralSettingsScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showLangSlip by remember { mutableStateOf(false) }
+    var showLangSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val languages = remember(context) { Loc.getAvailableLanguages(context) }
 
-    if (showLangSlip) {
-        LanguageSelectionSlip(
+    if (showLangSheet) {
+        LanguageSelectionSheet(
             languages = languages,
             currentLanguageCode = uiState.language,
             onLanguageSelected = { locale ->
                 viewModel.onEvent(GeneralSettingsEvent.SetLanguage(locale))
                 onLangToggle()
             },
-            onDismiss = { showLangSlip = false }
+            onDismiss = { showLangSheet = false }
         )
     }
 
@@ -80,7 +80,7 @@ fun GeneralSettingsScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(if (uiState.isDarkMode) Loc.settings_darkMode else Loc.settings_lightMode, style = MaterialTheme.typography.bodyLarge)
+                Text(if (uiState.isDarkMode) Loc.Settings.darkMode else Loc.Settings.lightMode, style = MaterialTheme.typography.bodyLarge)
             }
             Switch(
                 checked = uiState.isDarkMode, 
@@ -96,7 +96,7 @@ fun GeneralSettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { showLangSlip = true }
+                .clickable { showLangSheet = true }
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -109,7 +109,7 @@ fun GeneralSettingsScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(Loc.settings_language, style = MaterialTheme.typography.bodyLarge)
+                Text(Loc.Settings.language, style = MaterialTheme.typography.bodyLarge)
             }
             
             Text(
