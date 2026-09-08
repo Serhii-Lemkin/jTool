@@ -1,6 +1,10 @@
 package com.jtool.android.features.workday.tracker
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -13,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,14 +25,13 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import com.jtool.android.core.models.common.enums.AppScreenEnum
-import com.jtool.android.core.models.workday.DayLogHours
 import com.jtool.android.core.models.workday.enums.PickerTypeEnum
 import com.jtool.android.core.models.workday.enums.WorkModeEnum
-import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
-import kotlinx.coroutines.launch
+import com.jtool.android.features.calendar.common.CalendarEventHelper
 import java.time.*
 import java.util.Locale
 
@@ -48,9 +52,8 @@ fun WorkdayTrackerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val datePickerState = rememberDatePickerState()
-    val timePickerState = rememberTimePickerState()
+    val timePickerState = rememberTimePickerState(is24Hour = true)
     val scaffoldState = rememberBottomSheetScaffoldState()
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.onEvent(WorkdayTrackerEvent.Refresh)
@@ -145,37 +148,23 @@ fun WorkdayTrackerScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(text = Loc.Workday.finishCurrentSessionConfirm, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(32.dp))
-                Button(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ConfirmStartSession) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.General.update) }
+                Button(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ConfirmStartSession) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.General.edit) }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleStartConfirm(false)) }, modifier = Modifier.fillMaxWidth()) { Text(Loc.General.cancel) }
             }
         }
     }
 
-    val pref = uiState.trackingPreference
-    val allowedModes = remember(pref) {
-        when (pref) {
-            WorkTrackingPreferenceEnum.LOG_HOURS -> listOf(WorkModeEnum.QUICK_START, WorkModeEnum.LOG_HOURS)
-            WorkTrackingPreferenceEnum.SCHEDULE -> listOf(WorkModeEnum.QUICK_START, WorkModeEnum.SCHEDULE)
-            else -> listOf(WorkModeEnum.QUICK_START)
-        }
-    }
-
-    if (pref == null || pref == WorkTrackingPreferenceEnum.UNSET) {
-        TrackingPreferenceBottomSheet(
-            onDismiss = { viewModel.onEvent(WorkdayTrackerEvent.SetTrackingPreference(WorkTrackingPreferenceEnum.UNSET)) },
-            onPreferenceSelected = { viewModel.onEvent(WorkdayTrackerEvent.SetTrackingPreference(it)) }
-        )
-    }
+    val allowedModes = listOf(WorkModeEnum.CALENDAR_EVENT, WorkModeEnum.QUICK_START)
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 110.dp,
+        sheetPeekHeight = if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp,
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetContentColor = MaterialTheme.colorScheme.onSurface,
         sheetTonalElevation = 0.dp,
         sheetShadowElevation = 8.dp,
-        sheetDragHandle = { BottomSheetDefaults.DragHandle() },
+        sheetDragHandle = { if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) BottomSheetDefaults.DragHandle() else null },
         topBar = {
             GenericTitle(
                 title = Loc.Workday.workTime,
@@ -188,55 +177,30 @@ fun WorkdayTrackerScreen(
             )
         },
         sheetContent = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     Text(
                         text = Loc.Workday.shiftOptions,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 12.dp)
                     )
                     
-                    if (uiState.isSessionActive) {
-                        TextButton(
-                            onClick = { viewModel.onEvent(WorkdayTrackerEvent.ToggleResetConfirm(true)) },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(Loc.General.reset)
-                        }
-                    }
-                }
-
-                when (uiState.mode) {
-                    WorkModeEnum.QUICK_START -> QuickStartContent(uiState = uiState, viewModel = viewModel)
-                    WorkModeEnum.LOG_HOURS -> LogHoursContent(uiState = uiState, viewModel = viewModel, onNavigate = onNavigate)
-                    WorkModeEnum.SCHEDULE -> ScheduleContent(uiState = uiState, viewModel = viewModel, onNavigate = onNavigate)
-                }
-                
-                if (!uiState.isSessionActive) {
+                    QuickStartContent(uiState = uiState, viewModel = viewModel)
+                    
                     Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = { viewModel.onEvent(WorkdayTrackerEvent.StartSession) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(Loc.Workday.start)
-                    }
+                    CommonSessionControls(uiState = uiState, viewModel = viewModel)
                 }
+            } else {
+                Box(Modifier.height(1.dp))
             }
         }
     ) { padding ->
@@ -245,38 +209,33 @@ fun WorkdayTrackerScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            if (pref != null && pref != WorkTrackingPreferenceEnum.UNSET) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp,
-                    modifier = Modifier.fillMaxWidth()
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        allowedModes.forEachIndexed { index, mode ->
-                            SegmentedButton(
-                                selected = uiState.mode == mode,
-                                onClick = { 
-                                    viewModel.onEvent(WorkdayTrackerEvent.ChangeMode(mode))
-                                    if (mode == WorkModeEnum.QUICK_START) {
-                                        scope.launch { scaffoldState.bottomSheetState.expand() }
-                                    }
+                    allowedModes.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = uiState.mode == mode,
+                            onClick = { 
+                                viewModel.onEvent(WorkdayTrackerEvent.ChangeMode(mode))
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = allowedModes.size)
+                        ) {
+                            Text(
+                                text = when(mode) {
+                                    WorkModeEnum.CALENDAR_EVENT -> Loc.Calendar.event
+                                    WorkModeEnum.QUICK_START -> Loc.Workday.freehand
+                                    else -> ""
                                 },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = allowedModes.size)
-                            ) {
-                                Text(
-                                    text = when(mode) {
-                                        WorkModeEnum.QUICK_START -> Loc.Workday.freehand
-                                        WorkModeEnum.LOG_HOURS -> Loc.Workday.manual
-                                        WorkModeEnum.SCHEDULE -> Loc.Workday.weekly
-                                    },
-                                    fontSize = 11.sp,
-                                    maxLines = 1
-                                )
-                            }
+                                fontSize = 11.sp,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
@@ -295,54 +254,143 @@ fun WorkdayTrackerScreen(
                     RealTimeStatus(uiState, viewModel, timerSize)
                 }
                 
-                val today = LocalDate.now().dayOfWeek
-                val logConfig = uiState.logSchedule[today] ?: DayLogHours(isConfirmedOff = true)
+                Spacer(Modifier.height(32.dp))
 
-                if (uiState.todayCalendarShift != null && !uiState.isSessionActive && uiState.mode != WorkModeEnum.QUICK_START) {
-                    uiState.todayCalendarShift?.let { shift ->
-                        Spacer(Modifier.height(24.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
-                        ) {
-                            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(Loc.Calendar.shift, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                                Text(
-                                    text = "${shift.startTime} - ${shift.endTime ?: Loc.General.none}",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                } else if (!uiState.isSessionActive) {
-                    if (uiState.mode == WorkModeEnum.SCHEDULE) {
-                        Spacer(Modifier.height(24.dp))
+                if (uiState.mode == WorkModeEnum.CALENDAR_EVENT) {
+                    if (uiState.todayEvents.isNotEmpty() && !uiState.isSessionActive) {
+                        EventPickerSection(uiState, viewModel, onNavigate)
+                    } else if (!uiState.isSessionActive) {
                         Text(Loc.Workday.dayOff, color = Color.Gray, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    } else if (uiState.mode == WorkModeEnum.LOG_HOURS) {
-                        if (logConfig.isConfirmedOff) {
-                            Spacer(Modifier.height(24.dp))
-                            Text(Loc.Workday.dayOff, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        }
                     }
                 }
             }
-            Spacer(Modifier.height(110.dp)) // Matching peek height
+            Spacer(Modifier.height(if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EventPickerSection(
+    uiState: WorkdayTrackerUiState, 
+    viewModel: WorkdayTrackerViewModel,
+    onNavigate: (AppScreenEnum) -> Unit
+) {
+    val selectedEvent = uiState.todayEvents.find { it.id == uiState.selectedEventId }
+    var showPickerSheet by remember { mutableStateOf(false) }
+    
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Text(Loc.Workday.selectEvent, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(8.dp))
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp), MaterialTheme.shapes.medium)
+                    .clickable { showPickerSheet = true }
+                    .padding(horizontal = 16.dp)
+            ) {
+                Icon(Icons.Default.Event, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = selectedEvent?.title ?: "---",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                Icon(Icons.Default.ArrowDropDown, null)
+            }
+
+            if (selectedEvent != null) {
+                Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        viewModel.onEvent(WorkdayTrackerEvent.SelectEvent(selectedEvent.id))
+                        onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
+                    },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
+                ) {
+                    Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+        }
+    }
+
+    if (showPickerSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showPickerSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = Loc.Workday.selectEvent,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(16.dp)
+                )
+                
+                LazyColumn {
+                    items(uiState.todayEvents) { event ->
+                        val isSelected = uiState.selectedEventId == event.id
+                        val typeText = if (event.type == CalendarEventTypeEnum.SHIFT) Loc.Calendar.shift else Loc.Calendar.common
+                        
+                        ListItem(
+                            headlineContent = { Text(event.title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            supportingContent = { Text("${event.startTime} - ${event.endTime ?: Loc.General.none} ($typeText)") },
+                            trailingContent = {
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            modifier = Modifier.clickable {
+                                viewModel.onEvent(WorkdayTrackerEvent.SelectEvent(event.id))
+                                showPickerSheet = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel, size: androidx.compose.ui.unit.Dp = 200.dp) {
-    val color = if (uiState.isFinished) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val label = if (uiState.isFinished) Loc.Workday.overtime else Loc.Workday.timeLeft
-    val time = if (uiState.isFinished) uiState.overtimeMillis else uiState.timeLeftMillis
+fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel, size: Dp = 200.dp) {
+    val currentTimer = if (uiState.mode == WorkModeEnum.QUICK_START) uiState.quickStartTimer else uiState.eventTimer
     
-    val showTimer = uiState.isSessionActive
+    val color = if (currentTimer.isFinished) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val label = if (currentTimer.isFinished) Loc.Workday.overtime else (currentTimer.label ?: Loc.Workday.timeLeft)
+    val time = if (currentTimer.isFinished) currentTimer.overtimeMillis else currentTimer.timeLeftMillis
+    
+    val showTimer = if (uiState.mode == WorkModeEnum.QUICK_START) {
+        uiState.isSessionActive && uiState.activeSessionMode == WorkModeEnum.QUICK_START
+    } else {
+        uiState.selectedEventId != null
+    }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
             CircularProgressIndicator(
-                progress = { if (uiState.isFinished) 1f else uiState.progress },
+                progress = { if (currentTimer.isFinished) 1f else currentTimer.progress },
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = (size / 16),
                 color = if (showTimer) color else color.copy(alpha = 0.2f),
@@ -350,63 +398,61 @@ fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerView
             )
             
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                if (!showTimer) {
-                    val today = LocalDate.now().dayOfWeek
-                    val logConfig = uiState.logSchedule[today] ?: DayLogHours(isConfirmedOff = true)
-                    
-                    val isStartDisabled = when(uiState.mode) {
-                        WorkModeEnum.SCHEDULE -> uiState.todayCalendarShift == null
-                        WorkModeEnum.LOG_HOURS -> logConfig.isConfirmedOff
-                        else -> false
-                    }
-
-                    Surface(
-                        onClick = { if (!isStartDisabled) viewModel.onEvent(WorkdayTrackerEvent.StartSession) },
-                        shape = MaterialTheme.shapes.extraLarge,
-                        modifier = Modifier.size(size * 0.6f),
-                        color = Color.Transparent,
-                        enabled = !isStartDisabled
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxSize()
+                val isCountdownToStart = uiState.mode == WorkModeEnum.CALENDAR_EVENT && currentTimer.label?.contains(Loc.Workday.untilStart) == true
+                
+                if (!showTimer || (uiState.mode == WorkModeEnum.CALENDAR_EVENT && isCountdownToStart)) {
+                    if (uiState.mode == WorkModeEnum.QUICK_START) {
+                        Surface(
+                            onClick = { viewModel.onEvent(WorkdayTrackerEvent.StartSession) },
+                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier.size(size * 0.6f),
+                            color = Color.Transparent
                         ) {
-                            Icon(
-                                Icons.Default.PlayArrow, 
-                                null, 
-                                modifier = Modifier.size(size * 0.24f),
-                                tint = if (isStartDisabled) color.copy(alpha = 0.3f) else color
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(size * 0.24f), tint = color)
+                                Text(Loc.Workday.start, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.08f).sp, color = color)
+                            }
+                        }
+                    } else if (uiState.mode == WorkModeEnum.CALENDAR_EVENT && uiState.selectedEventId != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(label, style = MaterialTheme.typography.labelMedium)
                             Text(
-                                Loc.Workday.start, 
+                                text = formatMillis(time),
+                                style = if (size > 200.dp) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = (size.value * 0.08f).sp,
-                                color = if (isStartDisabled) color.copy(alpha = 0.3f) else color
+                                color = color
                             )
                         }
                     }
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(label, style = MaterialTheme.typography.labelMedium)
+                        Text(text = label, style = MaterialTheme.typography.labelMedium)
                         Text(
                             text = formatMillis(time),
                             style = if (size > 200.dp) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
                             color = color
                         )
-                        
-                        Spacer(Modifier.height(8.dp))
-                        
-                        Button(
-                            onClick = { viewModel.onEvent(WorkdayTrackerEvent.FinishSession) },
-                            shape = RoundedCornerShape(24.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = color)
-                        ) {
-                            Icon(Icons.Default.Done, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(Loc.Workday.finish, fontSize = 12.sp)
+
+                        val isCalendarFinish = uiState.mode == WorkModeEnum.CALENDAR_EVENT && currentTimer.label?.contains(Loc.Workday.finishAt) == true
+                        val canFinish = (uiState.mode == WorkModeEnum.QUICK_START && uiState.isSessionActive) || isCalendarFinish
+
+                        if (canFinish) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel.onEvent(WorkdayTrackerEvent.FinishSession) },
+                                shape = RoundedCornerShape(24.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = color)
+                            ) {
+                                Icon(Icons.Default.Done, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(Loc.Workday.finish, fontSize = 12.sp)
+                            }
                         }
                     }
                 }

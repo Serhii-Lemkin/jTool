@@ -17,7 +17,12 @@ fun SupportNewRequestForm(
     selectedType: SupportTypeEnum,
     onSubmit: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .padding(16.dp)
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text(text = Loc.Support.new_request, style = MaterialTheme.typography.titleLarge)
             

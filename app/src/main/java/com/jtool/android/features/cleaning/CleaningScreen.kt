@@ -220,7 +220,7 @@ fun CleaningTaskRow(
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     if (task.isEnabled) {
-                        DropdownMenuItem(text = { Text(Loc.General.update) }, onClick = { onEdit(); menuExpanded = false })
+                        DropdownMenuItem(text = { Text(Loc.General.edit) }, onClick = { onEdit(); menuExpanded = false })
                         DropdownMenuItem(text = { Text(Loc.Cleaning.disable) }, onClick = { onDisable(false); menuExpanded = false })
                         DropdownMenuItem(text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) }, onClick = { onDelete(); menuExpanded = false })
                     } else {

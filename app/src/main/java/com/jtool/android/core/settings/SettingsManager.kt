@@ -4,6 +4,7 @@ import android.content.Context
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.workday.WorktimeOptions
+import com.jtool.android.core.models.calendar.CalendarConfig
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import java.time.DayOfWeek
@@ -64,12 +65,7 @@ class SettingsManager(context: Context) {
     }
 
     fun getUserName(): String {
-        var name = prefs.getString("user_name", null)
-        if (name.isNullOrEmpty()) {
-            name = "User_${(1000..9999).random()}"
-            saveUserName(name)
-        }
-        return name
+        return prefs.getString("user_name", "") ?: ""
     }
 
     fun saveUserName(name: String) {
@@ -227,4 +223,64 @@ class SettingsManager(context: Context) {
     fun saveSupportStatusFilters(filters: Set<String>) {
         prefs.edit().putStringSet("support_status_filters", filters).apply()
     }
+
+    fun getVisibleGroupIds(): Set<String> {
+        return prefs.getStringSet("visible_calendar_groups", null) ?: emptySet()
+    }
+
+    fun saveVisibleGroupIds(groupIds: Set<String>) {
+        prefs.edit().putStringSet("visible_calendar_groups", groupIds).apply()
+    }
+
+    // Calendar Config
+    fun getCalendarConfig(): CalendarConfig {
+        val jsonString = prefs.getString("calendar_config", null) ?: return CalendarConfig(
+            googleSyncEnabled = prefs.getBoolean("calendar_google_sync_enabled", false),
+            googlePullEnabled = prefs.getBoolean("calendar_google_pull_enabled", true),
+            googlePushEnabled = prefs.getBoolean("calendar_google_push_enabled", false),
+            googleCalendarId = prefs.getString("calendar_google_id", "primary") ?: "primary",
+            autoWorkKeywords = prefs.getString("calendar_auto_work_keywords", "") ?: "",
+            lastMigrationTimestamp = prefs.getLong("calendar_last_migration", 0L),
+            lastGoogleSyncTimestamp = prefs.getLong("calendar_last_google_sync", 0L)
+        )
+        return try {
+            json.decodeFromString<CalendarConfig>(jsonString)
+        } catch (_: Exception) {
+            CalendarConfig()
+        }
+    }
+
+    fun saveCalendarConfig(config: CalendarConfig) {
+        prefs.edit().putString("calendar_config", json.encodeToString(config)).apply()
+        // Legacy support
+        prefs.edit().putBoolean("calendar_google_sync_enabled", config.googleSyncEnabled).apply()
+        prefs.edit().putBoolean("calendar_google_pull_enabled", config.googlePullEnabled).apply()
+        prefs.edit().putBoolean("calendar_google_push_enabled", config.googlePushEnabled).apply()
+        prefs.edit().putString("calendar_google_id", config.googleCalendarId).apply()
+        prefs.edit().putString("calendar_auto_work_keywords", config.autoWorkKeywords).apply()
+        prefs.edit().putLong("calendar_last_migration", config.lastMigrationTimestamp).apply()
+        prefs.edit().putLong("calendar_last_google_sync", config.lastGoogleSyncTimestamp).apply()
+    }
+
+    // Calendar Sync Settings (Legacy Individual Accessors - Now pointing to CalendarConfig)
+    fun isGoogleCalendarSyncEnabled(): Boolean = getCalendarConfig().googleSyncEnabled
+    fun setGoogleCalendarSyncEnabled(enabled: Boolean) = saveCalendarConfig(getCalendarConfig().copy(googleSyncEnabled = enabled))
+
+    fun isGoogleCalendarPullEnabled(): Boolean = getCalendarConfig().googlePullEnabled
+    fun setGoogleCalendarPullEnabled(enabled: Boolean) = saveCalendarConfig(getCalendarConfig().copy(googlePullEnabled = enabled))
+
+    fun isGoogleCalendarPushEnabled(): Boolean = getCalendarConfig().googlePushEnabled
+    fun setGoogleCalendarPushEnabled(enabled: Boolean) = saveCalendarConfig(getCalendarConfig().copy(googlePushEnabled = enabled))
+
+    fun getGoogleCalendarId(): String = getCalendarConfig().googleCalendarId
+    fun setGoogleCalendarId(id: String) = saveCalendarConfig(getCalendarConfig().copy(googleCalendarId = id))
+
+    fun getAutoWorkKeywords(): String = getCalendarConfig().autoWorkKeywords
+    fun setAutoWorkKeywords(keywords: String) = saveCalendarConfig(getCalendarConfig().copy(autoWorkKeywords = keywords))
+
+    fun getLastCalendarMigration(): Long = getCalendarConfig().lastMigrationTimestamp
+    fun setLastCalendarMigration(timestamp: Long) = saveCalendarConfig(getCalendarConfig().copy(lastMigrationTimestamp = timestamp))
+
+    fun getLastGoogleSync(): Long = getCalendarConfig().lastGoogleSyncTimestamp
+    fun setLastGoogleSync(timestamp: Long) = saveCalendarConfig(getCalendarConfig().copy(lastGoogleSyncTimestamp = timestamp))
 }

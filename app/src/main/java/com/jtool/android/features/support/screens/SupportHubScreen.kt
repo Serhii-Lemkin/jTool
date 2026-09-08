@@ -32,6 +32,8 @@ import com.jtool.android.core.components.layout.TitleDropdownMenu
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.core.components.comments.CommentEvent
+import com.jtool.android.ui.components.common.MessageSheet
+import com.jtool.android.ui.components.common.MessageType
 
 val SupportTypeEnumIcons = mapOf(
     SupportTypeEnum.BUG to Icons.Default.BugReport,
@@ -58,17 +60,18 @@ fun SupportHubScreen(
     val context = LocalContext.current
     var showFilterSheet by remember { mutableStateOf(false) }
     var showTypeSheet by remember { mutableStateOf(false) }
+    var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
     
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
-            android.widget.Toast.makeText(context, Loc.Support.sent_success, android.widget.Toast.LENGTH_SHORT).show()
+            infoMessage = Loc.Support.sent_success to MessageType.SUCCESS
             viewModel.onEvent(SupportEvent.ResetStatus)
         }
     }
     
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
-            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+            infoMessage = it to MessageType.ERROR
             viewModel.onEvent(SupportEvent.ResetStatus)
         }
     }
@@ -93,6 +96,14 @@ fun SupportHubScreen(
                 viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.NEW_FORM))
             },
             onDismiss = { showTypeSheet = false }
+        )
+    }
+
+    if (infoMessage != null) {
+        MessageSheet(
+            message = infoMessage!!.first,
+            type = infoMessage!!.second,
+            onDismiss = { infoMessage = null }
         )
     }
 
@@ -253,7 +264,8 @@ fun SupportHubScreen(
                                     }
                                 },
                                 userNames = globalUserNames,
-                                isOwner = { it.userId == appUserId || it.userId == authUid }
+                                isOwner = { it.userId == appUserId || it.userId == authUid },
+                                onShowMessage = { msg, type -> infoMessage = msg to type }
                             )
                         }
                     }

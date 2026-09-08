@@ -7,6 +7,7 @@ import com.google.firebase.firestore.SetOptions
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.models.user.User
 import com.jtool.android.core.models.user.UserData
+import com.jtool.android.core.models.calendar.CalendarConfig
 import com.jtool.android.core.settings.SettingsManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -45,12 +46,23 @@ class UserAdminHelper(
                 UserData::currentGroupId.name to settings.getCurrentGroupId(),
                 UserData::isDarkMode.name to settings.isDarkMode(),
                 UserData::language.name to settings.getLanguage(),
-                UserData::worktimeOptions.name to settings.getWorktimeOptions()
+                UserData::worktimeOptions.name to settings.getWorktimeOptions(),
+                "calendarConfig" to settings.getCalendarConfig()
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
-            val profile = mapOf(com.jtool.android.core.models.user.PublicProfile::displayName.name to globalUserName)
-            getPublicProfilesColl().document(uid).set(profile, SetOptions.merge()).await()
+            val profileDoc = getPublicProfilesColl().document(uid)
+            val profileSnapshot = profileDoc.get().await()
+            val existingServerName = profileSnapshot.getString(com.jtool.android.core.models.user.PublicProfile::displayName.name)
+            
+            val profile = if (existingServerName != null && (globalUserName == "User" || globalUserName.isEmpty())) {
+                // Keep server name if local is default
+                mapOf(com.jtool.android.core.models.user.PublicProfile::displayName.name to existingServerName)
+            } else {
+                mapOf(com.jtool.android.core.models.user.PublicProfile::displayName.name to globalUserName)
+            }
+            
+            profileDoc.set(profile, SetOptions.merge()).await()
             true
         } catch (e: Exception) {
             false
@@ -60,36 +72,85 @@ class UserAdminHelper(
     suspend fun fetchUserSettings(): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
-            val snapshot = getUsersColl().document(uid).get().await()
+            val userRef = getUsersColl().document(uid)
+            val snapshot = userRef.get().await()
             val user = snapshot.toObject(User::class.java) ?: return false
             
             val statsSnap = getUserDataColl().document(uid).get().await()
             val stats = statsSnap.toObject(UserData::class.java) ?: UserData()
             
-            val groupIds = user.groupIds
+            val groupIds = user.groupIds.toMutableList()
             val finalGroupsMap = mutableMapOf<String, GroupInfo>()
-            if (groupIds.isNotEmpty()) {
-                val gSnapshots = getGroupsColl().whereIn(FieldPath.documentId(), groupIds.take(30)).get().await()
-                gSnapshots.documents.forEach { doc ->
-                    val group = doc.toObject(GroupInfo::class.java)
-                    finalGroupsMap[doc.id] = GroupInfo(
-                        id = doc.id,
-                        name = group?.name ?: "Unknown Group",
-                        ownerUid = group?.ownerUid
-                    )
+            val validIds = mutableListOf<String>()
+            var listChanged = false
+            
+            // 1. Proactive scan: Find any groups user might be in but are missing from list
+            // We can check groups where ownerUid == uid as a baseline for recovery
+            val ownedGroups = getGroupsColl().whereEqualTo(GroupInfo::ownerUid.name, uid).get().await()
+            ownedGroups.documents.forEach { doc ->
+                if (!groupIds.contains(doc.id)) {
+                    groupIds.add(doc.id)
+                    listChanged = true
                 }
             }
+
+            if (groupIds.isNotEmpty()) {
+                for (gid in groupIds) {
+                    try {
+                        val gSnap = getGroupsColl().document(gid).get().await()
+                        
+                        if (gSnap.exists()) {
+                            val memberSnap = getGroupsColl().document(gid).collection("members").document(uid).get().await()
+                            
+                            val group = gSnap.toObject(GroupInfo::class.java)
+                            if (memberSnap.exists() || group?.ownerUid == uid) {
+                                if (group != null) {
+                                    finalGroupsMap[gid] = group.copy(id = gid)
+                                    validIds.add(gid)
+                                    
+                                    if (!memberSnap.exists() && group.ownerUid == uid) {
+                                        getGroupsColl().document(gid).collection("members").document(uid)
+                                            .set(com.jtool.android.core.models.group.MemberInfo(joinedAt = System.currentTimeMillis())).await()
+                                    }
+                                } else {
+                                    validIds.add(gid)
+                                }
+                            } else {
+                                listChanged = true
+                            }
+                        } else {
+                            listChanged = true
+                        }
+                    } catch (e: Exception) {
+                        validIds.add(gid)
+                        android.util.Log.w("UserAdmin", "Could not verify group $gid: ${e.message}")
+                    }
+                }
+            }
+            
+            if (listChanged || validIds.size != user.groupIds.size) {
+                userRef.update(User::groupIds.name, validIds).await()
+            }
+            
             settings.saveGroups(finalGroupsMap)
             
             val localCurrentGroupId = settings.getCurrentGroupId()
             val remoteCurrentGroupId = stats.currentGroupId
             
-            if (localCurrentGroupId != null && remoteCurrentGroupId == null) {
-                pushUserSettings()
-            } else if (localCurrentGroupId == null && groupIds.isNotEmpty()) {
-                settings.setCurrentGroupId(remoteCurrentGroupId ?: groupIds.first())
-            } else if (localCurrentGroupId != null && !groupIds.contains(localCurrentGroupId)) {
-                settings.setCurrentGroupId(groupIds.firstOrNull())
+            val targetGroupId = if (localCurrentGroupId != null && validIds.contains(localCurrentGroupId)) {
+                localCurrentGroupId
+            } else if (remoteCurrentGroupId != null && validIds.contains(remoteCurrentGroupId)) {
+                remoteCurrentGroupId
+            } else {
+                validIds.firstOrNull()
+            }
+            
+            if (targetGroupId != localCurrentGroupId) {
+                settings.setCurrentGroupId(targetGroupId)
+            }
+            
+            if (remoteCurrentGroupId != targetGroupId) {
+                getUserDataColl().document(uid).update(UserData::currentGroupId.name, targetGroupId).await()
             }
             
             val pSnap = getPublicProfilesColl().document(uid).get().await()
@@ -99,6 +160,7 @@ class UserAdminHelper(
             settings.setDarkMode(stats.isDarkMode)
             settings.setLanguage(stats.language)
             settings.saveWorktimeOptions(stats.worktimeOptions)
+            settings.saveCalendarConfig(stats.calendarConfig)
             
             true
         } catch (e: Exception) {

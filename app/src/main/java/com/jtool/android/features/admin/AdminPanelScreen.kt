@@ -2,6 +2,8 @@ package com.jtool.android.features.admin
 
 import com.jtool.android.core.models.admin.enums.AdminSubScreenEnum
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -129,7 +131,9 @@ fun AdminPanelScreen(
 }
 
 @Composable
-fun AdminMainScreen(onNavigate: (AdminSubScreenEnum) -> Unit) {
+fun AdminMainScreen(
+    onNavigate: (AdminSubScreenEnum) -> Unit
+) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             AdminMenuItem(
@@ -273,7 +277,7 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             step = 2,
             onDismiss = { viewModel.onEvent(AdminEvent.RequestDeleteUser(null, 2)) },
             onNext = {},
-            onConfirm = { viewModel.onEvent(AdminEvent.ConfirmDeleteUser(uiState.showUserDeleteConfirm2)) }
+            onConfirm = { viewModel.onEvent(AdminEvent.ConfirmDeleteUser(uiState.showUserDeleteConfirm2!!)) }
         )
     }
 }
@@ -321,7 +325,7 @@ fun GroupsTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             step = 2,
             onDismiss = { viewModel.onEvent(AdminEvent.RequestDeleteGroup(null, 2)) },
             onNext = {},
-            onConfirm = { viewModel.onEvent(AdminEvent.ConfirmDeleteGroup(uiState.showGroupDeleteConfirm2)) }
+            onConfirm = { viewModel.onEvent(AdminEvent.ConfirmDeleteGroup(uiState.showGroupDeleteConfirm2!!)) }
         )
     }
 }

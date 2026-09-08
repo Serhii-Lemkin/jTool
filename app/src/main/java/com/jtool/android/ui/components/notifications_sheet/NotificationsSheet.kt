@@ -2,7 +2,6 @@ package com.jtool.android.ui.components.notifications_sheet
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +33,7 @@ fun NotificationsSheet(
     onAcceptJoinRequest: (UserNotification) -> Unit,
     onDeclineJoinRequest: (UserNotification) -> Unit,
     onDismissNotification: (UserNotification) -> Unit,
+    onShowError: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     GenericSheet(
@@ -64,7 +64,8 @@ fun NotificationsSheet(
                         onDeclineInvite = onDeclineInvite,
                         onAcceptJoinRequest = onAcceptJoinRequest,
                         onDeclineJoinRequest = onDeclineJoinRequest,
-                        onDismissNotification = onDismissNotification
+                        onDismissNotification = onDismissNotification,
+                        onShowError = onShowError
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
                 }
@@ -80,7 +81,8 @@ fun AppNotificationItem(
     onDeclineInvite: (UserNotification) -> Unit,
     onAcceptJoinRequest: (UserNotification) -> Unit,
     onDeclineJoinRequest: (UserNotification) -> Unit,
-    onDismissNotification: (UserNotification) -> Unit
+    onDismissNotification: (UserNotification) -> Unit,
+    onShowError: (String) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -91,7 +93,7 @@ fun AppNotificationItem(
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(notification.link))
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    Toast.makeText(context, Loc.Links.invalidUrl, Toast.LENGTH_SHORT).show()
+                    onShowError(Loc.Links.invalidUrl)
                 }
             }
         } else null,

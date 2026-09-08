@@ -17,7 +17,7 @@ fun GenericSheet(
     title: String? = null,
     titleStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.headlineSmall,
     horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
-    showCloseButton: Boolean = true,
+    showCloseButton: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     ModalBottomSheet(

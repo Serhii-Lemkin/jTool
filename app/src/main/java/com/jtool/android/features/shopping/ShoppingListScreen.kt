@@ -1,6 +1,5 @@
 package com.jtool.android.features.shopping
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +27,8 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.ui.components.common.MessageSheet
+import com.jtool.android.ui.components.common.MessageType
 import com.jtool.android.features.shopping.components.aisle_selection_sheet.AisleSelectionSheet
 import com.jtool.android.features.shopping.components.filter_selection_sheet.FilterSelectionSheet
 import com.jtool.android.features.shopping.components.item_delete_confirm_sheet.ItemDeleteConfirmSheet
@@ -66,6 +67,7 @@ fun ShoppingListScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
+    var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
 
     if (uiState.showAislePicker) {
         AisleSelectionSheet(
@@ -104,6 +106,14 @@ fun ShoppingListScreen(
         ItemDeleteConfirmSheet(
             onDismiss = { viewModel.onEvent(ShoppingEvent.RequestDelete(null)) },
             onConfirm = { viewModel.onEvent(ShoppingEvent.ConfirmDelete) }
+        )
+    }
+
+    if (infoMessage != null) {
+        MessageSheet(
+            message = infoMessage!!.first,
+            type = infoMessage!!.second,
+            onDismiss = { infoMessage = null }
         )
     }
 
@@ -301,11 +311,11 @@ fun ShoppingListScreen(
                                             val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
                                             
                                             if (existingItem != null && !existingItem.isChecked) {
-                                                Toast.makeText(context, Loc.ShopList.itemAlreadyInList, Toast.LENGTH_SHORT).show()
+                                                infoMessage = Loc.ShopList.itemAlreadyInList to MessageType.INFO
                                             } else {
                                                 viewModel.onEvent(ShoppingEvent.AddItem)
                                                 if (existingItem != null) {
-                                                    Toast.makeText(context, Loc.ShopList.restoredExisting, Toast.LENGTH_SHORT).show()
+                                                    infoMessage = Loc.ShopList.restoredExisting to MessageType.SUCCESS
                                                 }
                                             }
                                         }

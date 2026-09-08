@@ -33,4 +33,8 @@ sealed interface WorkdayTrackerEvent {
     data class ToggleStartConfirm(val show: Boolean) : WorkdayTrackerEvent
     data class ToggleQuickStartError(val show: Boolean) : WorkdayTrackerEvent
     object Refresh : WorkdayTrackerEvent
+
+    data class SelectEvent(val eventId: String?) : WorkdayTrackerEvent
+    object StartNow : WorkdayTrackerEvent
+    object StartCountdown : WorkdayTrackerEvent
 }

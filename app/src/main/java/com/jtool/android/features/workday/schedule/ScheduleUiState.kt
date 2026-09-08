@@ -1,5 +1,6 @@
 package com.jtool.android.features.workday.schedule
 
+import com.jtool.android.core.models.calendar.CalendarEvent
 import com.jtool.android.core.models.workday.DaySchedule
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -20,5 +21,8 @@ data class ScheduleUiState(
     val showTimePicker: Boolean = false,
     val conflictError: String? = null,
     val conflictingShifts: Set<String> = emptySet(), // Format: "DAY_INDEX"
-    val scrollToShiftKey: String? = null // Format: "DAY_INDEX"
+    val scrollToShiftKey: String? = null, // Format: "DAY_INDEX"
+    val syncToGoogle: Boolean = false,
+    val dayEvents: Map<DayOfWeek, List<CalendarEvent>> = emptyMap(),
+    val pendingNavigateWeek: Int? = null
 )

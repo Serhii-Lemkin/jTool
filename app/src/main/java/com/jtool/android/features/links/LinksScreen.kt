@@ -2,7 +2,6 @@ package com.jtool.android.features.links
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +30,8 @@ import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.links.components.link_delete_confirm_sheet.LinkDeleteConfirmSheet
 import com.jtool.android.features.links.components.link_edit_sheet.LinkEditSheet
+import com.jtool.android.ui.components.common.MessageSheet
+import com.jtool.android.ui.components.common.MessageType
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -54,6 +55,7 @@ fun LinksScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val clipboardManager = LocalClipboardManager.current
+    var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
 
     var isSearchVisible by remember { mutableStateOf(false) }
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
@@ -116,7 +118,7 @@ fun LinksScreen(
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, Loc.Links.invalidUrl, Toast.LENGTH_SHORT).show()
+                                    infoMessage = Loc.Links.invalidUrl to MessageType.ERROR
                                 }
                             },
                             headline = link.title,
@@ -137,7 +139,7 @@ fun LinksScreen(
                                             text = { Text(Loc.Links.copy) },
                                             onClick = {
                                                 clipboardManager.setText(AnnotatedString(link.url))
-                                                Toast.makeText(context, Loc.Links.copied, Toast.LENGTH_SHORT).show()
+                                                infoMessage = Loc.Links.copied to MessageType.SUCCESS
                                                 itemMenuExpanded = false
                                             },
                                             leadingIcon = { Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(18.dp)) }
@@ -180,6 +182,14 @@ fun LinksScreen(
         LinkDeleteConfirmSheet(
             onDismiss = { viewModel.onEvent(LinksEvent.RequestDelete(null)) },
             onConfirm = { viewModel.onEvent(LinksEvent.ConfirmDelete) }
+        )
+    }
+
+    if (infoMessage != null) {
+        MessageSheet(
+            message = infoMessage!!.first,
+            type = infoMessage!!.second,
+            onDismiss = { infoMessage = null }
         )
     }
 }

@@ -12,7 +12,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.BaseSyncViewModel
-import com.jtool.android.core.sync.helpers.CommentRepository
+import com.jtool.android.core.sync.helpers.FirestoreCommentRepository
 import com.jtool.android.core.components.comments.CommentController
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -30,7 +30,7 @@ class NotesViewModel(
     private val _uiState = MutableStateFlow(NotesUiState())
     val uiState: StateFlow<NotesUiState> = _uiState.asStateFlow()
 
-    private val commentController = CommentController(CommentRepository(), viewModelScope) { settingsManager.getAppUserId() }
+    private val commentController = CommentController(FirestoreCommentRepository(), viewModelScope) { settingsManager.getAppUserId() }
     val comments = commentController.comments
 
     init {

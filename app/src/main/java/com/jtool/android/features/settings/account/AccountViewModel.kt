@@ -5,10 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class AccountViewModel(
@@ -21,6 +18,10 @@ class AccountViewModel(
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
 
     init {
+        loadData()
+    }
+
+    fun refresh() {
         loadData()
     }
 
@@ -41,16 +42,23 @@ class AccountViewModel(
     }
 
     private fun updateUserName(name: String) {
-        settingsManager.saveUserName(name)
-        _uiState.update { it.copy(userName = name) }
-        viewModelScope.launch { dataManager.pushUserSettings() }
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            settingsManager.saveUserName(name)
+            _uiState.update { it.copy(userName = name) }
+            dataManager.pushUserSettings()
+            _uiState.update { it.copy(isLoading = false) }
+        }
     }
 
     private fun signOut() {
-        authManager.signOut()
-        settingsManager.setCurrentGroupId(null)
-        settingsManager.clearAllGroups()
-        _uiState.update { it.copy(currentUserEmail = null) }
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            authManager.signOut()
+            settingsManager.setCurrentGroupId(null)
+            settingsManager.clearAllGroups()
+            _uiState.update { it.copy(currentUserEmail = null, isLoading = false) }
+        }
     }
 
     private fun deleteAccount() {

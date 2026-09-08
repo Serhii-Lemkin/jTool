@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -78,10 +79,14 @@ fun GroupSelectionSheet(
             items(filteredGroups.size) { index ->
                 val id = filteredGroups[index]
                 val group = groups[id]
-                val displayName = if (group?.isPrivate == true) Loc.Settings.privateGroup else group?.name ?: "Unknown Group"
+                val isPrivate = group?.isPrivate == true
+                val displayName = if (isPrivate && (group?.name?.isEmpty() == true)) Loc.Settings.privateGroup else group?.name ?: "Unknown Group"
                 
                 ActionListItem(
                     headline = displayName,
+                    leadingContent = if (isPrivate) {
+                        { Icon(Icons.Default.Lock, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
                     onClick = { onGroupSelected(id); onDismiss() },
                     trailingContent = if (id == currentGroupId) {
                         { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }

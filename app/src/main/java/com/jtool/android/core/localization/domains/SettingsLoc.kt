@@ -52,6 +52,10 @@ object SettingsLoc {
     val email get() = Loc.s("settings_email", "Email")
     val verify get() = Loc.s("settings_verify", "Verify")
     val deleteAccountPermanentMsg get() = Loc.s("settings_deleteAccountPermanentMsg", "THIS ACTION IS PERMANENT. All your personal settings, group memberships, and public profile will be deleted forever. Do you wish to proceed?")
+    val setupNameTitle get() = Loc.s("settings_setupNameTitle", "What's your name?")
+    val setupNameMsg get() = Loc.s("settings_setupNameMsg", "Please enter your name so others can recognize you in shared groups.")
+    val setupNamePlaceholder get() = Loc.s("settings_setupNamePlaceholder", "Your display name")
+    
     val logout get() = Loc.s("settings_logout", "Logout")
     val confirmLogoutTitle get() = Loc.s("settings_confirmLogoutTitle", "Logout?")
     val confirmLogoutMsg get() = Loc.s("settings_confirmLogoutMsg", "Are you sure you want to log out?")

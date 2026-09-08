@@ -1,14 +1,18 @@
 package com.jtool.android.features.admin
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FieldValue
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.models.common.UserNotification
 import com.jtool.android.core.models.common.enums.NotificationTypeEnum
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 class AdminViewModel(
     private val dataManager: DataManager
@@ -90,7 +94,7 @@ class AdminViewModel(
             is AdminEvent.SendPersonalNotification -> {
                 viewModelScope.launch {
                     val notification = UserNotification(
-                        id = java.util.UUID.randomUUID().toString(),
+                        id = UUID.randomUUID().toString(),
                         title = event.title,
                         message = event.message,
                         timestamp = System.currentTimeMillis(),
@@ -100,14 +104,14 @@ class AdminViewModel(
                     FirebaseFirestore.getInstance()
                         .collection("user_data")
                         .document(event.uid)
-                        .update("notifications", com.google.firebase.firestore.FieldValue.arrayUnion(notification))
+                        .update("notifications", FieldValue.arrayUnion(notification))
                         .await()
                 }
             }
             is AdminEvent.SendGroupNotification -> {
                 viewModelScope.launch {
                     val notification = UserNotification(
-                        id = java.util.UUID.randomUUID().toString(),
+                        id = UUID.randomUUID().toString(),
                         groupId = event.gid,
                         title = event.title,
                         message = event.message,
@@ -127,7 +131,7 @@ class AdminViewModel(
             AdminEvent.Refresh -> {
                 _uiState.update { it.copy(isLoading = true) }
                 viewModelScope.launch {
-                    kotlinx.coroutines.delay(500)
+                    delay(500)
                     _uiState.update { it.copy(isLoading = false) }
                 }
             }

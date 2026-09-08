@@ -166,7 +166,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(
-                        text = { Text(Loc.General.update) },
+                        text = { Text(Loc.General.edit) },
                         onClick = { 
                             viewModel.onEvent(NotesEvent.OpenNote(note, true))
                             menuExpanded = false

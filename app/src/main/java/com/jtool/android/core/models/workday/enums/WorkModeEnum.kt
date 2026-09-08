@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class WorkModeEnum {
     QUICK_START,
-    LOG_HOURS,
-    SCHEDULE
+    CALENDAR_EVENT,
+    LOG_HOURS, // Deprecated
+    SCHEDULE   // Deprecated
 }

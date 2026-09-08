@@ -10,6 +10,7 @@ data class Comment(
     var id: String = "",
     val content: String = "",
     val userId: String = "",
+    val authorName: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     @get:PropertyName("isEdited")
     val isEdited: Boolean = false,

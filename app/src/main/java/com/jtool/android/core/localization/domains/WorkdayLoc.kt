@@ -48,7 +48,9 @@ object WorkdayLoc {
     val choosePreferenceMsg get() = Loc.s("worktime_choosePreferenceMsg", "Select the method that best fits your work style.")
     val off get() = Loc.s("worktime_off", "Off")
     val setWorkHours get() = Loc.s("worktime_setWorkHours", "Set Work Hours")
+    val setWorkHoursDescription get() = Loc.s("worktime_setWorkHoursDescription", "Configure your daily duration goals. This is used by Quick Start to automatically calculate your shift end time based on the day of the week.")
     val setSchedule get() = Loc.s("worktime_setSchedule", "Set Schedule")
+    val setScheduleDescription get() = Loc.s("worktime_setScheduleDescription", "Manage your weekly shifts with specific start and end times. These shifts will appear in your calendar and can be tracked automatically.")
     val unsavedChangesTitle get() = Loc.s("worktime_unsavedChangesTitle", "Unsaved Changes")
     val unsavedChangesMsg get() = Loc.s("worktime_unsavedChangesMsg", "You have unsaved changes. Are you sure you want to exit without saving?")
     val keepEditing get() = Loc.s("worktime_keepEditing", "Keep Editing")
@@ -79,6 +81,12 @@ object WorkdayLoc {
     val noShiftsAdded get() = Loc.s("worktime_noShiftsAdded", "No shifts added")
     val nextDay get() = Loc.s("worktime_nextDay", "Next Day")
     val shiftOptions get() = Loc.s("worktime_shiftOptions", "Shift Options")
+    val startCountdown get() = Loc.s("worktime_startCountdown", "Start Countdown")
+    val startNow get() = Loc.s("worktime_startNow", "Start Now")
+    val selectEvent get() = Loc.s("worktime_selectEvent", "Select Event")
+
+    val untilStart get() = Loc.s("worktime_untilStart", "until start")
+    val ofEvent get() = Loc.s("worktime_ofEvent", "of event")
 
     // Legacy worktime keys
     val approximateHours get() = Loc.s("worktime_approximateHours", "Approximate Hours")

@@ -8,13 +8,25 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.FirebaseUser
 import com.jtool.android.R
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.models.common.enums.PersistencePrefixEnum
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class AuthManager(private val context: Context) {
     private val auth = FirebaseAuth.getInstance()
+
+    fun authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            trySend(firebaseAuth.currentUser)
+        }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
+    }
     
     fun getSignInClient(): GoogleSignInClient {
         val webClientId = context.getString(R.string.default_web_client_id)

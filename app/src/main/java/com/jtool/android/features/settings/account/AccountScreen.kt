@@ -6,7 +6,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,9 +17,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.auth.AuthManager
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.features.settings.account.components.logout_confirm_sheet.LogoutConfirmSheet
+import com.jtool.android.features.settings.account.components.delete_account_confirm_sheet.DeleteAccountConfirmSheet
+import com.jtool.android.features.settings.account.components.edit_name_sheet.EditNameSheet
 
 @Composable
 fun AccountScreen(
@@ -40,7 +45,6 @@ fun AccountScreen(
     var showLogoutConfirm by remember { mutableStateOf(false) }
     
     var showDeleteStep1 by remember { mutableStateOf(false) }
-    var showDeleteStep2 by remember { mutableStateOf(false) }
     var emailConfirmationInput by remember { mutableStateOf("") }
 
     Column(
@@ -82,11 +86,7 @@ fun AccountScreen(
         }
 
         if (uiState.currentUserEmail != null) {
-            var userNameInput by remember { mutableStateOf(uiState.userName) }
-            
-            LaunchedEffect(uiState.userName) {
-                userNameInput = uiState.userName
-            }
+            var showNameEdit by remember { mutableStateOf(false) }
 
             Spacer(modifier = Modifier.height(24.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
@@ -94,24 +94,24 @@ fun AccountScreen(
 
             Text(Loc.Settings.userSettings, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = userNameInput,
-                    onValueChange = { userNameInput = it },
-                    label = { Text(Loc.Settings.displayName) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+            
+            ActionListItem(
+                headline = Loc.Settings.displayName,
+                supportingText = uiState.userName.ifEmpty { "Not set" },
+                leadingContent = { Icon(Icons.Default.Person, null) },
+                trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+                onClick = { showNameEdit = true }
+            )
+
+            if (showNameEdit) {
+                EditNameSheet(
+                    initialName = uiState.userName,
+                    onDismiss = { showNameEdit = false },
+                    onConfirm = { newName ->
+                        viewModel.onEvent(AccountEvent.UpdateUserName(newName))
+                        showNameEdit = false
+                    }
                 )
-                Spacer(Modifier.width(8.dp))
-                IconButton(
-                    onClick = { 
-                        viewModel.onEvent(AccountEvent.UpdateUserName(userNameInput))
-                        android.widget.Toast.makeText(context, Loc.Settings.nameSaved, android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    enabled = userNameInput.isNotBlank()
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = Loc.General.save)
-                }
             }
             
             Spacer(Modifier.height(48.dp))
@@ -147,85 +147,24 @@ fun AccountScreen(
     }
 
     if (showLogoutConfirm) {
-        AlertDialog(
-            onDismissRequest = { showLogoutConfirm = false },
-            title = { Text(Loc.Settings.confirmLogoutTitle) },
-            text = { Text(Loc.Settings.confirmLogoutMsg) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLogoutConfirm = false
-                    viewModel.onEvent(AccountEvent.SignOut)
-                    onSignOut()
-                }) {
-                    Text(Loc.Settings.logout, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutConfirm = false }) {
-                    Text(Loc.General.cancel)
-                }
+        LogoutConfirmSheet(
+            onDismiss = { showLogoutConfirm = false },
+            onConfirm = {
+                showLogoutConfirm = false
+                viewModel.onEvent(AccountEvent.SignOut)
+                onSignOut()
             }
         )
     }
 
     if (showDeleteStep1) {
-        AlertDialog(
-            onDismissRequest = { showDeleteStep1 = false },
-            title = { Text(Loc.Settings.confirmEmailTitle) },
-            text = {
-                Column {
-                    Text(Loc.Settings.confirmEmailMsg.format(uiState.currentUserEmail))
-                    Spacer(Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = emailConfirmationInput,
-                        onValueChange = { emailConfirmationInput = it },
-                        label = { Text(Loc.Settings.email) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDeleteStep1 = false
-                        showDeleteStep2 = true
-                    },
-                    enabled = emailConfirmationInput.equals(uiState.currentUserEmail, ignoreCase = true),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Loc.Settings.verify)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteStep1 = false }) {
-                    Text(Loc.General.cancel)
-                }
-            }
-        )
-    }
-
-    if (showDeleteStep2) {
-        AlertDialog(
-            onDismissRequest = { showDeleteStep2 = false },
-            title = { Text(Loc.General.areYouSure) },
-            text = { Text(Loc.Settings.deleteAccountPermanentMsg) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDeleteStep2 = false
-                        viewModel.onEvent(AccountEvent.DeleteAccount)
-                        onSignOut()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Loc.General.delete)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteStep2 = false }) {
-                    Text(Loc.General.cancel)
-                }
+        DeleteAccountConfirmSheet(
+            currentUserEmail = uiState.currentUserEmail ?: "",
+            onDismiss = { showDeleteStep1 = false },
+            onConfirm = {
+                showDeleteStep1 = false
+                viewModel.onEvent(AccountEvent.DeleteAccount)
+                onSignOut()
             }
         )
     }

@@ -32,6 +32,22 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
 
     suspend fun submitRequest(request: SupportRequest, uid: String, bypassLimit: Boolean = false): Boolean {
         return try {
+            // De-duplication check
+            val existing = getSupportColl()
+                .whereEqualTo(SupportRequest::userId.name, uid)
+                .whereEqualTo(SupportRequest::type.name, request.type.name)
+                .whereEqualTo(SupportRequest::text.name, request.text)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!existing.isEmpty) {
+                val existingRequest = existing.documents.first().toObject(SupportRequest::class.java)
+                if (existingRequest?.status == SupportStatusEnum.OPENED || existingRequest?.status == SupportStatusEnum.IN_PROGRESS) {
+                    return true 
+                }
+            }
+
             firestore.runTransaction { transaction ->
                 val isAdmin = if (bypassLimit) true else {
                     val userRef = firestore.collection(SupportConfig.USERS_COLLECTION).document(uid)
@@ -66,7 +82,10 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
                 val newDocRef = getSupportColl().document()
                 transaction.set(newDocRef, finalRequest.copy(id = newDocRef.id))
                 
-                transaction.set(userDataRef, userData.copy(lastSupportDate = today, dailySupportCount = currentCount + 1), SetOptions.merge())
+                val isCrash = request.type == SupportTypeEnum.CRASH
+                val increment = if (isCrash) 0 else 1
+                
+                transaction.set(userDataRef, userData.copy(lastSupportDate = today, dailySupportCount = currentCount + increment), SetOptions.merge())
             }.await()
             true
         } catch (e: Exception) {

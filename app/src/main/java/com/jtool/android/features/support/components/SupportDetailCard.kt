@@ -1,6 +1,5 @@
 package com.jtool.android.features.support.components
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +26,8 @@ import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
+import com.jtool.android.core.models.common.Comment
+import com.jtool.android.ui.components.common.MessageType
 
 @Composable
 fun SupportDetailCard(
@@ -38,19 +39,20 @@ fun SupportDetailCard(
     onDelete: () -> Unit,
     onCommentEvent: (CommentEvent) -> Unit,
     userNames: Map<String, String> = emptyMap(),
-    isOwner: (com.jtool.android.core.models.common.Comment) -> Boolean = { it.userId == currentUserId }
+    isOwner: (Comment) -> Boolean = { it.userId == currentUserId },
+    onShowMessage: (String, MessageType) -> Unit = { _, _ -> }
 ) {
     var statusMenuExpanded by remember { mutableStateOf(false) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
@@ -191,7 +193,7 @@ fun SupportDetailCard(
                             text = { Text(Loc.Settings.copyId) },
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(request.id))
-                                Toast.makeText(context, "ID Copied", Toast.LENGTH_SHORT).show()
+                                onShowMessage("ID Copied", MessageType.SUCCESS)
                                 actionMenuExpanded = false
                             },
                             leadingIcon = { Icon(Icons.Default.ContentCopy, null) }

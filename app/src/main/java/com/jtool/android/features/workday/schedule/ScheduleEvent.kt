@@ -1,5 +1,6 @@
 package com.jtool.android.features.workday.schedule
 
+import com.jtool.android.core.models.calendar.CalendarEvent
 import com.jtool.android.core.models.workday.DaySchedule
 import java.time.DayOfWeek
 import java.time.LocalTime
@@ -17,9 +18,12 @@ sealed interface ScheduleEvent {
     ) : ScheduleEvent
     data class SetTime(val time: LocalTime) : ScheduleEvent
     data class ToggleExitConfirm(val show: Boolean) : ScheduleEvent
+    object AbortExit : ScheduleEvent
     data class AddShift(val day: DayOfWeek) : ScheduleEvent
     data class RemoveShift(val day: DayOfWeek, val index: Int) : ScheduleEvent
     data class RequestScroll(val shiftKey: String) : ScheduleEvent
     object ClearScroll : ScheduleEvent
     object ClearError : ScheduleEvent
+    data class ToggleGoogleSync(val enabled: Boolean) : ScheduleEvent
+    data class ConvertEventToShift(val day: DayOfWeek, val event: CalendarEvent) : ScheduleEvent
 }

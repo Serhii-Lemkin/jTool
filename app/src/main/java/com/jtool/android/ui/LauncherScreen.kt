@@ -41,6 +41,7 @@ fun LauncherScreen(
     onNotesClick: () -> Unit,
     onLinksClick: () -> Unit,
     onCleaningClick: () -> Unit,
+    onTrendifyClick: () -> Unit,
     onCalendarClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSupportClick: () -> Unit,
@@ -72,6 +73,7 @@ fun LauncherScreen(
         AppScreenEnum.NOTES to onNotesClick,
         AppScreenEnum.LINKS to onLinksClick,
         AppScreenEnum.CLEANING to onCleaningClick,
+        AppScreenEnum.TRENDIFY to onTrendifyClick,
         AppScreenEnum.CALENDAR to onCalendarClick
     )
 

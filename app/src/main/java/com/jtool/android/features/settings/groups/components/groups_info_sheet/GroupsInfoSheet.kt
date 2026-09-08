@@ -18,7 +18,7 @@ fun GroupsInfoSheet(
     GenericSheet(
         onDismiss = onDismiss,
         title = Loc.Settings.groupsInfoTitle,
-        showCloseButton = true
+        showCloseButton = false
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             InfoStep(

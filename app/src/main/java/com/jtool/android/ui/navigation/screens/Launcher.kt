@@ -15,6 +15,7 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             onNotesClick = { deps.setScreen(AppScreenEnum.NOTES) },
             onLinksClick = { deps.setScreen(AppScreenEnum.LINKS) },
             onCleaningClick = { deps.setScreen(AppScreenEnum.CLEANING) },
+            onTrendifyClick = { deps.setScreen(AppScreenEnum.TRENDIFY) },
             onCalendarClick = { deps.setScreen(AppScreenEnum.CALENDAR) },
             onSettingsClick = { deps.setScreen(AppScreenEnum.SETTINGS) },
             onSupportClick = { deps.setScreen(AppScreenEnum.SUPPORT_HUB) },

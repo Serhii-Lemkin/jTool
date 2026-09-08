@@ -7,5 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class WorkShift(
     val start: String? = null,
-    val end: String? = null
+    val end: String? = null,
+    val title: String? = null,
+    val note: String? = null
 )

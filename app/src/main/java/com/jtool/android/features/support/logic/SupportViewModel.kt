@@ -7,7 +7,7 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.BaseSyncViewModel
 import com.jtool.android.core.utils.DeviceInfoProvider
-import com.jtool.android.core.sync.helpers.CommentRepository
+import com.jtool.android.core.sync.helpers.FirestoreCommentRepository
 import com.jtool.android.core.components.comments.CommentController
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
@@ -27,7 +27,7 @@ class SupportViewModel(
     private val _uiState = MutableStateFlow(SupportUiState())
     val uiState: StateFlow<SupportUiState> = _uiState.asStateFlow()
 
-    private val commentController = CommentController(CommentRepository(), viewModelScope) { settings.getAppUserId() }
+    private val commentController = CommentController(FirestoreCommentRepository(), viewModelScope) { settings.getAppUserId() }
     val comments = commentController.comments
 
     init {

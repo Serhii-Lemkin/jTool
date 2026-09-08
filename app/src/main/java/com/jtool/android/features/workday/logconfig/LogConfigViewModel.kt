@@ -58,7 +58,8 @@ class LogConfigViewModel(
                 settingsManager.saveWorktimeOptions(options)
                 _uiState.update { it.copy(weeklySchedule = current.tempWeeklySchedule, hasUnsavedChanges = false) }
                 
-                viewModelScope.launch {
+                // Use non-cancellable scope for pushing settings to ensure it completes after navigation
+                viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     dataManager.pushUserSettings()
                 }
             }

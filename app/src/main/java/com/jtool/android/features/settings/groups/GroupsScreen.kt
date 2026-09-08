@@ -121,19 +121,25 @@ fun GroupsScreen(
         ) {
             val activeGroup = uiState.groups[uiState.currentGroupId]
             val isPrivate = activeGroup?.isPrivate == true
-            val activeName = if (isPrivate) Loc.Settings.privateGroup else activeGroup?.name ?: uiState.currentGroupId ?: Loc.Settings.noneSelected
+            val activeName = if (isPrivate && activeGroup.name.isEmpty()) Loc.Settings.privateGroup else activeGroup?.name ?: uiState.currentGroupId ?: Loc.Settings.noneSelected
 
             if (allGroupIds.isNotEmpty()) {
                 SectionHeader(Loc.Settings.activeGroup)
                 ActionListItem(
                     headline = activeName,
-                    leadingContent = { Icon(Icons.Default.Group, null, tint = MaterialTheme.colorScheme.primary) },
+                    leadingContent = { 
+                        Icon(
+                            imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Group, 
+                            null, 
+                            tint = MaterialTheme.colorScheme.primary 
+                        ) 
+                    },
                     trailingContent = { Icon(Icons.Default.ArrowDropDown, null) },
                     onClick = { showGroupSelectionSheet = true },
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
                 
-                if (uiState.currentGroupId != null && !isPrivate) {
+                if (uiState.currentGroupId != null) {
                     ActionListItem(
                         headline = Loc.Settings.editGroupName,
                         leadingContent = { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary) },

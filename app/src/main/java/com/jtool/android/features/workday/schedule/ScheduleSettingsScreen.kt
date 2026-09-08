@@ -1,6 +1,8 @@
 package com.jtool.android.features.workday.schedule
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +28,7 @@ import com.jtool.android.core.models.workday.WorkShift
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.calendar.common.CalendarEventHelper
+import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
@@ -48,11 +51,11 @@ fun ScheduleSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
-    val timePickerState = rememberTimePickerState()
+    val timePickerState = rememberTimePickerState(is24Hour = true)
 
     LaunchedEffect(uiState.scrollToShiftKey) {
         uiState.scrollToShiftKey?.let { _ ->
-            kotlinx.coroutines.delay(3000)
+            delay(3000)
             viewModel.onEvent(ScheduleEvent.ClearScroll)
         }
     }
@@ -67,7 +70,6 @@ fun ScheduleSettingsScreen(
 
     BackHandler(onBack = handleBack)
 
-    // Automatically go back after successful save
     var wasSaving by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) wasSaving = true
@@ -78,7 +80,7 @@ fun ScheduleSettingsScreen(
 
     if (uiState.showExitConfirm) {
         ModalBottomSheet(
-            onDismissRequest = { viewModel.onEvent(ScheduleEvent.ToggleExitConfirm(false)) },
+            onDismissRequest = { viewModel.onEvent(ScheduleEvent.AbortExit) },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(
@@ -109,7 +111,13 @@ fun ScheduleSettingsScreen(
                 )
                 Spacer(Modifier.height(32.dp))
                 Button(
-                    onClick = onBack,
+                    onClick = {
+                        if (uiState.pendingNavigateWeek != null) {
+                            viewModel.onEvent(ScheduleEvent.ToggleExitConfirm(false))
+                        } else {
+                            onBack()
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -117,7 +125,7 @@ fun ScheduleSettingsScreen(
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { viewModel.onEvent(ScheduleEvent.ToggleExitConfirm(false)) },
+                    onClick = { viewModel.onEvent(ScheduleEvent.AbortExit) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(Loc.Workday.keepEditing)
@@ -223,7 +231,14 @@ fun ScheduleSettingsScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState)
         ) {
-            // Week Navigation
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = Loc.Workday.setScheduleDescription,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
             val weekEnd = uiState.selectedWeekStart.plusDays(6)
             val monthFormatter = DateTimeFormatter.ofPattern("MMM")
             val dayFormatter = DateTimeFormatter.ofPattern("d")
@@ -248,6 +263,20 @@ fun ScheduleSettingsScreen(
                 IconButton(onClick = { viewModel.onEvent(ScheduleEvent.NavigateWeek(1)) }) {
                     Icon(Icons.Default.ChevronRight, null)
                 }
+            }
+
+            if (settingsManager.getGoogleCalendarId().isNotEmpty() && settingsManager.getGoogleCalendarId() != "primary") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = uiState.syncToGoogle,
+                        onCheckedChange = { viewModel.onEvent(ScheduleEvent.ToggleGoogleSync(it)) }
+                    )
+                    Text(Loc.Calendar.syncAllToGoogle, style = MaterialTheme.typography.bodyMedium)
+                }
+                Spacer(Modifier.height(8.dp))
             }
 
             val isScheduleEmpty = uiState.tempWeeklySchedule.values.all { it.shifts.isEmpty() && !it.isConfirmedOff }
@@ -278,6 +307,7 @@ fun ScheduleSettingsScreen(
                 val dayOffset = (day.value - uiState.weeklyStartDay.value + 7) % 7
                 val calendarDate = weekStartDate.plusDays(dayOffset.toLong())
                 val daySchedule = uiState.tempWeeklySchedule[day] ?: DaySchedule()
+                val eventsForDay = uiState.dayEvents[day] ?: emptyList()
                 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -322,9 +352,9 @@ fun ScheduleSettingsScreen(
                             val isConflicting = uiState.conflictingShifts.contains(shiftKey)
                             val isHighlighted = uiState.scrollToShiftKey == shiftKey
                             
-                            val bgColor by androidx.compose.animation.animateColorAsState(
+                            val bgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                animationSpec = androidx.compose.animation.core.tween(500)
+                                animationSpec = tween(500)
                             )
 
                             Box(modifier = Modifier.background(bgColor)) {
@@ -337,8 +367,34 @@ fun ScheduleSettingsScreen(
                                 )
                             }
                         }
+                        
                         if (daySchedule.shifts.isEmpty()) {
-                            Text(Loc.Workday.noShiftsAdded, style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
+                            if (eventsForDay.isNotEmpty()) {
+                                var expanded by remember { mutableStateOf(false) }
+                                Box {
+                                    OutlinedButton(
+                                        onClick = { expanded = true },
+                                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, bottom = 8.dp),
+                                        shape = MaterialTheme.shapes.medium
+                                    ) {
+                                        Text(Loc.Workday.selectEvent, style = MaterialTheme.typography.labelMedium)
+                                        Icon(Icons.Default.ArrowDropDown, null)
+                                    }
+                                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                        eventsForDay.forEach { event ->
+                                            DropdownMenuItem(
+                                                text = { Text("${event.title} (${event.startTime})") },
+                                                onClick = {
+                                                    viewModel.onEvent(ScheduleEvent.ConvertEventToShift(day, event))
+                                                    expanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                Text(Loc.Workday.noShiftsAdded, style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))
+                            }
                         }
                     } else {
                         Text(Loc.Workday.off, style = MaterialTheme.typography.labelMedium, color = Color(0xFF4CAF50), modifier = Modifier.padding(start = 16.dp, bottom = 8.dp))

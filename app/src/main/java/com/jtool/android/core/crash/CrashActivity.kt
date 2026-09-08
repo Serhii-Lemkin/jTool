@@ -107,9 +107,11 @@ class CrashActivity : ComponentActivity() {
                             }
                         }
 
+                        /* 
                         LaunchedEffect(Unit) {
                             sendReport()
                         }
+                        */
                         
                         if (isSuccess) {
                             Text(
@@ -146,7 +148,7 @@ class CrashActivity : ComponentActivity() {
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Spacer(Modifier.width(8.dp))
-                                        Text("Reporting...")
+                                        Text(Loc.Crash.reporting)
                                     }
                                 } else {
                                     Text(Loc.Crash.reportBug)

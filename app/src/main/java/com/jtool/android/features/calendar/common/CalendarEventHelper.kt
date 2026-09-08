@@ -5,6 +5,7 @@ import com.jtool.android.core.models.calendar.enums.CalendarEventStatusEnum
 import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import com.jtool.android.core.models.workday.WorktimeOptions
 import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
+import com.jtool.android.core.localization.Loc
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -25,14 +26,14 @@ object CalendarEventHelper {
                     
                     if (!startTime.isNullOrEmpty()) {
                         virtualEvents.add(CalendarEvent(
-                            title = "Approximate Shift",
+                            title = Loc.Calendar.shift,
                             type = CalendarEventTypeEnum.SHIFT,
                             date = current.toString(),
                             startTime = startTime,
                             endTime = endTime,
                             status = CalendarEventStatusEnum.REGULAR,
                             id = "virtual_${current}",
-                            note = "(Virtual)"
+                            note = "(${Loc.Calendar.private})"
                         ))
                     }
                 }

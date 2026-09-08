@@ -75,6 +75,7 @@ object Loc {
     val Admin = AdminLoc
     val TimeCalc = TimeCalcLoc
     val ShopList = ShopListLoc
+    val Tracker = TrackerLoc
     val Notes = NotesLoc
     val Comments = CommentsLoc
     val Links = LinksLoc
@@ -84,19 +85,15 @@ object Loc {
     val General = GeneralLoc
     val Crash = CrashLoc
 
-    fun getDayOfWeekName(day: DayOfWeek): String {
-        if (lang == "uk") {
-            return when (day) {
-                DayOfWeek.SUNDAY -> s("timecalc_day_Sunday", "Неділя")
-                DayOfWeek.MONDAY -> s("timecalc_day_Monday", "Понеділок")
-                DayOfWeek.TUESDAY -> s("timecalc_day_Tuesday", "Вівторок")
-                DayOfWeek.WEDNESDAY -> s("timecalc_day_Wednesday", "Середа")
-                DayOfWeek.THURSDAY -> s("timecalc_day_Thursday", "Четвер")
-                DayOfWeek.FRIDAY -> s("timecalc_day_Friday", "П'ятниця")
-                DayOfWeek.SATURDAY -> s("timecalc_day_Saturday", "Субота")
-            }
-        }
-        return day.getDisplayName(TextStyle.FULL, Locale.forLanguageTag(lang))
+    fun getDayOfWeekName(day: DayOfWeek, textStyle: TextStyle = TextStyle.FULL): String {
+        return day.getDisplayName(textStyle, Locale.forLanguageTag(lang))
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    }
+
+    fun getMonthName(month: java.time.Month, textStyle: TextStyle = TextStyle.FULL): String {
+        val style = if (textStyle == TextStyle.FULL) TextStyle.FULL_STANDALONE else textStyle
+        return month.getDisplayName(style, Locale.forLanguageTag(lang))
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     }
 
     fun getAisleName(aisle: com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum): String {

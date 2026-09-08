@@ -15,6 +15,7 @@ import com.jtool.android.ui.components.common.GenericSheet
 
 @Composable
 fun DeleteEventConfirmSheet(
+    isSynced: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
@@ -30,8 +31,15 @@ fun DeleteEventConfirmSheet(
             modifier = Modifier.size(64.dp)
         )
         Spacer(Modifier.height(16.dp))
+        
+        val msg = if (isSynced) {
+            "${Loc.General.confirmDeleteMsg}\n\n${Loc.Calendar.deleteFromGoogleWarning}"
+        } else {
+            Loc.General.confirmDeleteMsg
+        }
+
         Text(
-            text = Loc.General.confirmDeleteMsg,
+            text = msg,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -1,7 +1,6 @@
 package com.jtool.android.features.auth
 
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +18,9 @@ class SignInHandler(
     private val dataManager: DataManager,
     private val scope: CoroutineScope
 ) {
+    var onLoadingChanged: (Boolean) -> Unit = {}
+    var onError: (String) -> Unit = {}
+
     private val signInLauncher: ActivityResultLauncher<android.content.Intent> =
         activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             Log.d("jTool", "Sign-in result received. ResultCode: ${result.resultCode}, HasData: ${result.data != null}")
@@ -26,25 +28,28 @@ class SignInHandler(
             try {
                 val account = task.getResult(ApiException::class.java)
                 if (account != null) {
+                    onLoadingChanged(true)
                     scope.launch {
                         val success = authManager.signInWithGoogle(account)
                         if (success) {
                             dataManager.fetchUserSettings()
                             dataManager.pushUserSettings()
                         } else {
-                            Toast.makeText(activity, "Firebase Auth Failed", Toast.LENGTH_SHORT).show()
+                            onError("Firebase Auth Failed")
                         }
+                        onLoadingChanged(false)
                     }
                 }
             } catch (e: Exception) {
+                onLoadingChanged(false)
                 Log.e("jTool", "Sign in failed", e)
                 val msg = if (e is ApiException) {
                     val statusCodeString = CommonStatusCodes.getStatusCodeString(e.statusCode)
                     "Error Code: ${e.statusCode} ($statusCodeString)\nMessage: ${e.status.statusMessage ?: "No message"}"
                 } else {
-                    e.message
+                    e.message ?: "Unknown Error"
                 }
-                Toast.makeText(activity, "Sign-in Error: $msg", Toast.LENGTH_LONG).show()
+                onError("Sign-in Error: $msg")
             }
         }
 

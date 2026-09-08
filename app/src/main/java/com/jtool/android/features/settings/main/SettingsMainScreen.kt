@@ -17,6 +17,8 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.SettingsMenuItem
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.ui.components.common.MessageSheet
+import com.jtool.android.ui.components.common.MessageType
 import kotlinx.coroutines.launch
 
 @Composable
@@ -33,6 +35,15 @@ fun SettingsMainScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var infoMessage by remember { mutableStateOf<String?>(null) }
+
+    if (infoMessage != null) {
+        MessageSheet(
+            message = infoMessage!!,
+            type = MessageType.ERROR,
+            onDismiss = { infoMessage = null }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize()
@@ -102,7 +113,7 @@ fun SettingsMainScreen(
                                 context.startActivity(intent)
                             } else {
                                 android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase")
-                                android.widget.Toast.makeText(context, "Privacy Policy URL not found", android.widget.Toast.LENGTH_SHORT).show()
+                                infoMessage = "Privacy Policy URL not found"
                             }
                         }
                     }

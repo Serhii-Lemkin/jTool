@@ -44,6 +44,7 @@ class GroupOperationsHelper(
             if (error != null) {
                 Log.e("jTool", "Error in currentGroupIdFlow: ${error.message}")
                 trySend(null)
+                close()
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -106,26 +107,41 @@ class GroupOperationsHelper(
     suspend fun ensurePrivateGroupExists(): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         
+        // 1. Check server-side for any group where user is owner and it's private
         val privateGroups = getGroupsColl()
-            .whereEqualTo("ownerUid", uid)
-            .whereEqualTo("isPrivate", true)
+            .whereEqualTo(GroupInfo::ownerUid.name, uid)
+            .whereEqualTo(GroupInfo::isPrivate.name, true)
             .limit(1)
             .get()
             .await()
             
-        if (!privateGroups.isEmpty) return false
+        if (!privateGroups.isEmpty) {
+            val group = privateGroups.documents.first()
+            val gid = group.id
+            
+            // Ensure it's in the user's group list and settings
+            val currentGroups = getUserGroups()
+            if (!currentGroups.contains(gid)) {
+                val updated = currentGroups.toMutableList().apply { add(0, gid) }
+                getUsersColl().document(uid).update(User::groupIds.name, updated).await()
+            }
+            
+            if (settings.getGroups()[gid] == null) {
+                val groupInfo = (group.toObject(GroupInfo::class.java) ?: GroupInfo()).copy(id = gid)
+                settings.addGroup(groupInfo)
+            }
+            return false 
+        }
         
-        // Create it
-        createGroup(Loc.Settings.privateGroup, isPrivate = true)
-        return true
+        // 2. Not found, create it
+        val newId = createGroup(Loc.Settings.privateGroup, isPrivate = true)
+        return newId != null
     }
 
     suspend fun updateGroupName(groupId: String, newName: String): Boolean {
         return try {
             val groupRef = getGroupsColl().document(groupId)
-            val groupData = groupRef.get().await().toObject(GroupInfo::class.java)
-            if (groupData?.isPrivate == true) return false
-
+            // Allow renaming private groups by owner
             groupRef.update(GroupInfo::name.name, newName).await()
             val groups = settings.getGroups().toMutableMap()
             groups[groupId]?.let { 
@@ -204,6 +220,25 @@ class GroupOperationsHelper(
     suspend fun leaveGroup(groupId: String) {
         val uid = auth.currentUser?.uid ?: return
         try {
+            val userRef = getUsersColl().document(uid)
+            val userSnapshot = userRef.get().await()
+            val user = userSnapshot.toObject(User::class.java)
+            val currentGroups = user?.groupIds?.toMutableList() ?: mutableListOf()
+            
+            if (currentGroups.contains(groupId)) {
+                currentGroups.remove(groupId)
+                val nextGroupId = if (settings.getCurrentGroupId() == groupId) currentGroups.firstOrNull() else settings.getCurrentGroupId()
+                
+                // Update user document FIRST to trigger flow emissions and stop listeners
+                userRef.set(mapOf(User::groupIds.name to currentGroups), SetOptions.merge()).await()
+                getUserDataColl().document(uid).update(UserData::currentGroupId.name, nextGroupId).await()
+                
+                clearLocalCache()
+                settings.removeGroup(groupId)
+                if (settings.getCurrentGroupId() == groupId) settings.setCurrentGroupId(nextGroupId)
+                userAdminHelperProvider().pushUserSettings()
+            }
+
             val groupDoc = getGroupsColl().document(groupId)
             val membersSnapshot = groupDoc.collection("members").get().await()
             val memberIds = membersSnapshot.documents.map { it.id }
@@ -217,6 +252,7 @@ class GroupOperationsHelper(
                     val nextOwner = memberIds.filter { it != uid }.random()
                     groupDoc.update(GroupInfo::ownerUid.name, nextOwner).await()
                 }
+                // Then delete member record (revokes permission)
                 groupDoc.collection("members").document(uid).delete().await()
                 
                 val notification = UserNotification(
@@ -230,22 +266,9 @@ class GroupOperationsHelper(
                 )
                 getGroupNotificationsColl(groupId).document(notification.id).set(notification).await()
             }
-            
-            val userRef = getUsersColl().document(uid)
-            val userSnapshot = userRef.get().await()
-            val user = userSnapshot.toObject(User::class.java)
-            val currentGroups = user?.groupIds?.toMutableList() ?: mutableListOf()
-            currentGroups.remove(groupId)
-            val nextGroupId = if (settings.getCurrentGroupId() == groupId) currentGroups.firstOrNull() else settings.getCurrentGroupId()
-            
-            userRef.set(mapOf(User::groupIds.name to currentGroups), SetOptions.merge()).await()
-            getUserDataColl().document(uid).update(UserData::currentGroupId.name, nextGroupId).await()
-            
-            clearLocalCache()
-            settings.removeGroup(groupId)
-            if (settings.getCurrentGroupId() == groupId) settings.setCurrentGroupId(nextGroupId)
-            userAdminHelperProvider().pushUserSettings()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            Log.e("jTool", "Error leaving group: ${e.message}")
+        }
     }
 
     suspend fun switchGroup(groupId: String) {
@@ -290,6 +313,7 @@ class GroupOperationsHelper(
             if (error != null) {
                 Log.e("jTool", "Error in invitesFlow: ${error.message}")
                 trySend(emptyList())
+                close()
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -333,6 +357,7 @@ class GroupOperationsHelper(
             if (error != null) {
                 Log.e("jTool", "Error in groupMembersFlow for $groupId: ${error.message}")
                 trySend(emptyList())
+                close()
                 return@addSnapshotListener
             }
             if (snapshot != null) trySend(snapshot.documents.map { it.id }) 
@@ -346,6 +371,7 @@ class GroupOperationsHelper(
             if (error != null) {
                 Log.e("jTool", "Error in userGroupsFlow: ${error.message}")
                 trySend(emptyList())
+                close()
                 return@addSnapshotListener
             }
             if (snapshot != null) { 
@@ -471,6 +497,7 @@ class GroupOperationsHelper(
             if (error != null) {
                 Log.e("jTool", "Error in personalNotificationsFlow: ${error.message}")
                 trySend(emptyList())
+                close()
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -487,6 +514,7 @@ class GroupOperationsHelper(
             if (error != null) {
                 Log.e("jTool", "Error in groupNotificationsFlow for $groupId: ${error.message}")
                 trySend(emptyList())
+                close()
                 return@addSnapshotListener
             }
             if (snapshot != null) {

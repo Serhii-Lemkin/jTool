@@ -26,6 +26,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.workday.DayLogHours
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.util.Locale
@@ -128,9 +129,12 @@ fun LogConfigScreen(
                 title = Loc.Workday.manual,
                 onBack = handleBack,
                 actions = {
+                    val scope = rememberCoroutineScope()
                     IconButton(onClick = { 
-                        viewModel.onEvent(LogConfigEvent.Save)
-                        onBack() 
+                        scope.launch {
+                            viewModel.onEvent(LogConfigEvent.Save)
+                            onBack()
+                        }
                     }) {
                         Icon(Icons.Default.Save, null)
                     }
@@ -145,6 +149,15 @@ fun LogConfigScreen(
                 .padding(vertical = 16.dp)
                 .verticalScroll(scrollState)
         ) {
+            Text(
+                text = Loc.Workday.setWorkHoursDescription,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
             ActionListItem(
                 headline = Loc.Workday.approximateHours,
                 supportingText = Loc.Workday.approximateHoursExpl,
@@ -348,14 +361,16 @@ fun ApproximateHoursBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
+                        OutlinedButton(
                             onClick = { pickingForStart = true },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(56.dp),
                             shape = MaterialTheme.shapes.medium
                         ) {
-                            Icon(Icons.Default.AccessTime, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(uiState.pendingStableStart ?: Loc.Workday.start)
+                            Text(
+                                text = uiState.pendingStableStart ?: Loc.Workday.start,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary)

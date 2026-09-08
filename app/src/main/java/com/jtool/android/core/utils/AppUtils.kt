@@ -14,6 +14,16 @@ object AppUtils {
         }
     }
 
+    fun requestCalendarPermission(activity: ComponentActivity, onResult: (Boolean) -> Unit) {
+        val launcher = activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            onResult(results.values.all { it })
+        }
+        launcher.launch(arrayOf(
+            android.Manifest.permission.READ_CALENDAR,
+            android.Manifest.permission.WRITE_CALENDAR
+        ))
+    }
+
     fun logAppSignature(context: Context) {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

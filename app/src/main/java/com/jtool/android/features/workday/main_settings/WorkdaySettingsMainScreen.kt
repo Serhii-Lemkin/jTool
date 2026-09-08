@@ -15,11 +15,9 @@ import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
-import com.jtool.android.features.workday.tracker.TrackingPreferenceBottomSheet
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import java.time.DayOfWeek
-import java.time.LocalDate
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,90 +29,12 @@ fun WorkdaySettingsMainScreen(
     onNavigate: (AppScreenEnum) -> Unit
 ) {
     var showDayPicker by remember { mutableStateOf(false) }
-    var showPreferencePicker by remember { mutableStateOf(false) }
-    var showOverrideConfirm by remember { mutableStateOf<WorkTrackingPreferenceEnum?>(null) }
     
     val options = remember { settingsManager.getWorktimeOptions() }
     var startDay by remember { mutableStateOf(try { DayOfWeek.valueOf(options.weeklyStartDay) } catch (_: Exception) { DayOfWeek.MONDAY }) }
-    var trackingPreference by remember { mutableStateOf(options.trackingPreference ?: WorkTrackingPreferenceEnum.UNSET) }
     
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    fun applyPreference(pref: WorkTrackingPreferenceEnum, overrideShifts: Boolean) {
-        trackingPreference = pref
-        val newOptions = settingsManager.getWorktimeOptions().copy(trackingPreference = pref)
-        settingsManager.saveWorktimeOptions(newOptions)
-        scope.launch { 
-            if (overrideShifts) {
-                val userId = settingsManager.getUserId()
-                val now = LocalDate.now()
-                // Override from today and on.
-                dataManager.clearPrivateCalendarShifts(userId, now.toString(), now.plusYears(1).toString())
-            }
-            dataManager.pushUserSettings() 
-        }
-        showPreferencePicker = false
-        showOverrideConfirm = null
-    }
-
-    if (showOverrideConfirm != null) {
-        ModalBottomSheet(
-            onDismissRequest = { showOverrideConfirm = null },
-            sheetState = rememberModalBottomSheetState()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 48.dp, start = 24.dp, end = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Override Existing Shifts?",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Switching tracking methods. Do you want to clear your current scheduled shifts to avoid duplicates?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(32.dp))
-                Button(
-                    onClick = { applyPreference(showOverrideConfirm!!, true) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Clear & Switch")
-                }
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { applyPreference(showOverrideConfirm!!, false) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Keep Existing")
-                }
-            }
-        }
-    }
-
-    if (showPreferencePicker) {
-        TrackingPreferenceBottomSheet(
-            onDismiss = { showPreferencePicker = false },
-            onPreferenceSelected = { pref ->
-                if (trackingPreference != WorkTrackingPreferenceEnum.UNSET && trackingPreference != pref) {
-                    showOverrideConfirm = pref
-                } else {
-                    applyPreference(pref, false)
-                }
-            },
-            selectedPreference = trackingPreference
-        )
-    }
 
     if (showDayPicker) {
         ModalBottomSheet(
@@ -166,19 +86,6 @@ fun WorkdaySettingsMainScreen(
                 .fillMaxSize()
         ) {
             ActionListItem(
-                headline = Loc.Workday.trackingMethod,
-                supportingText = when (trackingPreference) {
-                    WorkTrackingPreferenceEnum.LOG_HOURS -> Loc.Workday.manual
-                    WorkTrackingPreferenceEnum.SCHEDULE -> Loc.Workday.weekly
-                    WorkTrackingPreferenceEnum.UNSET -> Loc.Workday.unsetPreference
-                },
-                leadingContent = { Icon(Icons.Default.Tune, null) },
-                onClick = { showPreferencePicker = true }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-            ActionListItem(
                 headline = Loc.Workday.weeklyStartDay,
                 supportingText = Loc.getDayOfWeekName(startDay),
                 leadingContent = { Icon(Icons.Default.CalendarToday, null) },
@@ -187,25 +94,23 @@ fun WorkdaySettingsMainScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-            if (trackingPreference == WorkTrackingPreferenceEnum.LOG_HOURS || trackingPreference == WorkTrackingPreferenceEnum.UNSET) {
-                ActionListItem(
-                    headline = Loc.Workday.setWorkHours,
-                    supportingText = "Configure daily duration goals",
-                    leadingContent = { Icon(Icons.Default.Timer, null) },
-                    onClick = { onNavigate(AppScreenEnum.WORK_TIME_LOG_CONFIG) }
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            }
-            
-            if (trackingPreference == WorkTrackingPreferenceEnum.SCHEDULE || trackingPreference == WorkTrackingPreferenceEnum.UNSET) {
-                ActionListItem(
-                    headline = Loc.Workday.setSchedule,
-                    supportingText = "Manage weekly shift times",
-                    leadingContent = { Icon(Icons.Default.DateRange, null) },
-                    onClick = { onNavigate(AppScreenEnum.WORK_TIME_SCHEDULE) }
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            }
+            ActionListItem(
+                headline = Loc.Workday.setWorkHours,
+                supportingText = Loc.Workday.setWorkHoursDescription,
+                leadingContent = { Icon(Icons.Default.Timer, null) },
+                onClick = { onNavigate(AppScreenEnum.WORK_TIME_LOG_CONFIG) },
+                supportingMaxLines = Int.MAX_VALUE
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            ActionListItem(
+                headline = Loc.Workday.setSchedule,
+                supportingText = Loc.Workday.setScheduleDescription,
+                leadingContent = { Icon(Icons.Default.DateRange, null) },
+                onClick = { onNavigate(AppScreenEnum.WORK_TIME_SCHEDULE) },
+                supportingMaxLines = Int.MAX_VALUE
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
             Spacer(Modifier.weight(1f))
             
@@ -231,39 +136,39 @@ fun WorkdaySettingsMainScreen(
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = "Reset All Work Settings?",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "All your current work-time preferences, goals, and schedule configurations will be deleted to start fresh. Any existing shifts already saved in your calendar will remain until you manually reset them or they are overridden by a new schedule.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        
-                        Spacer(Modifier.height(32.dp))
+                                        Text(
+                    text = Loc.Workday.resetConfirmTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = Loc.Workday.resetConfirmMsg,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(Modifier.height(32.dp))
 
-                        Button(
-                            onClick = {
-                                val freshOptions = com.jtool.android.core.models.workday.WorktimeOptions(
-                                    trackingPreference = WorkTrackingPreferenceEnum.UNSET
-                                )
-                                settingsManager.saveWorktimeOptions(freshOptions)
-                                scope.launch { 
-                                    val uid = settingsManager.getUserId()
-                                    dataManager.clearWorkdayOptions(uid)
-                                }
-                                showDeletePrompt = false
-                                onBack()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Reset Settings")
+                Button(
+                    onClick = {
+                        val freshOptions = com.jtool.android.core.models.workday.WorktimeOptions(
+                            trackingPreference = WorkTrackingPreferenceEnum.UNSET
+                        )
+                        settingsManager.saveWorktimeOptions(freshOptions)
+                        scope.launch { 
+                            val uid = settingsManager.getUserId()
+                            dataManager.clearWorkdayOptions(uid)
                         }
+                        showDeletePrompt = false
+                        onBack()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(Loc.General.reset)
+                }
 
                         Spacer(Modifier.height(8.dp))
 
@@ -278,8 +183,8 @@ fun WorkdaySettingsMainScreen(
             }
 
             ActionListItem(
-                headline = "Reset Settings",
-                supportingText = "Clear all work-time configurations",
+                headline = Loc.Workday.deleteAllData,
+                supportingText = Loc.Workday.resetToDefaults,
                 leadingContent = { Icon(Icons.Default.Refresh, null, tint = MaterialTheme.colorScheme.primary) },
                 onClick = { showDeletePrompt = true }
             )

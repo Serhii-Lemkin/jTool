@@ -18,18 +18,20 @@ object Calendar : AppProperties(
 ) {
     @Composable
     override fun Content(deps: NavigationDependencies) {
+        val context = androidx.compose.ui.platform.LocalContext.current
         val calendarViewModel: CalendarGridViewModel = viewModel(
             factory = viewModelFactory {
                 initializer {
-                    CalendarGridViewModel(deps.settingsManager, deps.dataManager)
+                    CalendarGridViewModel(context, deps.settingsManager, deps.dataManager)
                 }
             }
         )
 
         CalendarGridScreen(
             onBack = deps.onBack,
-            onNavigate = deps.setScreen,
-            viewModel = calendarViewModel
+            onNavigate = { deps.setScreen(it) },
+            viewModel = calendarViewModel,
+            settingsManager = deps.settingsManager
         )
     }
 }

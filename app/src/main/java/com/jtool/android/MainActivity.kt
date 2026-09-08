@@ -54,6 +54,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.core.view.WindowCompat
+import com.jtool.android.ui.components.common.MessageSheet
+import com.jtool.android.ui.components.common.MessageType
 
 class MainActivity : ComponentActivity() {
     private lateinit var settingsManager: SettingsManager
@@ -120,7 +122,7 @@ class MainActivity : ComponentActivity() {
                 }
                 auth.addAuthStateListener(listener)
                 awaitDispose {
-                    auth.addAuthStateListener(listener)
+                    auth.removeAuthStateListener(listener)
                 }
             }
 
@@ -128,19 +130,35 @@ class MainActivity : ComponentActivity() {
             var currentLang by remember { mutableStateOf(settingsManager.getLanguage()) }
             var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
             var groups by remember { mutableStateOf(settingsManager.getGroups()) }
+            var initialLoadDone by remember { mutableStateOf(false) }
+            var isAuthLoading by remember { mutableStateOf(false) }
+            var authError by remember { mutableStateOf<String?>(null) }
             
             var allNotifications by remember { mutableStateOf<List<UserNotification>>(emptyList()) }
             var showNotificationsSheet by remember { mutableStateOf(false) }
             var showNotificationPopup by remember { mutableStateOf(false) }
             var showPrivateGroupSheet by remember { mutableStateOf(false) }
+            var showNameSetupSheet by remember { mutableStateOf(false) }
+
+            SideEffect {
+                signInHandler.onLoadingChanged = { isAuthLoading = it }
+                signInHandler.onError = { authError = it }
+            }
+
+            LaunchedEffect(currentUserState) {
+                if (currentUserState != null && !initialLoadDone) {
+                    dataManager.fetchUserSettings()
+                    groups = settingsManager.getGroups()
+                    initialLoadDone = true
+                    
+                    if (settingsManager.getUserName().isEmpty()) {
+                        showNameSetupSheet = true
+                    }
+                }
+            }
 
             LaunchedEffect(currentUserState, groups, currentGroupId) {
-                if (currentUserState != null) {
-                    if (groups.isEmpty()) {
-                        dataManager.fetchUserSettings()
-                        groups = settingsManager.getGroups()
-                    }
-                    
+                if (currentUserState != null && initialLoadDone) {
                     if (dataManager.ensurePrivateGroupExists()) {
                         showPrivateGroupSheet = true
                         currentGroupId = settingsManager.getCurrentGroupId()
@@ -261,7 +279,27 @@ class MainActivity : ComponentActivity() {
                                 onGroupsUpdated = { groups = it }
                             )
                             
+                            if (isAuthLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                        .clickable(enabled = false) { },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                            
                             SyncStatusOverlay()
+
+                            if (authError != null) {
+                                MessageSheet(
+                                    message = authError!!,
+                                    type = MessageType.ERROR,
+                                    onDismiss = { authError = null }
+                                )
+                            }
 
                             AnimatedVisibility(
                                 visible = showNotificationPopup,
@@ -303,6 +341,19 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            if (showNameSetupSheet) {
+                                com.jtool.android.features.settings.general.components.name_setup_sheet.NameSetupSheet(
+                                    onDismiss = { /* Forced entry, no dismiss */ },
+                                    onConfirm = { newName ->
+                                        settingsManager.saveUserName(newName)
+                                        lifecycleScope.launch {
+                                            dataManager.pushUserSettings()
+                                            showNameSetupSheet = false
+                                        }
+                                    }
+                                )
+                            }
+
                             if (showNotificationsSheet) {
                                 NotificationsSheet(
                                     notifications = allNotifications,
@@ -339,6 +390,7 @@ class MainActivity : ComponentActivity() {
                                     onDismissNotification = { notif ->
                                         lifecycleScope.launch { dataManager.markNotificationAsRead(notif) }
                                     },
+                                    onShowError = { authError = it },
                                     onDismiss = { showNotificationsSheet = false }
                                 )
                             }

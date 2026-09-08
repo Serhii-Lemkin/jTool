@@ -12,5 +12,7 @@ data class CalendarGridUiState(
     val privateEvents: List<CalendarEvent> = emptyList(),
     val isLoading: Boolean = false,
     val showAddEditDialog: Boolean = false,
-    val editingEvent: CalendarEvent? = null
+    val editingEvent: CalendarEvent? = null,
+    val syncResultMessage: String? = null,
+    val visibleGroupIds: Set<String> = emptySet()
 )

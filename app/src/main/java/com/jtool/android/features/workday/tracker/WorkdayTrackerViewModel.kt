@@ -3,24 +3,28 @@ package com.jtool.android.features.workday.tracker
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.models.workday.DayLogHours
-import com.jtool.android.core.models.workday.DaySchedule
 import com.jtool.android.core.models.calendar.CalendarEvent
 import com.jtool.android.core.models.calendar.enums.CalendarEventStatusEnum
 import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import com.jtool.android.core.models.workday.enums.PickerTypeEnum
 import com.jtool.android.core.models.workday.enums.WorkModeEnum
-import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
+import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.models.workday.WorkHistoryItem
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.calendar.common.CalendarEventHelper
+import com.jtool.android.features.calendar.common.GoogleCalendarSyncHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.*
 import java.time.temporal.ChronoUnit
-import java.time.temporal.WeekFields
 import java.util.Locale
+import java.util.UUID
+import kotlin.math.abs
 
 class WorkdayTrackerViewModel(
     private val settingsManager: SettingsManager,
@@ -30,36 +34,102 @@ class WorkdayTrackerViewModel(
     private val _uiState = MutableStateFlow(WorkdayTrackerUiState())
     val uiState: StateFlow<WorkdayTrackerUiState> = _uiState.asStateFlow()
 
+    private val _googleEvents = MutableStateFlow<List<CalendarEvent>>(emptyList())
     private var tickerJob: Job? = null
 
     init {
         loadData()
         startTicker()
-        checkTodayEvents()
+        observeTodayEvents()
+        pullTodayGoogleEvents()
     }
 
-    private fun checkTodayEvents() {
+    private fun pullTodayGoogleEvents() {
+        if (!settingsManager.isGoogleCalendarSyncEnabled() || !settingsManager.isGoogleCalendarPullEnabled()) return
+        
+        val calendarId = settingsManager.getGoogleCalendarId()
+        if (calendarId.isEmpty() || calendarId == "primary") return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val today = LocalDate.now()
+            val startMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endMs = today.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            
+            val events = GoogleCalendarSyncHelper.pullFromGoogleCalendar(
+                dataManager.context, 
+                settingsManager.getUserId(), 
+                calendarId, 
+                startMs, 
+                endMs
+            )
+            _googleEvents.value = events ?: emptyList()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeTodayEvents() {
         viewModelScope.launch {
-            val userId = settingsManager.getUserId()
-            val today = LocalDate.now().toString()
-            dataManager.getPrivateCalendarEventsFlow(userId, today, today).collectLatest { events ->
-                val activeId = settingsManager.getWorktimeOptions().activeEventId
-                // Priority: active event first, then any other SHIFT
-                val shift = events.find { it.id == activeId } ?: events.find { it.type == CalendarEventTypeEnum.SHIFT }
-                _uiState.update { it.copy(todayCalendarShift = shift) }
+            val today = LocalDate.now()
+            val startMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endMs = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            
+            combine(dataManager.allCalendarEventsFlow(startMs, endMs), _googleEvents) { firestoreEvents, googleEvents ->
+                (firestoreEvents + googleEvents).distinctBy { it.googleEventId ?: it.id }
+            }.collectLatest { events ->
+                val sorted = events.sortedBy { it.dtStart ?: CalendarEventHelper.parseTime(it.startTime).toNanoOfDay() }
+                
+                _uiState.update { it.copy(todayEvents = sorted) }
+
+                if (_uiState.value.selectedEventId == null) {
+                    val now = LocalTime.now()
+                    
+                    // Selection Logic:
+                    // 1. If a Shift is currently happening, select it.
+                    // 2. Otherwise, find the Shift closest to current time (start or end).
+                    // 3. Otherwise, fallback to any closest event.
+                    
+                    val shifts = sorted.filter { it.type == CalendarEventTypeEnum.SHIFT }
+                    
+                    val selected = if (shifts.isNotEmpty()) {
+                        shifts.minByOrNull { shift ->
+                            val start = CalendarEventHelper.parseTime(shift.startTime)
+                            val end = shift.endTime?.let { CalendarEventHelper.parseTime(it) } ?: start.plusHours(1)
+                            
+                            val startDiff = abs(Duration.between(now, start).toMinutes())
+                            val endDiff = abs(Duration.between(now, end).toMinutes())
+                            
+                            // Prefer events where current time is between start and end
+                            if (now.isAfter(start) && now.isBefore(end)) 0L else minOf(startDiff, endDiff)
+                        }
+                    } else {
+                        sorted.minByOrNull { event ->
+                            val start = CalendarEventHelper.parseTime(event.startTime)
+                            val end = event.endTime?.let { CalendarEventHelper.parseTime(it) } ?: start.plusHours(1)
+                            
+                            val startDiff = abs(Duration.between(now, start).toMinutes())
+                            val endDiff = abs(Duration.between(now, end).toMinutes())
+                            
+                            if (now.isAfter(start) && now.isBefore(end)) 0L else minOf(startDiff, endDiff)
+                        }
+                    }
+                    
+                    _uiState.update { it.copy(selectedEventId = selected?.id) }
+                }
             }
         }
     }
 
     fun loadData() {
         val options = settingsManager.getWorktimeOptions()
-        
         val logSchedule = options.logSchedule.mapKeys { DayOfWeek.valueOf(it.key) }
         val startDay = try { DayOfWeek.valueOf(options.weeklyStartDay) } catch (_: Exception) { DayOfWeek.MONDAY }
         
+        val today = LocalDate.now().dayOfWeek
+        val defaultHours = logSchedule[today]?.hours ?: 8
+        val defaultMinutes = logSchedule[today]?.minutes ?: 0
+
         _uiState.update { it.copy(
-            mode = options.lastMode,
-            trackingPreference = options.trackingPreference,
+            mode = if (options.lastMode == WorkModeEnum.QUICK_START) WorkModeEnum.QUICK_START else WorkModeEnum.CALENDAR_EVENT,
             logSchedule = logSchedule,
             weeklyStartDay = startDay,
             isSessionActive = options.isSessionActive,
@@ -68,33 +138,13 @@ class WorkdayTrackerViewModel(
             
             freehandStart = options.freehandStart?.let { s -> LocalDateTime.parse(s) } ?: LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES),
             freehandEnd = options.freehandEnd?.let { s -> LocalDateTime.parse(s) },
-            freehandDurationHours = options.freehandDurationHours,
-            freehandDurationMinutes = options.freehandDurationMinutes,
+            freehandDurationHours = options.freehandDurationHours.takeIf { it > 0 } ?: defaultHours,
+            freehandDurationMinutes = options.freehandDurationMinutes.takeIf { it > 0 } ?: defaultMinutes,
             isUsingDuration = options.freehandUseDuration,
             
-            logHoursSessionStart = options.logHoursSessionStart?.let { s -> LocalDateTime.parse(s) },
-            isLogHoursSet = options.isLogHoursSet,
-            
-            weeklyTodayStart = options.weeklyTodayStart?.let { s -> CalendarEventHelper.parseTime(s) },
-            weeklyTodayEnd = options.weeklyTodayEnd?.let { s -> CalendarEventHelper.parseTime(s) },
-            isWeeklyAdjustmentActive = options.isWeeklyAdjustmentActive,
-            
-            scheduleStart = options.scheduleStart?.let { s -> LocalDateTime.parse(s) },
-            scheduleEnd = options.scheduleEnd?.let { s -> LocalDateTime.parse(s) }
+            todayRequiredHours = defaultHours,
+            todayRequiredMinutes = defaultMinutes
         ) }
-
-        // Adjust mode if not allowed by preference
-        val pref = options.trackingPreference
-        val currentMode = _uiState.value.mode
-        if (pref == null || pref == WorkTrackingPreferenceEnum.UNSET) {
-            if (currentMode != WorkModeEnum.QUICK_START) {
-                _uiState.update { it.copy(mode = WorkModeEnum.QUICK_START) }
-            }
-        } else if (pref == WorkTrackingPreferenceEnum.LOG_HOURS && currentMode == WorkModeEnum.SCHEDULE) {
-            _uiState.update { it.copy(mode = WorkModeEnum.LOG_HOURS) }
-        } else if (pref == WorkTrackingPreferenceEnum.SCHEDULE && currentMode == WorkModeEnum.LOG_HOURS) {
-            _uiState.update { it.copy(mode = WorkModeEnum.SCHEDULE) }
-        }
     }
 
     private fun startTicker() {
@@ -110,87 +160,82 @@ class WorkdayTrackerViewModel(
     private fun calculateRealTimeData() {
         val state = _uiState.value
         val now = LocalDateTime.now()
-        
-        if (!state.isSessionActive) {
-            resetCalculations()
-            return
-        }
 
-        val modeToUse = state.activeSessionMode ?: state.mode
+        // 1. Update Event Timer (Informational only)
+        val eventTimer = if (state.selectedEventId != null) {
+            val event = state.todayEvents.find { it.id == state.selectedEventId }
+            if (event != null) {
+                val today = LocalDate.now()
+                val eventStart = LocalDateTime.of(today, CalendarEventHelper.parseTime(event.startTime))
+                val eventEnd = event.endTime?.let { 
+                    val t = CalendarEventHelper.parseTime(it)
+                    if (t.isBefore(eventStart.toLocalTime())) LocalDateTime.of(today.plusDays(1), t)
+                    else LocalDateTime.of(today, t)
+                } ?: eventStart.plusHours(1)
 
-        when (modeToUse) {
-            WorkModeEnum.QUICK_START -> {
-                val start = state.freehandStart ?: return
-                val targetEnd = if (state.isUsingDuration) {
-                    start.plusHours(state.freehandDurationHours.toLong()).plusMinutes(state.freehandDurationMinutes.toLong())
+                if (now.isBefore(eventStart)) {
+                    val remaining = Duration.between(now, eventStart).toMillis()
+                    TimerState(
+                        timeLeftMillis = remaining,
+                        progress = 0f,
+                        label = Loc.Workday.untilStart
+                    )
                 } else {
-                    state.freehandEnd ?: return
+                    // Ongoing or Overtime
+                    val total = Duration.between(eventStart, eventEnd).toMillis()
+                    val elapsed = Duration.between(eventStart, now).toMillis()
+                    val remaining = total - elapsed
+                    
+                    if (remaining > 0) {
+                        TimerState(
+                            timeLeftMillis = remaining,
+                            progress = (elapsed.toFloat() / total).coerceIn(0f, 1f),
+                            label = "${Loc.Workday.finishAt} ${event.endTime}"
+                        )
+                    } else {
+                        // Overtime
+                        TimerState(
+                            overtimeMillis = -remaining,
+                            progress = 1f,
+                            isFinished = true,
+                            label = Loc.Workday.overtime
+                        )
+                    }
                 }
-                checkAutoFinish(now, start)
-                updateCalculations(now, start, targetEnd)
-            }
-            WorkModeEnum.LOG_HOURS -> {
-                val start = state.logHoursSessionStart ?: return
-                val today = LocalDate.now().dayOfWeek
-                val config = state.logSchedule[today] ?: DayLogHours()
+            } else TimerState()
+        } else TimerState()
+
+        // 2. Update Quick Start Timer (Persistent session)
+        val quickStartTimer = if (state.isSessionActive && state.activeSessionMode == WorkModeEnum.QUICK_START) {
+            val start = state.freehandStart ?: now
+            val targetEnd = start.plusHours(state.freehandDurationHours.toLong()).plusMinutes(state.freehandDurationMinutes.toLong())
+            
+            if (Duration.between(start, now).toHours() >= 24) {
+                viewModelScope.launch { onEvent(WorkdayTrackerEvent.FinishSession) }
+                TimerState()
+            } else {
+                val total = Duration.between(start, targetEnd).toMillis()
+                val elapsed = Duration.between(start, now).toMillis()
+                val remaining = total - elapsed
                 
-                if (config.isConfirmedOff) {
-                    onEvent(WorkdayTrackerEvent.ResetSession)
-                    return
-                }
-
-                val targetEnd = start.plusHours(config.hours.toLong()).plusMinutes(config.minutes.toLong())
-                checkAutoFinish(now, start)
-                updateCalculations(now, start, targetEnd)
-            }
-            WorkModeEnum.SCHEDULE -> {
-                val start = state.scheduleStart ?: return
-                val end = state.scheduleEnd ?: return
-                checkAutoFinish(now, start)
-                updateCalculations(now, start, end)
-            }
-        }
-    }
-
-    private fun checkAutoFinish(now: LocalDateTime, start: LocalDateTime) {
-        if (Duration.between(start, now).toHours() >= 24) {
-            viewModelScope.launch {
-                val event = CalendarEvent(
-                    title = "Shift (${_uiState.value.activeSessionMode?.name ?: _uiState.value.mode.name})",
-                    type = CalendarEventTypeEnum.SHIFT,
-                    date = start.toLocalDate().toString(),
-                    startTime = start.toLocalTime().truncatedTo(ChronoUnit.MINUTES).toString(),
-                    endTime = null, // Auto-finished
-                    createdBy = settingsManager.getUserId(),
-                    status = CalendarEventStatusEnum.UNFINISHED_WORKDAY
+                TimerState(
+                    timeLeftMillis = if (remaining > 0) remaining else 0L,
+                    overtimeMillis = if (remaining < 0) -remaining else 0L,
+                    progress = if (total > 0) (elapsed.toFloat() / total).coerceIn(0f, 1f) else 0f,
+                    isFinished = remaining <= 0,
+                    label = if (remaining <= 0) Loc.Workday.overtime else Loc.Workday.timeLeft
                 )
-                dataManager.addPrivateCalendarEvent(settingsManager.getUserId(), event)
-                onEvent(WorkdayTrackerEvent.ResetSession)
             }
-        }
-    }
+        } else TimerState()
 
-    private fun resetCalculations() {
         _uiState.update { it.copy(
-            timeLeftMillis = 0L,
-            overtimeMillis = 0L,
-            progress = 0f,
-            isFinished = false
-        ) }
-    }
-
-    private fun updateCalculations(now: LocalDateTime, start: LocalDateTime, end: LocalDateTime) {
-        val totalDuration = Duration.between(start, end).toMillis()
-        val elapsed = Duration.between(start, now).toMillis()
-        val remaining = totalDuration - elapsed
-        
-        val progress = if (totalDuration > 0) (elapsed.toFloat() / totalDuration).coerceIn(0f, 1f) else 0f
-        
-        _uiState.update { it.copy(
-            timeLeftMillis = if (remaining > 0) remaining else 0L,
-            overtimeMillis = if (remaining < 0) -remaining else 0L,
-            progress = progress,
-            isFinished = remaining <= 0
+            eventTimer = eventTimer,
+            quickStartTimer = quickStartTimer,
+            timeLeftMillis = if (state.mode == WorkModeEnum.QUICK_START) quickStartTimer.timeLeftMillis else eventTimer.timeLeftMillis,
+            overtimeMillis = if (state.mode == WorkModeEnum.QUICK_START) quickStartTimer.overtimeMillis else eventTimer.overtimeMillis,
+            progress = if (state.mode == WorkModeEnum.QUICK_START) quickStartTimer.progress else eventTimer.progress,
+            isFinished = if (state.mode == WorkModeEnum.QUICK_START) quickStartTimer.isFinished else eventTimer.isFinished,
+            countdownLabel = if (state.mode == WorkModeEnum.QUICK_START) quickStartTimer.label else eventTimer.label
         ) }
     }
 
@@ -198,15 +243,6 @@ class WorkdayTrackerViewModel(
         when (event) {
             is WorkdayTrackerEvent.ChangeMode -> {
                 _uiState.update { it.copy(mode = event.mode) }
-                saveOptions()
-            }
-            is WorkdayTrackerEvent.SetTrackingPreference -> {
-                val targetMode = when (event.preference) {
-                    WorkTrackingPreferenceEnum.LOG_HOURS -> WorkModeEnum.LOG_HOURS
-                    WorkTrackingPreferenceEnum.SCHEDULE -> WorkModeEnum.SCHEDULE
-                    else -> WorkModeEnum.QUICK_START
-                }
-                _uiState.update { it.copy(trackingPreference = event.preference, mode = targetMode) }
                 saveOptions()
             }
             is WorkdayTrackerEvent.SetFreehandStart -> {
@@ -234,19 +270,6 @@ class WorkdayTrackerViewModel(
                 saveOptions()
             }
             WorkdayTrackerEvent.StartSession -> {
-                if (_uiState.value.mode == WorkModeEnum.QUICK_START) {
-                    val state = _uiState.value
-                    val isValid = if (state.isUsingDuration) {
-                        state.freehandDurationHours > 0 || state.freehandDurationMinutes > 0
-                    } else {
-                        state.freehandEnd != null
-                    }
-                    if (!isValid) {
-                        _uiState.update { it.copy(showQuickStartConfigError = true) }
-                        return
-                    }
-                }
-                
                 if (_uiState.value.isSessionActive) {
                     _uiState.update { it.copy(showStartConfirm = true) }
                 } else {
@@ -256,106 +279,127 @@ class WorkdayTrackerViewModel(
             WorkdayTrackerEvent.ConfirmStartSession -> {
                 val now = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES)
                 val currentMode = _uiState.value.mode
-                var eventId: String? = null
                 
-                when (currentMode) {
-                    WorkModeEnum.QUICK_START -> {
-                        val start = _uiState.value.freehandStart ?: now
-                        _uiState.update { it.copy(freehandStart = start, isSessionActive = true, activeSessionMode = currentMode, showStartConfirm = false) }
-                    }
-                    WorkModeEnum.SCHEDULE -> {
-                        val shift = _uiState.value.todayCalendarShift
-                        if (shift != null) {
-                            val today = LocalDate.now()
-                            val startTime = CalendarEventHelper.parseTime(shift.startTime)
-                            val endTime = shift.endTime?.let { CalendarEventHelper.parseTime(it) }
-                            val start = LocalDateTime.of(today, startTime)
-                            var end = endTime?.let { LocalDateTime.of(today, it) }
-                            if (end != null && end.isBefore(start)) end = end.plusDays(1)
-                            
-                            _uiState.update { it.copy(scheduleStart = start, scheduleEnd = end, isSessionActive = true, activeSessionMode = currentMode, showStartConfirm = false) }
-                            eventId = shift.id
-                        }
-                    }
-                    WorkModeEnum.LOG_HOURS -> {
-                        _uiState.update { it.copy(logHoursSessionStart = now, isSessionActive = true, activeSessionMode = currentMode, showStartConfirm = false) }
-                    }
-                }
-
-                // For QUICK_START and LOG_HOURS, create a pending SHIFT event in DB
-                if (currentMode != WorkModeEnum.SCHEDULE) {
-                    val start = when (currentMode) {
-                        WorkModeEnum.QUICK_START -> _uiState.value.freehandStart ?: now
-                        WorkModeEnum.LOG_HOURS -> now
-                        else -> now
-                    }
+                if (currentMode == WorkModeEnum.QUICK_START) {
+                    val start = _uiState.value.freehandStart ?: now
+                    _uiState.update { it.copy(freehandStart = start, isSessionActive = true, activeSessionMode = currentMode, showStartConfirm = false) }
                     
                     viewModelScope.launch {
                         val userId = settingsManager.getUserId()
                         val newEvent = CalendarEvent(
-                            title = "Shift (${currentMode.name})",
+                            id = UUID.randomUUID().toString(),
+                            title = Loc.Calendar.shift,
                             type = CalendarEventTypeEnum.SHIFT,
                             date = start.toLocalDate().toString(),
-                            startTime = start.toLocalTime().toString(),
+                            startTime = start.toLocalTime().truncatedTo(ChronoUnit.MINUTES).toString(),
                             endTime = null,
                             createdBy = userId,
-                            status = CalendarEventStatusEnum.REGULAR
+                            ownerUid = userId,
+                            status = CalendarEventStatusEnum.REGULAR,
+                            dtStart = start.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                            dtEnd = start.plusHours(1).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                         )
-                        val docId = java.util.UUID.randomUUID().toString()
-                        val eventWithId = newEvent.copy(id = docId)
-                        dataManager.addPrivateCalendarEvent(userId, eventWithId)
                         
-                        _uiState.update { it.copy(activeEventId = docId) }
+                        var eventToSave = newEvent
+                        val calendarId = settingsManager.getGoogleCalendarId()
+                        val syncEnabled = settingsManager.isGoogleCalendarSyncEnabled() && settingsManager.isGoogleCalendarPushEnabled()
+                        
+                        if (syncEnabled && calendarId.isNotEmpty() && calendarId != "primary") {
+                            try {
+                                val gId = GoogleCalendarSyncHelper.pushToGoogleCalendar(
+                                    dataManager.context, 
+                                    eventToSave, 
+                                    calendarId
+                                )
+                                if (gId != null) {
+                                    eventToSave = eventToSave.copy(googleEventId = gId.toString(), googleCalendarId = calendarId)
+                                }
+                            } catch (_: Exception) {}
+                        }
+
+                        // NEW STRATEGY: If successfully synced to Google, don't save to Firestore (Quick Start is always private)
+                        if (eventToSave.googleEventId != null) {
+                            // Already in Google, delete any accidental local copy
+                            dataManager.deleteCalendarEventLocalOnly(eventToSave.id)
+                        } else {
+                            dataManager.saveCalendarEvent(eventToSave)
+                        }
+                        
+                        _uiState.update { it.copy(activeEventId = eventToSave.id) }
                         saveOptions()
                     }
                 } else {
-                    _uiState.update { it.copy(activeEventId = eventId) }
-                    saveOptions()
+                    _uiState.update { it.copy(showStartConfirm = false) }
                 }
             }
             WorkdayTrackerEvent.ResetSession -> {
                 val state = _uiState.value
                 val activeId = state.activeEventId
-                val userId = settingsManager.getUserId()
-                val sessionMode = state.activeSessionMode ?: state.mode
                 
                 clearSessionState()
 
-                // Only delete if it was an auto-created temporary shift (Quick Start or Log Hours)
-                if (activeId != null && sessionMode != WorkModeEnum.SCHEDULE) {
+                if (activeId != null) {
                     viewModelScope.launch {
-                        dataManager.deletePrivateCalendarEvent(userId, activeId)
+                        dataManager.deleteCalendarEvent(activeId)
                     }
                 }
             }
             WorkdayTrackerEvent.FinishSession -> {
                 val state = _uiState.value
-                if (state.isSessionActive) {
+                val isQuickStart = state.mode == WorkModeEnum.QUICK_START
+                val isCalendarEvent = state.mode == WorkModeEnum.CALENDAR_EVENT
+                
+                if (state.isSessionActive || (isCalendarEvent && state.eventTimer.label?.contains(Loc.Workday.finishAt) == true)) {
                     viewModelScope.launch {
                         val now = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES)
                         val userId = settingsManager.getUserId()
-                        val eventId = state.activeEventId
+                        val eventId = if (isQuickStart) state.activeEventId else state.selectedEventId
                         
                         if (eventId != null) {
-                            // Find existing event to update it with end time
-                            val today = LocalDate.now().toString()
-                            dataManager.getPrivateCalendarEventsFlow(userId, today, today)
-                                .take(1)
-                                .collect { events ->
-                                    val existing = events.find { it.id == eventId }
-                                    if (existing != null) {
-                                        val updated = existing.copy(
-                                            endTime = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES).toString(),
-                                            status = CalendarEventStatusEnum.FINISHED_WORKDAY
+                            val todayMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                            val tomorrowMs = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                            val events = dataManager.allCalendarEventsFlow(todayMs, tomorrowMs).first()
+                            
+                            val existing = events.find { it.id == eventId }
+
+                            if (existing != null) {
+                                val updated = existing.copy(
+                                    endTime = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES).toString(),
+                                    status = CalendarEventStatusEnum.FINISHED_WORKDAY,
+                                    dtEnd = now.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                )
+                                
+                                if (updated.googleEventId != null && updated.googleCalendarId != null) {
+                                    try {
+                                        GoogleCalendarSyncHelper.pushToGoogleCalendar(
+                                            dataManager.context,
+                                            updated,
+                                            updated.googleCalendarId
                                         )
-                                        dataManager.addPrivateCalendarEvent(userId, updated)
-                                    }
+                                    } catch (_: Exception) {}
                                 }
+
+                                // If it's private and synced, it shouldn't be in Firestore
+                                if (updated.sharedGroupIds.isEmpty() && updated.googleEventId != null) {
+                                    dataManager.deleteCalendarEventLocalOnly(updated.id)
+                                } else {
+                                    dataManager.saveCalendarEvent(updated)
+                                }
+                                
+                                val workItem = WorkHistoryItem(
+                                    date = updated.date,
+                                    startTime = updated.startTime,
+                                    endTime = updated.endTime ?: updated.startTime,
+                                    mode = "TRACKER"
+                                )
+                                dataManager.addHistoryItem(userId, workItem)
+                            }
                         }
-                        clearSessionState()
+                        if (isQuickStart) clearSessionState()
+                        else loadData() // Refresh informational state
                     }
                 } else {
-                    clearSessionState()
+                    if (isQuickStart) clearSessionState()
                 }
             }
             is WorkdayTrackerEvent.TogglePicker -> {
@@ -377,25 +421,31 @@ class WorkdayTrackerViewModel(
                     loadData()
                 }
             }
+            is WorkdayTrackerEvent.SelectEvent -> {
+                settingsManager.setSelectedCalendarEventId(event.eventId)
+                val sel = _uiState.value.todayEvents.find { it.id == event.eventId }
+                if (sel != null) settingsManager.setSelectedCalendarDate(sel.date)
+                _uiState.update { it.copy(selectedEventId = event.eventId, isCountingDown = false) }
+            }
+            WorkdayTrackerEvent.StartNow -> {
+                _uiState.update { it.copy(isCountingDown = false) }
+                onEvent(WorkdayTrackerEvent.ConfirmStartSession)
+            }
+            WorkdayTrackerEvent.StartCountdown -> {
+                _uiState.update { it.copy(isCountingDown = true) }
+            }
+            else -> {}
         }
     }
 
     private fun clearSessionState() {
         _uiState.update { it.copy(
-            scheduleStart = null,
-            scheduleEnd = null,
-            weeklyTodayStart = null,
-            weeklyTodayEnd = null,
-            isWeeklyAdjustmentActive = false,
-            showResetConfirm = false,
-            showQuickStartConfigError = false,
             isSessionActive = false,
             activeSessionMode = null,
             activeEventId = null,
-            isFinished = false,
-            timeLeftMillis = 0L,
-            overtimeMillis = 0L,
-            progress = 0f
+            showResetConfirm = false,
+            showQuickStartConfigError = false,
+            quickStartTimer = TimerState()
         ) }
         saveOptions()
     }
@@ -404,25 +454,18 @@ class WorkdayTrackerViewModel(
         val current = _uiState.value
         val options = settingsManager.getWorktimeOptions().copy(
             lastMode = current.mode,
-            trackingPreference = current.trackingPreference,
             isSessionActive = current.isSessionActive,
             activeSessionMode = current.activeSessionMode,
             activeEventId = current.activeEventId,
-            isWeeklyAdjustmentActive = current.isWeeklyAdjustmentActive,
-            weeklyTodayStart = current.weeklyTodayStart?.toString(),
-            weeklyTodayEnd = current.weeklyTodayEnd?.toString(),
-            scheduleStart = current.scheduleStart?.toString(),
-            scheduleEnd = current.scheduleEnd?.toString(),
             freehandStart = if (current.isSessionActive) current.freehandStart?.toString() else null,
             freehandEnd = if (current.isSessionActive) current.freehandEnd?.toString() else null,
             freehandDurationHours = current.freehandDurationHours,
             freehandDurationMinutes = current.freehandDurationMinutes,
-            freehandUseDuration = current.isUsingDuration,
-            logHoursSessionStart = if (current.isSessionActive) current.logHoursSessionStart?.toString() else null
+            freehandUseDuration = current.isUsingDuration
         )
         
         settingsManager.saveWorktimeOptions(options)
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             dataManager.pushUserSettings()
         }
     }

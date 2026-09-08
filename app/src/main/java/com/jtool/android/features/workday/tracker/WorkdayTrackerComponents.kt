@@ -27,43 +27,41 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun QuickStartContent(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            DateTimeSelector(
-                label = Loc.Workday.start,
-                dateTime = uiState.freehandStart,
-                onDateClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.DATE, show = true, isStart = true)) },
-                onTimeClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.TIME, show = true, isStart = true)) }
-            )
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        DateTimeSelector(
+            label = Loc.Workday.start,
+            dateTime = uiState.freehandStart,
+            onDateClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.DATE, show = true, isStart = true)) },
+            onTimeClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.TIME, show = true, isStart = true)) }
+        )
 
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = !uiState.isUsingDuration,
-                    onClick = { viewModel.onEvent(WorkdayTrackerEvent.SetUseDuration(use = false)) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) { Text(Loc.Workday.setEndTime, fontSize = 12.sp) }
-                SegmentedButton(
-                    selected = uiState.isUsingDuration,
-                    onClick = { viewModel.onEvent(WorkdayTrackerEvent.SetUseDuration(use = true)) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) { Text(Loc.Workday.setDuration, fontSize = 12.sp) }
-            }
-            
-            if (uiState.isUsingDuration) {
-                PreciseDurationPicker(
-                    hours = uiState.freehandDurationHours,
-                    minutes = uiState.freehandDurationMinutes,
-                    onHoursChange = { h -> viewModel.onEvent(WorkdayTrackerEvent.SetFreehandDuration(hours = h, minutes = uiState.freehandDurationMinutes)) },
-                    onMinutesChange = { m -> viewModel.onEvent(WorkdayTrackerEvent.SetFreehandDuration(hours = uiState.freehandDurationHours, minutes = m)) }
-                )
-            } else {
-                DateTimeSelector(
-                    label = Loc.Workday.finish,
-                    dateTime = uiState.freehandEnd,
-                    onDateClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.DATE, show = true, isStart = false)) },
-                    onTimeClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.TIME, show = true, isStart = false)) }
-                )
-            }
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = !uiState.isUsingDuration,
+                onClick = { viewModel.onEvent(WorkdayTrackerEvent.SetUseDuration(use = false)) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+            ) { Text(Loc.Workday.setEndTime, fontSize = 12.sp) }
+            SegmentedButton(
+                selected = uiState.isUsingDuration,
+                onClick = { viewModel.onEvent(WorkdayTrackerEvent.SetUseDuration(use = true)) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+            ) { Text(Loc.Workday.setDuration, fontSize = 12.sp) }
+        }
+        
+        if (uiState.isUsingDuration) {
+            PreciseDurationPicker(
+                hours = uiState.freehandDurationHours,
+                minutes = uiState.freehandDurationMinutes,
+                onHoursChange = { h -> viewModel.onEvent(WorkdayTrackerEvent.SetFreehandDuration(hours = h, minutes = uiState.freehandDurationMinutes)) },
+                onMinutesChange = { m -> viewModel.onEvent(WorkdayTrackerEvent.SetFreehandDuration(hours = uiState.freehandDurationHours, minutes = m)) }
+            )
+        } else {
+            DateTimeSelector(
+                label = Loc.Workday.finish,
+                dateTime = uiState.freehandEnd,
+                onDateClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.DATE, show = true, isStart = false)) },
+                onTimeClick = { viewModel.onEvent(WorkdayTrackerEvent.TogglePicker(picker = PickerTypeEnum.TIME, show = true, isStart = false)) }
+            )
         }
     }
 }
