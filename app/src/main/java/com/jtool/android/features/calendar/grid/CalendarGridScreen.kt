@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -129,25 +132,69 @@ fun CalendarGridScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    val initialMonth = remember { uiState.selectedMonth }
+                    val pagerState = rememberPagerState(
+                        initialPage = 1000,
+                        pageCount = { 2000 }
+                    )
+                    val coroutineScope = rememberCoroutineScope()
+
+                    LaunchedEffect(pagerState) {
+                        snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+                            val monthOffset = settledPage - 1000
+                            val targetMonth = initialMonth.plusMonths(monthOffset.toLong())
+                            if (targetMonth != uiState.selectedMonth) {
+                                viewModel.onMonthChange(targetMonth)
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(uiState.selectedMonth) {
+                        val expectedPage = 1000 + (uiState.selectedMonth.year * 12 + uiState.selectedMonth.monthValue) - (initialMonth.year * 12 + initialMonth.monthValue)
+                        if (pagerState.currentPage != expectedPage) {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(expectedPage)
+                            }
+                        }
+                    }
+
                     MonthHeader(
                         currentMonth = uiState.selectedMonth,
-                        onMonthChange = { viewModel.onMonthChange(it) }
+                        onPrev = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                            }
+                        },
+                        onNext = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                        }
                     )
 
                     Spacer(Modifier.height(16.dp))
 
-                    DaysOfWeekHeader()
-
                     val gridStyle = remember(uiState) { settingsManager.getGridEventStyle() }
-                    CalendarGrid(
-                        selectedMonth = uiState.selectedMonth,
-                        selectedDate = uiState.selectedDate,
-                        eventSummaries = uiState.eventSummaries,
-                        gridStyle = gridStyle,
-                        onDateSelected = {
-                            viewModel.onDateSelected(it)
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { page ->
+                        val monthOffset = page - 1000
+                        val pageMonth = initialMonth.plusMonths(monthOffset.toLong())
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            DaysOfWeekHeader()
+                            Spacer(Modifier.height(8.dp))
+                            CalendarGrid(
+                                selectedMonth = pageMonth,
+                                selectedDate = uiState.selectedDate,
+                                eventSummaries = uiState.eventSummaries,
+                                gridStyle = gridStyle,
+                                onDateSelected = {
+                                    viewModel.onDateSelected(it)
+                                }
+                            )
                         }
-                    )
+                    }
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -290,13 +337,17 @@ private fun EventItem(
 }
 
 @Composable
-private fun MonthHeader(currentMonth: YearMonth, onMonthChange: (YearMonth) -> Unit) {
+private fun MonthHeader(
+    currentMonth: YearMonth,
+    onPrev: () -> Unit,
+    onNext: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
+        IconButton(onClick = onPrev) {
             Icon(Icons.Default.ChevronLeft, null)
         }
 
@@ -306,7 +357,7 @@ private fun MonthHeader(currentMonth: YearMonth, onMonthChange: (YearMonth) -> U
             fontWeight = FontWeight.Bold
         )
 
-        IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
+        IconButton(onClick = onNext) {
             Icon(Icons.Default.ChevronRight, null)
         }
     }
@@ -342,27 +393,36 @@ private fun CalendarGrid(
 
     val totalCells = daysInMonth + firstDayOfWeek
     val rows = (totalCells + 6) / 7
-    val gridHeight = if (gridStyle == GridEventStyleEnum.CHIPS) (rows * 78).dp else 280.dp
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(7),
-        modifier = Modifier.fillMaxWidth().height(gridHeight),
-        contentPadding = PaddingValues(vertical = 4.dp),
-        userScrollEnabled = false
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(if (gridStyle == GridEventStyleEnum.CHIPS) 2.dp else 4.dp)
     ) {
-        items(rows * 7) { index ->
-            val dayOfMonth = index - firstDayOfWeek + 1
-            if (dayOfMonth in 1..daysInMonth) {
-                val date = selectedMonth.atDay(dayOfMonth)
-                DayCell(
-                    date = date,
-                    summary = eventSummaries[date.toString()],
-                    isSelected = date == selectedDate,
-                    gridStyle = gridStyle,
-                    onClick = { onDateSelected(date) }
-                )
-            } else {
-                Box(modifier = Modifier.height(if (gridStyle == GridEventStyleEnum.CHIPS) 76.dp else 40.dp))
+        for (row in 0 until rows) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                for (col in 0 until 7) {
+                    val index = row * 7 + col
+                    val dayOfMonth = index - firstDayOfWeek + 1
+                    Box(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (dayOfMonth in 1..daysInMonth) {
+                            val date = selectedMonth.atDay(dayOfMonth)
+                            DayCell(
+                                date = date,
+                                summary = eventSummaries[date.toString()],
+                                isSelected = date == selectedDate,
+                                gridStyle = gridStyle,
+                                onClick = { onDateSelected(date) }
+                            )
+                        } else {
+                            Box(modifier = Modifier.height(if (gridStyle == GridEventStyleEnum.CHIPS) 76.dp else 40.dp))
+                        }
+                    }
+                }
             }
         }
     }
