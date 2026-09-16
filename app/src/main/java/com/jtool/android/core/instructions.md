@@ -26,6 +26,7 @@
 
 ## 4. Page Consistency & Architectural Changes
 * **Structural Consistency:** New pages must conform strictly to existing project layouts, structural patterns, and implementation styles.
+* **Base Screen & Centralized Loading**: All screens must implement `BaseScreen` as their root layout wrapper. Loading states (`isLoading`) must be delegated to `BaseScreen`'s centralized loader rather than instantiating ad-hoc local loading boxes or progress indicators within individual screen implementations.
 * **Change Approvals:** Any proposed deviations or new architectural implementations must be backed by a clear technical justification and explicitly prompted to the user for approval before applying.
 
 ## 5. UI Patterns: Popups, Paging & Refresh
@@ -45,6 +46,7 @@
 ## 6. State & Async Handling
 * **Safe Loading States:** Guarantee every loading state execution path (success, failure, cancellation, or exception) resolves properly to prevent deadlocks or frozen UIs.
 * **Keyboard Obstruction:** Always ensure that input fields and action buttons are not obstructed by the software keyboard. Use `Modifier.imePadding()` or `WindowInsets.ime` where appropriate to keep the focused element visible.
+* **User Change Awareness & Cache Isolation**: The app must be strictly user-change aware. Before loading any data or initializing view models, applications must actively check whether the current authenticated user UID (`FirebaseAuth.getInstance().currentUser?.uid`) matches the last active user UID via `SettingsManager.checkAndPurgeIfUserChanged(...)`. If a user change is detected (login, logout, or account switch), all local caches, SharedPreferences, and persistence files must be instantly purged. In-memory state flows must start empty. This prevents stale or sensitive data from the previous user from showing up even for a split second.
 * **Error Notification:** If an unresolved loading state risk arises, flag the issue to the developer immediately to determine a resolution.
 
 ## 7. Change Logs & Developer Reporting

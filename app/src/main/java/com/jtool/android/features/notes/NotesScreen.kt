@@ -11,6 +11,7 @@ import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.models.feature.notes.enums.NotesScreenTypeEnum
 import com.jtool.android.features.notes.edit.NoteEditScreen
 import com.jtool.android.features.notes.list.NoteListScreen
+import com.jtool.android.features.notes.components.note_delete_confirm_sheet.NoteDeleteConfirmSheet
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -40,20 +41,9 @@ fun NotesScreen(
     }
 
     if (uiState.noteToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(NotesEvent.RequestDelete(null)) },
-            title = { Text(Loc.Notes.deleteNoteTitle) },
-            text = { Text(Loc.General.confirmDeleteMsg) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.onEvent(NotesEvent.ConfirmDelete) }) {
-                    Text(Loc.General.delete, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(NotesEvent.RequestDelete(null)) }) {
-                    Text(Loc.General.cancel)
-                }
-            }
+        NoteDeleteConfirmSheet(
+            onDismiss = { viewModel.onEvent(NotesEvent.RequestDelete(null)) },
+            onConfirm = { viewModel.onEvent(NotesEvent.ConfirmDelete) }
         )
     }
 }

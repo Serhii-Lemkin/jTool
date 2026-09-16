@@ -231,6 +231,10 @@ class NotesViewModel(
             draftContent = "",
             checklistInput = ""
         ) }
+        val gid = settingsManager.getCurrentGroupId()
+        if (gid != null) {
+            commentController.observe(getNotesColl(gid).document(id).collection("comments"))
+        }
     }
 
     private fun openNote(note: NoteItem, editMode: Boolean) {

@@ -8,6 +8,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.jtool.android.core.auth.AuthManager
+import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -32,7 +33,13 @@ class SignInHandler(
                     scope.launch {
                         val success = authManager.signInWithGoogle(account)
                         if (success) {
-                            dataManager.fetchUserSettings()
+                            val settings = SettingsManager(activity)
+                            if (settings.getUserName().isEmpty() || settings.getUserName() == "User") {
+                                account.displayName?.let { name ->
+                                    if (name.isNotEmpty()) settings.saveUserName(name)
+                                }
+                            }
+                            dataManager.fetchUserSettings(force = true)
                             dataManager.pushUserSettings()
                         } else {
                             onError("Firebase Auth Failed")

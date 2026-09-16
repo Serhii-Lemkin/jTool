@@ -26,6 +26,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.BaseScreen
+import com.jtool.android.core.components.layout.AppLoader
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.localization.domains.CalendarLoc
 import com.jtool.android.core.models.calendar.CalendarEvent
@@ -109,27 +111,21 @@ fun CalendarEventDetailScreen(
         )
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding(),
-        topBar = {
-            GenericTitle(
-                title = Loc.Calendar.event,
-                onBack = onBack,
-                actions = {
-                    if (event != null && !event.id.startsWith("virtual_")) {
-                        IconButton(onClick = { showActionSheet = true }) {
-                            Icon(Icons.Default.MoreVert, null)
-                        }
-                    }
+    BaseScreen(
+        title = Loc.Calendar.event,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.refresh() },
+        actions = {
+            if (event != null && !event.id.startsWith("virtual_")) {
+                IconButton(onClick = { showActionSheet = true }) {
+                    Icon(Icons.Default.MoreVert, null)
                 }
-            )
-        }
-    ) { padding ->
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
             }
-        } else if (uiState.isPermissionDenied) {
+        },
+        modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding()
+    ) { padding ->
+        if (uiState.isPermissionDenied) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(

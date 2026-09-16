@@ -54,6 +54,11 @@ class AdminViewModel(
                     dataManager.setUserAdminStatus(event.uid, event.isAdmin)
                 }
             }
+            is AdminEvent.SetUserReviewerStatus -> {
+                viewModelScope.launch {
+                    dataManager.setUserReviewerStatus(event.uid, event.isReviewer)
+                }
+            }
             is AdminEvent.RequestDeleteUser -> {
                 if (event.step == 1) {
                     _uiState.update { it.copy(showUserDeleteConfirm1 = event.uid) }
@@ -136,52 +141,6 @@ class AdminViewModel(
                 viewModelScope.launch {
                     delay(500)
                     _uiState.update { it.copy(isLoading = false) }
-                }
-            }
-            AdminEvent.CleanupCalendarData -> {
-                viewModelScope.launch {
-                    _uiState.update { it.copy(isLoading = true) }
-                    try {
-                        val db = FirebaseFirestore.getInstance()
-                        
-                        // 1. Clear calendarConfig for all users
-                        val userDataColl = db.collection("user_data")
-                        val users = userDataColl.get().await()
-                        users.documents.forEach { doc ->
-                            userDataColl.document(doc.id).update("calendarConfig", FieldValue.delete()).await()
-                        }
-
-                        // 2. Delete all documents in calendar_events collection
-                        val eventsColl = db.collection("calendar_events")
-                        val events = eventsColl.get().await()
-                        db.runBatch { batch ->
-                            events.documents.forEach { batch.delete(it.reference) }
-                        }.await()
-
-                        // 3. Clear calendarEmail from public_profiles
-                        val profilesColl = db.collection("public_profiles")
-                        val profiles = profilesColl.get().await()
-                        profiles.documents.forEach { doc ->
-                            profilesColl.document(doc.id).update("calendarEmail", FieldValue.delete()).await()
-                        }
-
-                        // 4. Clear calendarEmail from group members
-                        val groupsColl = db.collection("groups")
-                        val groups = groupsColl.get().await()
-                        groups.documents.forEach { gDoc ->
-                            val members = groupsColl.document(gDoc.id).collection("members").get().await()
-                            members.documents.forEach { mDoc ->
-                                groupsColl.document(gDoc.id).collection("members").document(mDoc.id)
-                                    .update("calendarEmail", FieldValue.delete()).await()
-                            }
-                        }
-
-                        Log.d("AdminVM", "Calendar data cleanup completed")
-                    } catch (e: Exception) {
-                        Log.e("AdminVM", "Cleanup failed", e)
-                    } finally {
-                        _uiState.update { it.copy(isLoading = false) }
-                    }
                 }
             }
         }

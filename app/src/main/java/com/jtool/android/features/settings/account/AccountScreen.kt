@@ -18,6 +18,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.components.layout.ActionListItem
+import com.jtool.android.core.components.layout.AppLoader
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
@@ -46,6 +47,10 @@ fun AccountScreen(
     
     var showDeleteStep1 by remember { mutableStateOf(false) }
     var emailConfirmationInput by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
 
     Column(
         modifier = Modifier
@@ -142,7 +147,7 @@ fun AccountScreen(
         
         if (uiState.isLoading) {
             Spacer(Modifier.height(16.dp))
-            CircularProgressIndicator()
+            AppLoader(isLoading = true)
         }
     }
 

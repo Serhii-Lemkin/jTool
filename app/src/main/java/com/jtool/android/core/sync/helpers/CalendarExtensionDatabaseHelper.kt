@@ -61,6 +61,24 @@ class CalendarExtensionDatabaseHelper(
 
     fun getCommentsCollection(googleEventId: String) = getCommentsColl(googleEventId)
 
+    suspend fun getAllExtensions(): Map<String, CalendarEventExtension> {
+        return try {
+            val snapshot = getExtensionsColl().get().await()
+            val map = mutableMapOf<String, CalendarEventExtension>()
+            snapshot.documents.forEach { doc ->
+                val ext = doc.toObject(CalendarEventExtension::class.java)
+                if (ext != null) {
+                    val id = ext.googleEventId.ifEmpty { doc.id }
+                    map[id] = ext
+                    if (ext.googleEventId.isNotEmpty()) map[ext.googleEventId] = ext
+                }
+            }
+            map
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
     suspend fun getExtensionsForRange(startMs: Long, endMs: Long): Map<String, CalendarEventExtension> {
         return try {
             val snapshot = getExtensionsColl()

@@ -41,5 +41,5 @@ object GeneralLoc {
     val gotIt get() = Loc.s("general_gotIt", "Got it")
     val stranger get() = Loc.s("general_stranger", "Stranger")
     val aboutApp get() = Loc.s("general_aboutApp", "About App")
-    val landingPageSubtitle get() = Loc.s("general_landingPageSubtitle", "Learn more about jTool features")
+    val landingPageSubtitle get() = Loc.s("general_landingPageSubtitle", "Learn more about jTools features")
 }

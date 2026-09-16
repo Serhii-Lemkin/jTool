@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -37,7 +38,15 @@ object CalendarAddEdit : AppProperties(AppScreenEnum.CALENDAR_ADD_EDIT) {
             }
         }
 
-        val extension = uiState.editingEvent?.id?.let { uiState.extensions[it] }
+        val editingEvent = uiState.editingEvent
+        val extension = remember(editingEvent, uiState.extensions) {
+            if (editingEvent == null) null
+            else {
+                uiState.extensions[editingEvent.id] 
+                    ?: uiState.extensions[editingEvent.iCalUID] 
+                    ?: uiState.extensions.values.find { it.googleEventId == editingEvent.id || it.googleEventId == editingEvent.iCalUID }
+            }
+        }
 
         CalendarAddEditScreen(
             event = uiState.editingEvent,

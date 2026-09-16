@@ -1,6 +1,7 @@
 package com.jtool.android
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
 import android.os.Bundle
@@ -93,6 +94,11 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
         settingsManager = SettingsManager(this)
+        if (!settingsManager.hasDarkModeBeenSet()) {
+            val isSystemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            settingsManager.setDarkMode(isSystemDark)
+        }
+        settingsManager.checkAndPurgeIfUserChanged(FirebaseAuth.getInstance().currentUser?.uid)
         shoppingListManager = ShoppingListManager(this)
         notesManager = NotesManager(this)
         cleaningManager = CleaningManager(this)
@@ -156,11 +162,15 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(currentUserState) {
-                if (currentUserState != null && !initialLoadDone) {
-                    dataManager.fetchUserSettings()
+                if (currentUserState != null) {
+                    dataManager.fetchUserSettings(force = true)
                     groups = settingsManager.getGroups()
                     initialLoadDone = true
                     
+                    Loc.load(this@MainActivity, settingsManager.getLanguage())
+                    isDark = settingsManager.isDarkMode()
+                    currentLang = settingsManager.getLanguage()
+
                     if (settingsManager.getUserName().isEmpty()) {
                         showNameSetupSheet = true
                     }

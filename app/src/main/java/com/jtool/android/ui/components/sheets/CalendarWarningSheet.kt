@@ -63,14 +63,7 @@ fun CalendarWarningSheet(
                 Text(Loc.Calendar.goToSettings, fontWeight = FontWeight.Bold)
             }
             
-            Spacer(Modifier.height(8.dp))
-            
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(Loc.General.cancel)
-            }
+
         }
     }
 }

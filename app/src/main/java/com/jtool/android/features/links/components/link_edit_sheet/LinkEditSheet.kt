@@ -12,6 +12,8 @@ import com.jtool.android.ui.components.common.GenericSheet
 
 @Composable
 fun LinkEditSheet(
+    sheetTitle: String = Loc.Links.addLink,
+    buttonText: String = Loc.General.add,
     title: String,
     url: String,
     onTitleChange: (String) -> Unit,
@@ -21,7 +23,7 @@ fun LinkEditSheet(
 ) {
     GenericSheet(
         onDismiss = onDismiss,
-        title = Loc.Links.addLink,
+        title = sheetTitle,
         showCloseButton = false
     ) {
         OutlinedTextField(
@@ -37,7 +39,9 @@ fun LinkEditSheet(
             onValueChange = onUrlChange,
             label = { Text(Loc.Links.linkUrl) },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
+            singleLine = false,
+            minLines = 3,
+            maxLines = 5,
             placeholder = { Text(Loc.Links.urlHint) }
         )
         Spacer(Modifier.height(32.dp))
@@ -46,11 +50,8 @@ fun LinkEditSheet(
             enabled = title.isNotBlank() && url.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
-            Text(Loc.General.add)
+            Text(buttonText)
         }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.General.cancel)
-        }
+
     }
 }

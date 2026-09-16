@@ -185,28 +185,58 @@ fun TrackerDetailsContent(
         filteredRecords.map { it.timestamp }.distinct().sorted()
     }
 
-    val chartSeries = remember(filteredRecords, selectedMetricId, tracker.metrics, selectedUserIds, globalTimestamps, tracker.userColors) {
+    data class SeriesItem(
+        val series: ChartSeries,
+        val userName: String,
+        val metricName: String?,
+        val color: Color
+    )
+
+    val seriesItems = remember(filteredRecords, selectedMetricId, tracker.metrics, selectedUserIds, globalTimestamps, tracker.userColors, userNames) {
+        val items = mutableListOf<SeriesItem>()
+        var colorIndex = 0
+
         if (selectedMetricId != null) {
-            // Compare users for a single metric
-            selectedUserIds.mapIndexed { index, uid ->
+            val metric = tracker.metrics.find { it.id == selectedMetricId }
+            selectedUserIds.forEach { uid ->
                 val points = globalTimestamps.map { ts ->
                     filteredRecords.find { it.timestamp == ts && it.userId == uid }?.values?.get(selectedMetricId!!)
                 }
-                val color = tracker.userColors[uid]?.let { Color(it) } ?: metricColors[index % metricColors.size]
-                ChartSeries(color, points)
+                val color = tracker.userColors[uid]?.let { Color(it) } ?: metricColors[colorIndex % metricColors.size]
+                colorIndex++
+                items.add(
+                    SeriesItem(
+                        series = ChartSeries(color, points),
+                        userName = userNames[uid] ?: Loc.General.unknown,
+                        metricName = metric?.name,
+                        color = color
+                    )
+                )
             }
         } else {
-            // Show all metrics (aggregated if multiple users)
-            tracker.metrics.mapIndexed { index, metric ->
-                val points = globalTimestamps.map { ts ->
-                    val userRecordsAtTs = filteredRecords.filter { it.timestamp == ts }
-                    if (userRecordsAtTs.isEmpty()) null
-                    else userRecordsAtTs.sumOf { it.values[metric.id] ?: 0.0 }
+            selectedUserIds.forEach { uid ->
+                tracker.metrics.forEach { metric ->
+                    val points = globalTimestamps.map { ts ->
+                        filteredRecords.find { it.timestamp == ts && it.userId == uid }?.values?.get(metric.id)
+                    }
+                    val color = metric.color?.let { Color(it) } ?: metricColors[colorIndex % metricColors.size]
+                    colorIndex++
+                    items.add(
+                        SeriesItem(
+                            series = ChartSeries(color, points),
+                            userName = userNames[uid] ?: Loc.General.unknown,
+                            metricName = metric.name,
+                            color = color
+                        )
+                    )
                 }
-                val color = metric.color?.let { Color(it) } ?: metricColors[index % metricColors.size]
-                ChartSeries(color, points)
             }
         }
+        items
+    }
+
+    val chartSeries = remember(seriesItems) {
+        seriesItems.map { it.series }
     }
 
     val tendency = remember(chartSeries) {
@@ -286,31 +316,22 @@ fun TrackerDetailsContent(
         }
         
         // Legend
-        if (selectedMetricId != null && selectedUserIds.size > 1) {
+        if (seriesItems.isNotEmpty()) {
             FlowRow(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                selectedUserIds.forEachIndexed { index, uid ->
-                    val color = tracker.userColors[uid]?.let { Color(it) } ?: metricColors[index % metricColors.size]
+                seriesItems.forEach { item ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(8.dp).background(color, CircleShape))
-                        Spacer(Modifier.width(4.dp))
-                        Text(userNames[uid] ?: Loc.General.unknown, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-        } else if (selectedMetricId == null && tracker.metrics.size > 1) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                tracker.metrics.forEachIndexed { index, metric ->
-                    val color = metric.color?.let { Color(it) } ?: metricColors[index % metricColors.size]
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(8.dp).background(color, CircleShape))
-                        Spacer(Modifier.width(4.dp))
-                        Text(metric.name, style = MaterialTheme.typography.labelSmall)
+                        Box(Modifier.size(10.dp).background(item.color, CircleShape))
+                        Spacer(Modifier.width(6.dp))
+                        val text = if (item.metricName != null) {
+                            "${item.userName} • ${item.metricName}"
+                        } else {
+                            item.userName
+                        }
+                        Text(text, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -401,15 +422,20 @@ fun TrackerDetailsContent(
             currentUserId = currentUserId,
             selectedUserIds = selectedUserIds,
             onUserSelected = { uid ->
-                selectedUserIds = if (uid in selectedUserIds) {
+                selectedUserIds = if (selectedUserIds.size == allUserIds.size) {
+                    setOf(uid)
+                } else if (uid in selectedUserIds) {
                     if (selectedUserIds.size > 1) selectedUserIds - uid else selectedUserIds
                 } else {
                     selectedUserIds + uid
                 }
             },
             onSelectAll = {
-                selectedUserIds = if (selectedUserIds.size == allUserIds.size) setOf(currentUserId)
-                else allUserIds.toSet()
+                selectedUserIds = if (selectedUserIds.size == allUserIds.size) {
+                    emptySet()
+                } else {
+                    allUserIds.toSet()
+                }
             },
             onDismiss = { showMemberPicker = false }
         )

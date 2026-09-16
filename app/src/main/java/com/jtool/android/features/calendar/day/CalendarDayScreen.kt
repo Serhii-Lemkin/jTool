@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.AppLoader
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.localization.domains.CalendarLoc
@@ -136,33 +137,27 @@ fun CalendarDayScreen(
             )
         }
     ) { padding ->
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                if (uiState.viewMode == CalendarDayViewMode.TIMELINE) {
-                    TimelineView(
-                        uiState = uiState,
-                        groups = groups,
-                        scrollState = scrollState,
-                        hourHeight = hourHeight,
-                        currentTime = currentTime,
-                        onEventClick = {
-                            viewModel.toggleAddEditDialog(false, it)
-                            onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
-                        }
-                    )
-                } else {
-                    ListView(
-                        uiState = uiState,
-                        groups = groups,
-                        viewModel = viewModel,
-                        workShiftColorKey = currentWorkShiftColorKey,
-                        onNavigate = onNavigate
-                    )
-                }
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            if (uiState.viewMode == CalendarDayViewMode.TIMELINE) {
+                TimelineView(
+                    uiState = uiState,
+                    groups = groups,
+                    scrollState = scrollState,
+                    hourHeight = hourHeight,
+                    currentTime = currentTime,
+                    onEventClick = {
+                        viewModel.toggleAddEditDialog(false, it)
+                        onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
+                    }
+                )
+            } else {
+                ListView(
+                    uiState = uiState,
+                    groups = groups,
+                    viewModel = viewModel,
+                    workShiftColorKey = currentWorkShiftColorKey,
+                    onNavigate = onNavigate
+                )
             }
         }
     }
@@ -337,19 +332,17 @@ private fun ListView(
                                 shape = RoundedCornerShape(4.dp),
                                 modifier = Modifier.padding(start = 4.dp)
                             ) {
-                                val label = if (sharedGroupIds.size == 1) {
-                                    val gid = sharedGroupIds.first()
+                                val groupNames = sharedGroupIds.map { gid ->
                                     val group = groups[gid]
                                     if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
-                                } else {
-                                    "${sharedGroupIds.size} groups"
                                 }
+                                val label = "${Loc.Calendar.belongsTo}: ${groupNames.joinToString(", ")}"
 
                                 Text(
-                                    text = label.uppercase(),
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                    text = label,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }

@@ -42,23 +42,11 @@ fun TitleSuggestionSheet(
         
         Spacer(Modifier.height(24.dp))
         
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Button(
+            onClick = { onConfirm(titleInput) },
+            modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(Loc.General.cancel)
-            }
-            
-            Button(
-                onClick = { onConfirm(titleInput) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(Loc.General.save)
-            }
+            Text(Loc.General.save)
         }
     }
 }

@@ -8,10 +8,12 @@ data class LinksUiState(
     val newTitle: String = "",
     val newUrl: String = "",
     val showAddDialog: Boolean = false,
+    val editingLink: LinkItem? = null,
     val linkToDelete: LinkItem? = null,
     val menuExpanded: Boolean = false,
     val userNames: Map<String, String> = emptyMap(),
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 ) {
     val filteredLinks: List<LinkItem>

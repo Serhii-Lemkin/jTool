@@ -270,19 +270,17 @@ private fun EventItem(
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier.padding(vertical = 1.dp)
                 ) {
-                    val label = if (sharedGroupIds.size == 1) {
-                        val gid = sharedGroupIds.first()
+                    val groupNames = sharedGroupIds.map { gid ->
                         val group = groups[gid]
                         if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
-                    } else {
-                        "${sharedGroupIds.size} groups"
                     }
+                    val label = "${Loc.Calendar.belongsTo}: ${groupNames.joinToString(", ")}"
 
                     Text(
-                        text = label.uppercase(),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
@@ -446,11 +444,12 @@ private fun DayCell(
                                     .fillMaxWidth()
                                     .height(13.dp)
                             ) {
-                                Box(
+                                Row(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(horizontal = 2.dp),
-                                    contentAlignment = Alignment.CenterStart
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
                                         text = preview.title.ifEmpty { "Shared Event" },
@@ -461,12 +460,27 @@ private fun DayCell(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         textDecoration = if (preview.isDeclined) TextDecoration.LineThrough else null,
+                                        modifier = Modifier.weight(1f),
                                         style = ComposeTextStyle(
                                             platformStyle = PlatformTextStyle(
                                                 includeFontPadding = false
                                             )
                                         )
                                     )
+                                    if (!preview.groupTagName.isNullOrEmpty()) {
+                                        Surface(
+                                            color = Color.Black.copy(alpha = 0.3f),
+                                            shape = RoundedCornerShape(2.dp)
+                                        ) {
+                                            Text(
+                                                text = preview.groupTagName,
+                                                fontSize = 6.sp,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.5.dp),
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

@@ -7,9 +7,11 @@ sealed interface LinksEvent {
     data class UpdateNewTitle(val title: String) : LinksEvent
     data class UpdateNewUrl(val url: String) : LinksEvent
     data class ToggleAddDialog(val show: Boolean) : LinksEvent
+    data class RequestEdit(val link: LinkItem?) : LinksEvent
     data class RequestDelete(val link: LinkItem?) : LinksEvent
     object ConfirmDelete : LinksEvent
     data class ToggleMenu(val expanded: Boolean) : LinksEvent
+    object SaveLink : LinksEvent
     object AddLink : LinksEvent
     object Refresh : LinksEvent
 }

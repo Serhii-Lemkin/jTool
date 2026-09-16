@@ -35,9 +35,6 @@ fun CreateGroupSheet(
             enabled = groupNameInput.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) { Text(Loc.General.save) }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.General.cancel)
-        }
+
     }
 }

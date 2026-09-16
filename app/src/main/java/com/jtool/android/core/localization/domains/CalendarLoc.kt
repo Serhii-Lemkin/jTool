@@ -98,9 +98,9 @@ object CalendarLoc {
     
     val comments get() = Loc.s("calendar_comments", "Comments")
     val xGroupsMore get() = Loc.s("calendar_xGroupsMore", "%d groups more")
-    val openInAppMsg get() = Loc.s("calendar_openInAppMsg", "Open this event in jTool app:")
+    val openInAppMsg get() = Loc.s("calendar_openInAppMsg", "Open this event in jTools app:")
     val permissionDenied get() = Loc.s("calendar_permissionDenied", "Permission Denied")
-    val permissionDeniedMsg get() = Loc.s("calendar_permissionDeniedMsg", "You do not have permission to view this event in jTool.")
+    val permissionDeniedMsg get() = Loc.s("calendar_permissionDeniedMsg", "You do not have permission to view this event in jTools.")
     
     val eventAcceptedNotif get() = Loc.s("calendar_eventAcceptedNotif", "Event Accepted")
     val eventAcceptedMsg get() = Loc.s("calendar_eventAcceptedMsg", "%s accepted the event: %s")
@@ -138,6 +138,6 @@ object CalendarLoc {
     val shareWithGroup get() = Loc.s("calendar_shareWithGroup", "Share with Group")
     
     val allowAppLinks get() = Loc.s("calendar_allowAppLinks", "Allow App Links")
-    val allowAppLinksSubtitle get() = Loc.s("calendar_allowAppLinksSubtitle", "Enable jTool to open links directly without a browser")
+    val allowAppLinksSubtitle get() = Loc.s("calendar_allowAppLinksSubtitle", "Enable jTools to open links directly without a browser")
     val appLinksVerified get() = Loc.s("calendar_appLinksVerified", "App Links Verified")
 }

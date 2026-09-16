@@ -36,6 +36,8 @@ object TrackerLoc {
     val people get() = Loc.s("tracker_people", "People")
     val metrics get() = Loc.s("tracker_metrics", "Metrics")
     val allPeople get() = Loc.s("tracker_allPeople", "All People")
+    val selectAll get() = Loc.s("tracker_selectAll", "Select All")
+    val deselectAll get() = Loc.s("tracker_deselectAll", "Deselect All")
     val compareMembers get() = Loc.s("tracker_compareMembers", "Compare Members")
     val selectMembers get() = Loc.s("tracker_selectMembers", "Select Members")
 }

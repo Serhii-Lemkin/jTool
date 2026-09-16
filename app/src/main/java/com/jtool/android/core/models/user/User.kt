@@ -13,5 +13,8 @@ data class User(
     val lastModified: Long = 0L,
     @get:PropertyName("isAdmin")
     @set:PropertyName("isAdmin")
-    var isAdmin: Boolean = false
+    var isAdmin: Boolean = false,
+    @get:PropertyName("isReviewer")
+    @set:PropertyName("isReviewer")
+    var isReviewer: Boolean = false
 )

@@ -120,7 +120,7 @@
     "calendar_selectCalendarSubtitle": "אנא בחר יומן Google ספציפי בהגדרות כדי לאפשר סנכרון.",
     "calendar_noCalendarsFound": "לא נמצאו יומנים. אנא בדוק הרשאות.",
     "calendar_accessRequiredTitle": "נדרשת גישה ליומן",
-    "calendar_accessRequiredMsg": "כדי לסנכרן את המשמרות שלך עם יומן Google, jTool זקוק להרשאה לקרוא ולכתוב ביומן המכשיר שלך.",
+    "calendar_accessRequiredMsg": "כדי לסנכרן את המשמרות שלך עם יומן Google, jTools זקוק להרשאה לקרוא ולכתוב ביומן המכשיר שלך.",
     "calendar_requiredFieldsTitle": "חסרים שדות חובה",
     "calendar_requiredFieldsMsg": "יש למלא את כל שדות החובה לפני שמירת האירוע.",
     "calendar_pending": "ממתין לאישור",
@@ -570,10 +570,10 @@
     "calendar_typeErrand": "סידורים",
     "calendar_typeRegular": "רגיל",
     "calendar_allowAppLinks": "אפשר קישורי אפליקציה",
-    "calendar_allowAppLinksSubtitle": "אפשר ל-jTool לפתוח קישורים ישירות ללא דפדפן",
+    "calendar_allowAppLinksSubtitle": "אפשר ל-jTools לפתוח קישורים ישירות ללא דפדפן",
     "calendar_appLinksVerified": "קישורי האפליקציה מאומתים",
     "general_stranger": "מישהו לא מוכר",
     "general_aboutApp": "אודות האפליקציה",
-    "general_landingPageSubtitle": "למד עוד על התכונות של jTool"
+    "general_landingPageSubtitle": "למד עוד על התכונות של jTools"
   }
 }

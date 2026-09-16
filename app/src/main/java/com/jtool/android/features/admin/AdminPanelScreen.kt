@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -123,8 +122,7 @@ fun AdminPanelScreen(
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (uiState.currentSubScreen) {
                 AdminSubScreenEnum.MAIN -> AdminMainScreen(
-                    onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) },
-                    onCleanupCalendar = { viewModel.onEvent(AdminEvent.CleanupCalendarData) }
+                    onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) }
                 )
                 AdminSubScreenEnum.USERS -> UsersTab(viewModel, uiState)
                 AdminSubScreenEnum.GROUPS -> GroupsTab(viewModel, uiState)
@@ -136,11 +134,8 @@ fun AdminPanelScreen(
 
 @Composable
 fun AdminMainScreen(
-    onNavigate: (AdminSubScreenEnum) -> Unit,
-    onCleanupCalendar: () -> Unit
+    onNavigate: (AdminSubScreenEnum) -> Unit
 ) {
-    val clipboardManager = LocalClipboardManager.current
-
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             AdminMenuItem(
@@ -171,37 +166,10 @@ fun AdminMainScreen(
         }
         item {
             AdminMenuItem(
-                title = Loc.Admin.copyLogs,
-                subtitle = Loc.Admin.copyLogsSubtitle,
-                icon = Icons.Default.ContentPaste,
-                onClick = {
-                    try {
-                        val process = Runtime.getRuntime().exec("logcat -d")
-                        val reader = process.inputStream.bufferedReader()
-                        val logs = reader.readText()
-                        clipboardManager.setText(AnnotatedString(logs))
-                    } catch (e: Exception) {
-                        Log.e("AdminPanel", "Failed to copy logs", e)
-                    }
-                }
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-        }
-        item {
-            AdminMenuItem(
                 title = Loc.Admin.simulateCrash,
                 subtitle = Loc.Admin.simulateCrashSubtitle,
                 icon = Icons.Default.BugReport,
                 onClick = { throw RuntimeException("Manual Crash Simulation") }
-            )
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-        }
-        item {
-            AdminMenuItem(
-                title = "Cleanup Calendar Data",
-                subtitle = "Delete all Firestore calendar events and reset user configs",
-                icon = Icons.Default.DeleteSweep,
-                onClick = onCleanupCalendar
             )
         }
     }
@@ -249,6 +217,7 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
             items(filtered, key = { it.uid.ifEmpty { "empty_u_${System.identityHashCode(it)}" } }) { user ->
                 val uid = user.uid
                 val isAdmin = user.isAdmin
+                val isReviewer = user.isReviewer
                 var menuExpanded by remember { mutableStateOf(false) }
 
                 ActionListItem(
@@ -256,6 +225,7 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                     supportingText = user.email ?: "",
                     metadataText = buildString {
                         if (isAdmin) append("ADMIN • ")
+                        if (isReviewer) append("REVIEWER • ")
                         append(uid)
                     },
                     trailingContent = {
@@ -276,6 +246,19 @@ fun UsersTab(viewModel: AdminViewModel, uiState: AdminUiState) {
                                     leadingIcon = { 
                                         Icon(
                                             if (isAdmin) Icons.Default.PersonOff else Icons.Default.AdminPanelSettings, 
+                                            null
+                                        ) 
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (isReviewer) Loc.Admin.removeReviewer else Loc.Admin.makeReviewer) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        viewModel.onEvent(AdminEvent.SetUserReviewerStatus(uid, !isReviewer))
+                                    },
+                                    leadingIcon = { 
+                                        Icon(
+                                            if (isReviewer) Icons.Default.PersonOff else Icons.Default.RateReview, 
                                             null
                                         ) 
                                     }

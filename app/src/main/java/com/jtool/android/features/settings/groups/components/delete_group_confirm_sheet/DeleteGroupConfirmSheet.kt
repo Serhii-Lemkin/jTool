@@ -65,9 +65,6 @@ fun DeleteGroupConfirmSheet(
             }
         }
         
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.General.cancel)
-        }
+
     }
 }

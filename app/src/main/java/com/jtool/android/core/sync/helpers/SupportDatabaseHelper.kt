@@ -54,10 +54,11 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
                 }
             }
 
-            val isAdmin = try {
+            val (isAdmin, isReviewer) = try {
                 val userRef = firestore.collection(SupportConfig.USERS_COLLECTION).document(uid)
-                userRef.get().await().toObject(User::class.java)?.isAdmin ?: false
-            } catch (_: Exception) { false }
+                val user = userRef.get().await().toObject(User::class.java)
+                (user?.isAdmin ?: false) to (user?.isReviewer ?: false)
+            } catch (_: Exception) { false to false }
 
             val today = SimpleDateFormat(SupportConfig.DATE_FORMAT, Locale.US).format(Date())
             var currentCount = 0
@@ -75,7 +76,7 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
                 maxRequests = config?.max_requests ?: 2L
             } catch (_: Exception) {}
 
-            if (!isAdmin && !bypassLimit && currentCount >= maxRequests) {
+            if (!isAdmin && !isReviewer && !bypassLimit && currentCount >= maxRequests) {
                 throw Exception(SupportConfig.ERROR_LIMIT_REACHED)
             }
 

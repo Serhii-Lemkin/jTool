@@ -38,10 +38,12 @@ class UserAdminHelper(
             val snapshot = userDoc.get().await()
             val userOnServer = snapshot.toObject(User::class.java)
             val isAdmin = userOnServer?.isAdmin ?: false
+            val isReviewer = userOnServer?.isReviewer ?: false
             
             val coreData = mapOf(
                 User::email.name to auth.currentUser?.email,
                 User::isAdmin.name to isAdmin,
+                User::isReviewer.name to isReviewer,
                 User::lastModified.name to now
             )
             userDoc.set(coreData, SetOptions.merge()).await()
@@ -86,6 +88,15 @@ class UserAdminHelper(
     suspend fun fetchUserSettings(force: Boolean = false): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
+            try {
+                val pSnap = getPublicProfilesColl().document(uid).get().await()
+                val serverName = pSnap.getString(PublicProfile::displayName.name)
+                if (!serverName.isNullOrEmpty()) {
+                    settings.saveUserName(serverName)
+                }
+                pSnap.getString(PublicProfile::calendarEmail.name)?.let { settings.setGoogleCalendarEmail(it) }
+            } catch (_: Exception) {}
+
             val userRef = getUsersColl().document(uid)
             val snapshot = userRef.get().await()
             val user = snapshot.toObject(User::class.java) ?: return false
@@ -190,6 +201,15 @@ class UserAdminHelper(
         awaitClose { listener.remove() }
     }
 
+    fun isReviewerFlow(): Flow<Boolean> = callbackFlow {
+        val uid = auth.currentUser?.uid ?: run { trySend(false); close(); return@callbackFlow }
+        val listener = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
+            val user = snapshot?.toObject(User::class.java)
+            trySend(user?.isReviewer ?: false)
+        }
+        awaitClose { listener.remove() }
+    }
+
     fun allUsersFlow(): Flow<List<User>> = callbackFlow {
         val listener = try {
             getUsersColl().addSnapshotListener { snapshot, error ->
@@ -219,6 +239,10 @@ class UserAdminHelper(
 
     suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) {
         getUsersColl().document(uid).set(mapOf(User::isAdmin.name to isAdmin), SetOptions.merge()).await()
+    }
+
+    suspend fun setUserReviewerStatus(uid: String, isReviewer: Boolean) {
+        getUsersColl().document(uid).set(mapOf(User::isReviewer.name to isReviewer), SetOptions.merge()).await()
     }
 
     suspend fun clearWorkdayData(uid: String) {

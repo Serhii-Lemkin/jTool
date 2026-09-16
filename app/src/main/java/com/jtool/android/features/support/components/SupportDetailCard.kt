@@ -198,6 +198,17 @@ fun SupportDetailCard(
                             },
                             leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
                         )
+                        if (isAdmin) {
+                            DropdownMenuItem(
+                                text = { Text(Loc.Support.copy_request_text) },
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(request.text))
+                                    onShowMessage(Loc.Support.request_text_copied, MessageType.SUCCESS)
+                                    actionMenuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
+                            )
+                        }
                         if (request.crashLog != null) {
                             DropdownMenuItem(
                                 text = { Text(Loc.Support.copy_crash_log) },

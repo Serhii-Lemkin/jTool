@@ -42,9 +42,6 @@ fun JoinGroupSheet(
             enabled = joinGroupId.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) { Text(Loc.Settings.sendRequest) }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.General.cancel)
-        }
+
     }
 }

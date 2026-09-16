@@ -59,9 +59,6 @@ fun CleaningTaskEditSheet(
         ) {
             Text(if (isEdit) Loc.General.save else Loc.General.add)
         }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-            Text(Loc.General.cancel)
-        }
+
     }
 }

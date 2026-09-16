@@ -122,17 +122,24 @@ class CalendarGridViewModel(
 
             (filtered + extraEvents) to extensions
         }.onEach { (mergedEvents, extensions) ->
+            val groups = settingsManager.getGroups()
             val summaries = mergedEvents.groupBy { it.date }.mapValues { (_, dayEvents) ->
                 DayEventSummary(
                     hasEvents = dayEvents.isNotEmpty(),
                     eventCount = dayEvents.size,
                     eventColorKeys = dayEvents.map { it.colorKey }.take(4),
                     eventPreviews = dayEvents.take(2).map { evt ->
+                        val ext = extensions[evt.id] ?: extensions[evt.iCalUID] ?: extensions.values.find { it.googleEventId == evt.id || it.googleEventId == evt.iCalUID }
+                        val groupTagName = ext?.sharedGroupIds?.firstOrNull()?.let { gid ->
+                            val group = groups[gid]
+                            if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
+                        }
                         EventPreview(
                             id = evt.id,
                             title = evt.title,
                             colorKey = evt.colorKey,
-                            isDeclined = evt.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
+                            isDeclined = evt.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED,
+                            groupTagName = groupTagName
                         )
                     }
                 )
@@ -177,7 +184,7 @@ class CalendarGridViewModel(
             
             _googleEvents.value = allEvents
             
-            val extensions = dataManager.getCalendarExtensionsForRange(startMs, endMs)
+            val extensions = dataManager.getAllCalendarExtensions()
             
             if (allEvents.isNotEmpty()) {
                 dataManager.reconcileOptimisticDeletions(allEvents.map { it.id }.toSet())

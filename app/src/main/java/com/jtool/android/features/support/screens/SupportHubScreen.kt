@@ -28,6 +28,7 @@ import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.features.support.components.*
 import com.jtool.android.features.support.components.support_filter_sheet.SupportFilterSheet
+import com.jtool.android.features.support.components.reviewer_info_sheet.ReviewerInfoSheet
 import com.jtool.android.features.support.logic.*
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleDropdownMenu
@@ -62,6 +63,7 @@ fun SupportHubScreen(
     val context = LocalContext.current
     var showFilterSheet by remember { mutableStateOf(false) }
     var showTypeSheet by remember { mutableStateOf(false) }
+    var showReviewerInfoSheet by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
     
     LaunchedEffect(uiState.isSuccess) {
@@ -106,6 +108,12 @@ fun SupportHubScreen(
             message = infoMessage!!.first,
             type = infoMessage!!.second,
             onDismiss = { infoMessage = null }
+        )
+    }
+
+    if (showReviewerInfoSheet) {
+        ReviewerInfoSheet(
+            onDismiss = { showReviewerInfoSheet = false }
         )
     }
 
@@ -172,6 +180,13 @@ fun SupportHubScreen(
                 },
                 actions = {
                     if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
+                        if (uiState.isReviewer) {
+                            TitleActionIcon(
+                                icon = Icons.Default.RateReview,
+                                tint = MaterialTheme.colorScheme.primary,
+                                onClick = { showReviewerInfoSheet = true }
+                            )
+                        }
                         TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
                         TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSheet = true })
                     }

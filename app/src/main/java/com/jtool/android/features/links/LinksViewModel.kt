@@ -1,7 +1,9 @@
 package com.jtool.android.features.links
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import com.jtool.android.core.models.feature.links.LinkItem
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
@@ -25,6 +27,7 @@ class LinksViewModel(
         observeSyncData()
         
         isLoading.onEach { loading -> _uiState.update { it.copy(isLoading = loading) } }.launchIn(viewModelScope)
+        isRefreshing.onEach { refreshing -> _uiState.update { it.copy(isRefreshing = refreshing) } }.launchIn(viewModelScope)
     }
 
     private fun observeGroupId() {
@@ -51,7 +54,7 @@ class LinksViewModel(
                     try {
                         doc.toObject(LinkItem::class.java)?.apply { id = doc.id }
                     } catch (e: Exception) {
-                        android.util.Log.e("LinksVM", "Error deserializing link ${doc.id}", e)
+                        Log.e("LinksVM", "Error deserializing link ${doc.id}", e)
                         null
                     }
                 }
@@ -73,11 +76,28 @@ class LinksViewModel(
             is LinksEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
             is LinksEvent.UpdateNewTitle -> _uiState.update { it.copy(newTitle = event.title) }
             is LinksEvent.UpdateNewUrl -> _uiState.update { it.copy(newUrl = event.url) }
-            is LinksEvent.ToggleAddDialog -> _uiState.update { it.copy(showAddDialog = event.show) }
+            is LinksEvent.ToggleAddDialog -> {
+                _uiState.update { 
+                    it.copy(
+                        showAddDialog = event.show, 
+                        editingLink = if (!event.show) null else it.editingLink,
+                        newTitle = if (!event.show) "" else it.newTitle,
+                        newUrl = if (!event.show) "" else it.newUrl
+                    ) 
+                }
+            }
+            is LinksEvent.RequestEdit -> {
+                val link = event.link
+                if (link != null) {
+                    _uiState.update { it.copy(editingLink = link, newTitle = link.title, newUrl = link.url, showAddDialog = true) }
+                } else {
+                    _uiState.update { it.copy(editingLink = null, newTitle = "", newUrl = "", showAddDialog = false) }
+                }
+            }
             is LinksEvent.RequestDelete -> _uiState.update { it.copy(linkToDelete = event.link) }
             LinksEvent.ConfirmDelete -> confirmDelete()
             is LinksEvent.ToggleMenu -> _uiState.update { it.copy(menuExpanded = event.expanded) }
-            LinksEvent.AddLink -> addLink()
+            is LinksEvent.AddLink, LinksEvent.SaveLink -> saveLink()
             LinksEvent.Refresh -> refresh()
         }
     }
@@ -90,7 +110,7 @@ class LinksViewModel(
                 _uiState.update { it.copy(links = emptyList()) }
             }
         ) {
-            val snapshot = getLinksColl(gid).get(com.google.firebase.firestore.Source.SERVER).await()
+            val snapshot = getLinksColl(gid).get(Source.SERVER).await()
             val list = snapshot.documents.mapNotNull { it.toObject(LinkItem::class.java)?.copy(id = it.id) }
             _uiState.update { it.copy(links = list) }
             manager.save(list, gid)
@@ -106,26 +126,28 @@ class LinksViewModel(
         }
     }
 
-    private fun addLink() {
-        val title = _uiState.value.newTitle.trim()
-        val rawUrl = _uiState.value.newUrl.trim()
+    private fun saveLink() {
+        val state = _uiState.value
+        val title = state.newTitle.trim()
+        val rawUrl = state.newUrl.trim()
         val gid = settingsManager.getCurrentGroupId() ?: return
         if (title.isNotBlank() && rawUrl.isNotBlank()) {
             var url = rawUrl
             if (!url.startsWith("http://") && !url.startsWith("https://")) {
                 url = "https://$url"
             }
-            val id = System.currentTimeMillis().toString()
-            val newLink = LinkItem(
+            val editing = state.editingLink
+            val id = editing?.id ?: System.currentTimeMillis().toString()
+            val linkItem = LinkItem(
                 id = id,
                 title = title,
                 url = url,
                 lastUpdatedBy = settingsManager.getAppUserId(),
-                timestamp = System.currentTimeMillis()
+                timestamp = editing?.timestamp ?: System.currentTimeMillis()
             )
             viewModelScope.launch {
-                getLinksColl(gid).document(id).set(newLink).await()
-                _uiState.update { it.copy(newTitle = "", newUrl = "", showAddDialog = false) }
+                getLinksColl(gid).document(id).set(linkItem).await()
+                _uiState.update { it.copy(newTitle = "", newUrl = "", editingLink = null, showAddDialog = false) }
             }
         }
     }

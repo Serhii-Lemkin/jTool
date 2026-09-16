@@ -9,6 +9,7 @@ data class SupportUiState(
     val requests: List<SupportRequest> = emptyList(),
     val isLoading: Boolean = false,
     val isAdmin: Boolean = false,
+    val isReviewer: Boolean = false,
     val activeTypeFilters: Set<SupportTypeEnum> = emptySet(),
     val activeStatusFilters: Set<SupportStatusEnum> = setOf(SupportStatusEnum.OPENED, SupportStatusEnum.IN_PROGRESS),
     val newRequestType: SupportTypeEnum = SupportTypeEnum.BUG,
@@ -28,5 +29,3 @@ data class SupportUiState(
     val isSearchVisible: Boolean = false,
     val pagingLimit: Int = 15
 )
-
-

@@ -104,15 +104,6 @@ fun GenericTitle(
                 }
             )
         }
-        Box(modifier = Modifier.fillMaxWidth().height(2.dp)) {
-            if (isLoading) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                )
-            }
-        }
     }
 }
 

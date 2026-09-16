@@ -44,6 +44,8 @@ data class WorkdayTrackerUiState(
     val activeSessionMode: WorkModeEnum? = null,
     val activeEventId: String? = null,
     val quickStartEventId: String? = null,
+    val quickStartStartMs: Long = 0L,
+    val quickStartEndMs: Long = 0L,
     
     // Legacy / Shared
     val timeLeftMillis: Long = 0L,

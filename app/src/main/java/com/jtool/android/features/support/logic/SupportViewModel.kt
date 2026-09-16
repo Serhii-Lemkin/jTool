@@ -3,6 +3,7 @@ package com.jtool.android.features.support.logic
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import com.jtool.android.core.localization.Loc
@@ -16,6 +17,7 @@ import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportScreenTypeEnum
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
+import com.jtool.android.core.models.user.User
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
@@ -37,9 +39,16 @@ class SupportViewModel(
         loadConfig()
         loadFilters()
         observeAdminStatus()
+        observeReviewerStatus()
         observeRequests()
         
         isLoading.onEach { loading -> _uiState.update { it.copy(isLoading = loading) } }.launchIn(viewModelScope)
+    }
+
+    private fun observeReviewerStatus() {
+        dataManager.isReviewerFlow()
+            .onEach { isReviewer -> _uiState.update { it.copy(isReviewer = isReviewer) } }
+            .launchIn(viewModelScope)
     }
 
     private fun loadFilters() {

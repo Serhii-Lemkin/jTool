@@ -19,6 +19,7 @@ class AccountViewModel(
 
     init {
         loadData()
+        observeAuthState()
     }
 
     fun refresh() {
@@ -27,10 +28,29 @@ class AccountViewModel(
 
     private fun loadData() {
         val user = authManager.getCurrentUser()
+        if (user != null && settingsManager.getUserName().isEmpty() && !user.displayName.isNullOrEmpty()) {
+            settingsManager.saveUserName(user.displayName!!)
+        }
         _uiState.update { it.copy(
             currentUserEmail = user?.email,
             userName = settingsManager.getUserName()
         ) }
+    }
+
+    private fun observeAuthState() {
+        authManager.authStateFlow()
+            .onEach { user ->
+                if (user != null) {
+                    if (settingsManager.getUserName().isEmpty() && !user.displayName.isNullOrEmpty()) {
+                        settingsManager.saveUserName(user.displayName!!)
+                    }
+                }
+                _uiState.update { it.copy(
+                    currentUserEmail = user?.email,
+                    userName = if (user != null) settingsManager.getUserName() else ""
+                ) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onEvent(event: AccountEvent) {

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,11 +26,12 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
-import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.links.components.link_delete_confirm_sheet.LinkDeleteConfirmSheet
 import com.jtool.android.features.links.components.link_edit_sheet.LinkEditSheet
+import com.jtool.android.features.links.components.link_action_sheet.LinkActionSheet
 import com.jtool.android.ui.components.common.MessageSheet
 import com.jtool.android.ui.components.common.MessageType
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -59,42 +61,38 @@ fun LinksScreen(
 
     var isSearchVisible by remember { mutableStateOf(false) }
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
+    var selectedLinkForAction by remember { mutableStateOf<LinkItem?>(null) }
     
     LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = Loc.Links.links, 
-                onBack = onBack,
-                isLoading = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
-                isSearchVisible = isSearchVisible,
-                searchQuery = draftSearchQuery,
-                onSearchQueryChange = { draftSearchQuery = it },
-                onSearchClose = {
-                    isSearchVisible = false
-                    viewModel.onEvent(LinksEvent.UpdateSearchQuery(""))
-                },
-                onSearchTriggered = {
-                    viewModel.onEvent(LinksEvent.UpdateSearchQuery(draftSearchQuery))
-                },
-                searchPlaceholder = Loc.Links.searchLinks,
-                actions = {
-                    TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
-                }
-            )
+    BaseScreen(
+        title = Loc.Links.links,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
+        isSearchVisible = isSearchVisible,
+        searchQuery = draftSearchQuery,
+        onSearchQueryChange = { draftSearchQuery = it },
+        onSearchClose = {
+            isSearchVisible = false
+            viewModel.onEvent(LinksEvent.UpdateSearchQuery(""))
+        },
+        onSearchTriggered = {
+            viewModel.onEvent(LinksEvent.UpdateSearchQuery(draftSearchQuery))
+        },
+        searchPlaceholder = Loc.Links.searchLinks,
+        actions = {
+            TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
         },
         floatingActionButton = {
             UnifiedFAB(
                 onClick = { viewModel.onEvent(LinksEvent.ToggleAddDialog(true)) },
                 contentDescription = Loc.Links.addLink
             )
-        },
-        modifier = Modifier.fillMaxSize().imePadding()
+        }
     ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading || uiState.isRefreshing,
             onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
             modifier = Modifier.padding(padding).fillMaxSize()
         ) {
@@ -110,8 +108,6 @@ fun LinksScreen(
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     items(uiState.filteredLinks, key = { it.id }) { link ->
-                        var itemMenuExpanded by remember { mutableStateOf(false) }
-
                         ActionListItem(
                             onClick = {
                                 try {
@@ -123,36 +119,13 @@ fun LinksScreen(
                             },
                             headline = link.title,
                             supportingText = link.url,
+                            supportingMaxLines = 1,
                             metadataText = "${Loc.General.by} ${uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
                             trailingContent = {
-                                Box {
-                                    IconButton(
-                                        onClick = { itemMenuExpanded = true },
-                                    ) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = null)
-                                    }
-                                    DropdownMenu(
-                                        expanded = itemMenuExpanded,
-                                        onDismissRequest = { itemMenuExpanded = false }
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text(Loc.Links.copy) },
-                                            onClick = {
-                                                clipboardManager.setText(AnnotatedString(link.url))
-                                                infoMessage = Loc.Links.copied to MessageType.SUCCESS
-                                                itemMenuExpanded = false
-                                            },
-                                            leadingIcon = { Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(18.dp)) }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text(Loc.General.delete) },
-                                            onClick = {
-                                                viewModel.onEvent(LinksEvent.RequestDelete(link))
-                                                itemMenuExpanded = false
-                                            },
-                                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) }
-                                        )
-                                    }
+                                IconButton(
+                                    onClick = { selectedLinkForAction = link },
+                                ) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = null)
                                 }
                             }
                         )
@@ -169,12 +142,34 @@ fun LinksScreen(
 
     if (uiState.showAddDialog) {
         LinkEditSheet(
+            sheetTitle = if (uiState.editingLink != null) Loc.General.edit else Loc.Links.addLink,
+            buttonText = if (uiState.editingLink != null) Loc.General.save else Loc.General.add,
             title = uiState.newTitle,
             url = uiState.newUrl,
             onTitleChange = { viewModel.onEvent(LinksEvent.UpdateNewTitle(it)) },
             onUrlChange = { viewModel.onEvent(LinksEvent.UpdateNewUrl(it)) },
-            onDismiss = { viewModel.onEvent(LinksEvent.ToggleAddDialog(false)) },
-            onConfirm = { viewModel.onEvent(LinksEvent.AddLink) }
+            onDismiss = { viewModel.onEvent(LinksEvent.RequestEdit(null)); viewModel.onEvent(LinksEvent.ToggleAddDialog(false)) },
+            onConfirm = { viewModel.onEvent(LinksEvent.SaveLink) }
+        )
+    }
+
+    if (selectedLinkForAction != null) {
+        val link = selectedLinkForAction!!
+        LinkActionSheet(
+            onCopy = {
+                clipboardManager.setText(AnnotatedString(link.url))
+                infoMessage = Loc.Links.copied to MessageType.SUCCESS
+                selectedLinkForAction = null
+            },
+            onEdit = {
+                viewModel.onEvent(LinksEvent.RequestEdit(link))
+                selectedLinkForAction = null
+            },
+            onDelete = {
+                viewModel.onEvent(LinksEvent.RequestDelete(link))
+                selectedLinkForAction = null
+            },
+            onDismiss = { selectedLinkForAction = null }
         )
     }
 

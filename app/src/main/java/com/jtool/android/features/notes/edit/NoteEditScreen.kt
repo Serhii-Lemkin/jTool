@@ -195,7 +195,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                     Spacer(Modifier.height(16.dp))
                     
                     val currentNote = uiState.editingNote
-                    if (currentNote != null && !uiState.isEditMode) {
+                    if (currentNote != null) {
                         val appUserId = viewModel.getAppUserId()
                         val authUid = viewModel.getAuthUserId()
                         val comments by viewModel.comments.collectAsState(initial = emptyList<com.jtool.android.core.models.common.Comment>())

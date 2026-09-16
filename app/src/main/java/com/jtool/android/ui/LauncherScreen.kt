@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseUser
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
@@ -53,11 +54,17 @@ fun LauncherScreen(
     isAdmin: Boolean,
     onAdminClick: () -> Unit,
     onAccountClick: () -> Unit,
-    currentUser: com.google.firebase.auth.FirebaseUser?,
+    currentUser: FirebaseUser?,
     notificationCount: Int = 0,
     onNotificationsClick: () -> Unit = {}
 ) {
     var showGroupSheet by remember { mutableStateOf(false) }
+
+    val isGridLayout = remember(settingsManager) { settingsManager.isGridLayout() }
+    val userName = remember(settingsManager) { settingsManager.getUserName() }
+    val visibleApps = remember(settingsManager) {
+        AppProperties.allApps.filter { settingsManager.isAppVisible(it.id) }
+    }
 
     val groupName = remember(currentGroupId, groups) {
         currentGroupId?.let { id ->
@@ -146,7 +153,7 @@ fun LauncherScreen(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (currentUser != null) {
                 Text(
-                    text = "${Loc.Launcher.hello}, ${settingsManager.getUserName()}!",
+                    text = "${Loc.Launcher.hello}, $userName!",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -215,7 +222,7 @@ fun LauncherScreen(
         Spacer(modifier = Modifier.height(48.dp))
         
         // App Grid/List
-        if (settingsManager.isGridLayout()) {
+        if (isGridLayout) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier.fillMaxWidth(),
@@ -223,15 +230,13 @@ fun LauncherScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                AppProperties.allApps.forEach { app ->
-                    if (settingsManager.isAppVisible(app.id)) {
-                        item {
-                            AppIcon(
-                                name = app.getName(),
-                                icon = app.icon!!,
-                                onClick = clickHandlers[app.id] ?: {}
-                            )
-                        }
+                visibleApps.forEach { app ->
+                    item {
+                        AppIcon(
+                            name = app.getName(),
+                            icon = app.icon!!,
+                            onClick = clickHandlers[app.id] ?: {}
+                        )
                     }
                 }
             }
@@ -241,15 +246,13 @@ fun LauncherScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                AppProperties.allApps.forEach { app ->
-                    if (settingsManager.isAppVisible(app.id)) {
-                        item {
-                            AppListRow(
-                                name = app.getName(),
-                                icon = app.icon!!,
-                                onClick = clickHandlers[app.id] ?: {}
-                            )
-                        }
+                visibleApps.forEach { app ->
+                    item {
+                        AppListRow(
+                            name = app.getName(),
+                            icon = app.icon!!,
+                            onClick = clickHandlers[app.id] ?: {}
+                        )
                     }
                 }
             }

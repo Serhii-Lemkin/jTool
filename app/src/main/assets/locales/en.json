@@ -125,7 +125,7 @@
     "calendar_selectCalendarSubtitle": "Please select a specific Google Calendar in settings to enable synchronization.",
     "calendar_noCalendarsFound": "No calendars found. Please check permissions.",
     "calendar_accessRequiredTitle": "Calendar Access Required",
-    "calendar_accessRequiredMsg": "To sync your shifts with Google Calendar, jTool needs permission to read and write to your device's calendar.",
+    "calendar_accessRequiredMsg": "To sync your shifts with Google Calendar, jTools needs permission to read and write to your device's calendar.",
     "calendar_requiredFieldsTitle": "Required Fields Missing",
     "calendar_requiredFieldsMsg": "Please fill in all required fields before saving the event.",
     "calendar_pending": "Pending",
@@ -568,10 +568,10 @@
     "calendar_typeErrand": "Errand",
     "calendar_typeRegular": "Regular",
     "calendar_allowAppLinks": "Allow App Links",
-    "calendar_allowAppLinksSubtitle": "Enable jTool to open links directly without a browser",
+    "calendar_allowAppLinksSubtitle": "Enable jTools to open links directly without a browser",
     "calendar_appLinksVerified": "App Links Verified",
     "general_stranger": "Stranger",
     "general_aboutApp": "About App",
-    "general_landingPageSubtitle": "Learn more about jTool features"
+    "general_landingPageSubtitle": "Learn more about jTools features"
   }
 }

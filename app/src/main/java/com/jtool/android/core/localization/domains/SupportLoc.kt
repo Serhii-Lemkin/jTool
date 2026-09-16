@@ -31,4 +31,6 @@ object SupportLoc {
     val id_copied get() = Loc.s("support_id_copied", "ID Copied")
     val copy_crash_log get() = Loc.s("support_copy_crash_log", "Copy Crash Log")
     val crash_log_copied get() = Loc.s("support_crash_log_copied", "Crash log copied to clipboard")
+    val copy_request_text get() = Loc.s("support_copy_request_text", "Copy Request Text")
+    val request_text_copied get() = Loc.s("support_request_text_copied", "Request text copied to clipboard")
 }

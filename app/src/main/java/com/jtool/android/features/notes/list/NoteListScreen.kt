@@ -24,9 +24,10 @@ import com.jtool.android.features.notes.NotesUiState
 import com.jtool.android.features.notes.NotesViewModel
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.jtool.android.core.components.layout.ActionListItem
-import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.notes.components.new_note_sheet.NewNoteSheet
+import com.jtool.android.features.notes.components.note_filter_sheet.NoteFilterSheet
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,6 +36,7 @@ import java.util.*
 fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () -> Unit) {
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
     var showNewNoteSheet by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
@@ -45,53 +47,37 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
         )
     }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = Loc.Notes.notes,
-                onBack = onBack,
-                isLoading = uiState.isLoading || uiState.isRefreshing,
-                onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
-                isSearchVisible = uiState.isSearchVisible,
-                searchQuery = draftSearchQuery,
-                onSearchQueryChange = { draftSearchQuery = it },
-                onSearchClose = {
-                    viewModel.onEvent(NotesEvent.UpdateSearchQuery(""))
-                    viewModel.onEvent(NotesEvent.ToggleSearch)
-                },
-                onSearchTriggered = {
-                    viewModel.onEvent(NotesEvent.UpdateSearchQuery(draftSearchQuery))
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleSearch) }) {
-                        Icon(Icons.Default.Search, null)
-                    }
-                    
-                    var filterExpanded by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { filterExpanded = true }) {
-                            Icon(Icons.Default.FilterList, null)
-                        }
-                        DropdownMenu(expanded = filterExpanded, onDismissRequest = { filterExpanded = false }) {
-                            DropdownMenuItem(
-                                text = { Text(Loc.ShopList.all) },
-                                onClick = { viewModel.onEvent(NotesEvent.SetFilterType(null)); filterExpanded = false },
-                                trailingIcon = { if (uiState.filterType == null) Icon(Icons.Default.Check, null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(Loc.Notes.textNote) },
-                                onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.TEXT)); filterExpanded = false },
-                                trailingIcon = { if (uiState.filterType == NoteTypeEnum.TEXT) Icon(Icons.Default.Check, null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(Loc.Notes.checklistNote) },
-                                onClick = { viewModel.onEvent(NotesEvent.SetFilterType(NoteTypeEnum.CHECKLIST)); filterExpanded = false },
-                                trailingIcon = { if (uiState.filterType == NoteTypeEnum.CHECKLIST) Icon(Icons.Default.Check, null) }
-                            )
-                        }
-                    }
-                }
-            )
+    if (showFilterSheet) {
+        NoteFilterSheet(
+            currentFilter = uiState.filterType,
+            onSelectFilter = { viewModel.onEvent(NotesEvent.SetFilterType(it)) },
+            onDismiss = { showFilterSheet = false }
+        )
+    }
+
+    BaseScreen(
+        title = Loc.Notes.notes,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
+        isSearchVisible = uiState.isSearchVisible,
+        searchQuery = draftSearchQuery,
+        onSearchQueryChange = { draftSearchQuery = it },
+        onSearchClose = {
+            viewModel.onEvent(NotesEvent.UpdateSearchQuery(""))
+            viewModel.onEvent(NotesEvent.ToggleSearch)
+        },
+        onSearchTriggered = {
+            viewModel.onEvent(NotesEvent.UpdateSearchQuery(draftSearchQuery))
+        },
+        actions = {
+            IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleSearch) }) {
+                Icon(Icons.Default.Search, null)
+            }
+            
+            IconButton(onClick = { showFilterSheet = true }) {
+                Icon(Icons.Default.FilterList, null)
+            }
         },
         floatingActionButton = {
             UnifiedFAB(
@@ -101,8 +87,8 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
         }
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = { viewModel.onEvent(com.jtool.android.features.notes.NotesEvent.Refresh) },
+            isRefreshing = uiState.isLoading || uiState.isRefreshing,
+            onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
             modifier = Modifier.padding(padding).fillMaxSize()
         ) {
             LazyColumn(
@@ -127,14 +113,11 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
     var menuExpanded by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
+    val count = if (note.checklist.isNotEmpty()) note.checklist.size else note.checklistCount
     val contentPreview = if (note.type == NoteTypeEnum.TEXT) {
         note.content
     } else {
-        if (note.checklistCount <= 0) {
-            ""
-        } else {
-            "${note.checklistCount} ${if (note.checklistCount == 1) Loc.General.item else Loc.General.items}"
-        }
+        "$count ${if (count == 1) Loc.General.item else Loc.General.items}"
     }
 
     val authorName = userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy

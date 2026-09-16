@@ -43,7 +43,15 @@ class AuthManager(private val context: Context) {
     suspend fun signInWithGoogle(account: GoogleSignInAccount): Boolean {
         val credential = GoogleAuthProvider.getCredential(account.idToken, null)
         return try {
-            auth.signInWithCredential(credential).await()
+            val result = auth.signInWithCredential(credential).await()
+            val firebaseUser = result.user
+            val name = account.displayName ?: firebaseUser?.displayName
+            if (!name.isNullOrEmpty()) {
+                val settings = SettingsManager(context)
+                if (settings.getUserName().isEmpty() || settings.getUserName() == "User") {
+                    settings.saveUserName(name)
+                }
+            }
             true
         } catch (e: Exception) {
             Log.e("jTool", "Firebase Authentication Failed: ${e.message}", e)
@@ -52,20 +60,8 @@ class AuthManager(private val context: Context) {
     }
 
     fun signOut() {
-        context.getSharedPreferences(PersistencePrefixEnum.SHOPPING.prefix, Context.MODE_PRIVATE).edit().clear().apply()
-        context.getSharedPreferences(PersistencePrefixEnum.NOTES.prefix, Context.MODE_PRIVATE).edit().clear().apply()
-        context.getSharedPreferences(PersistencePrefixEnum.LINKS.prefix, Context.MODE_PRIVATE).edit().clear().apply()
-
         val settings = SettingsManager(context)
-        settings.setCurrentGroupId(null)
-        settings.clearAllGroups()
-        context.getSharedPreferences("jtool_settings", Context.MODE_PRIVATE).edit()
-            .remove("group_ids")
-            .remove("remembered_groups")
-            .remove("user_name")
-            .remove("current_group_id")
-            .apply()
-
+        settings.purgeAllUserData()
         auth.signOut()
         getSignInClient().signOut()
     }

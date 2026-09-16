@@ -41,7 +41,8 @@ fun AppVisibilityScreen(
             AppScreenEnum.NOTES to Loc.Notes.notes,
             AppScreenEnum.LINKS to Loc.Links.links,
             AppScreenEnum.CLEANING to Loc.Cleaning.cleaning,
-            AppScreenEnum.CALENDAR to Loc.Calendar.calendar
+            AppScreenEnum.CALENDAR to Loc.Calendar.calendar,
+            AppScreenEnum.TRENDIFY to Loc.Tracker.trendify
         )
     }
 

@@ -9,6 +9,7 @@ import com.jtool.android.core.models.calendar.enums.GridEventStyleEnum
 import com.jtool.android.core.models.user.PublicProfile
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
+import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.Duration
@@ -64,6 +65,10 @@ class SettingsManager(context: Context) {
 
     fun setDarkMode(enabled: Boolean) {
         prefs.edit().putBoolean("dark_mode", enabled).apply()
+    }
+
+    fun hasDarkModeBeenSet(): Boolean {
+        return prefs.contains("dark_mode")
     }
 
     fun getUserName(): String {
@@ -323,5 +328,45 @@ class SettingsManager(context: Context) {
 
     fun saveProfilesLastModified(timestamp: Long) {
         prefs.edit().putLong("profiles_last_modified", timestamp).apply()
+    }
+
+    private val contextRef = context
+
+    fun checkAndPurgeIfUserChanged(currentUid: String?): Boolean {
+        val lastUid = prefs.getString("last_active_user_uid", null)
+        if (lastUid != currentUid) {
+            purgeAllUserData()
+            prefs.edit().putString("last_active_user_uid", currentUid).apply()
+            return true
+        }
+        return false
+    }
+
+    fun purgeAllUserData() {
+        val featurePrefixes = listOf("shopping", "notes", "links", "cleaning", "tracker", "calendar", "workday", "support")
+        try {
+            val dir = File(contextRef.applicationInfo.dataDir, "shared_prefs")
+            if (dir.exists() && dir.isDirectory) {
+                dir.listFiles()?.forEach { file ->
+                    val name = file.nameWithoutExtension
+                    if (featurePrefixes.any { name.startsWith(it) }) {
+                        contextRef.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().apply()
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        setCurrentGroupId(null)
+        clearAllGroups()
+        prefs.edit()
+            .remove("group_ids")
+            .remove("remembered_groups")
+            .remove("user_name")
+            .remove("current_group_id")
+            .remove("app_user_id")
+            .remove("public_profiles")
+            .remove("calendar_config")
+            .remove("worktime_options")
+            .apply()
     }
 }

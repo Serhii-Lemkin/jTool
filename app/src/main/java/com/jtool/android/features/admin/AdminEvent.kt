@@ -8,6 +8,7 @@ sealed interface AdminEvent {
     data class UpdateUserSearchQuery(val query: String) : AdminEvent
     object ApplyUserSearch : AdminEvent
     data class SetUserAdminStatus(val uid: String, val isAdmin: Boolean) : AdminEvent
+    data class SetUserReviewerStatus(val uid: String, val isReviewer: Boolean) : AdminEvent
     data class RequestDeleteUser(val uid: String?, val step: Int) : AdminEvent
     data class ConfirmDeleteUser(val uid: String) : AdminEvent
 
@@ -36,5 +37,4 @@ sealed interface AdminEvent {
     ) : AdminEvent
     
     object Refresh : AdminEvent
-    object CleanupCalendarData : AdminEvent
 }

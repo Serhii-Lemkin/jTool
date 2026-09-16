@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -44,7 +43,7 @@ fun MemberPickerSheet(
         ) {
             val isAllSelected = selectedUserIds.size == allUserIds.size
             
-            // "All" Option
+            // "Select All" Option
             if (allUserIds.size > 1) {
                 Row(
                     modifier = Modifier
@@ -60,14 +59,15 @@ fun MemberPickerSheet(
                         Icon(Icons.Default.Groups, null, tint = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = Loc.Tracker.allPeople,
+                            text = if (isAllSelected) Loc.Tracker.deselectAll else Loc.Tracker.selectAll,
                             style = MaterialTheme.typography.bodyLarge,
                             color = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    if (isAllSelected) {
-                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
-                    }
+                    Switch(
+                        checked = isAllSelected,
+                        onCheckedChange = { _ -> onSelectAll() }
+                    )
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -77,7 +77,7 @@ fun MemberPickerSheet(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)
             ) {
                 items(allUserIds) { uid ->
-                    val isSelected = uid in selectedUserIds && (allUserIds.size == 1 || !isAllSelected)
+                    val isSelected = uid in selectedUserIds
                     val name = userNames[uid] ?: Loc.General.unknown
                     
                     Row(
@@ -108,9 +108,10 @@ fun MemberPickerSheet(
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        if (isSelected) {
-                            Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
-                        }
+                        Switch(
+                            checked = isSelected,
+                            onCheckedChange = { _ -> onUserSelected(uid) }
+                        )
                     }
                 }
             }

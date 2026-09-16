@@ -126,7 +126,7 @@
     "calendar_selectCalendarSubtitle": "Будь ласка, виберіть конкретний Google Календар у налаштуваннях, щоб увімкнути синхронізацію.",
     "calendar_noCalendarsFound": "Календарів не знайдено. Перевірте дозволи.",
     "calendar_accessRequiredTitle": "Потрібен доступ до календаря",
-    "calendar_accessRequiredMsg": "Для синхронізації ваших змін із Google Календарем jTool потрібен дозвіл на читання та запис у календарі вашого пристрою.",
+    "calendar_accessRequiredMsg": "Для синхронізації ваших змін із Google Календарем jTools потрібен дозвіл на читання та запис у календарі вашого пристрою.",
     "calendar_requiredFieldsTitle": "Не заповнено обов'язкові поля",
     "calendar_requiredFieldsMsg": "Будь ласка, заповніть усі обов'язкові поля перед збереженням події.",
     "calendar_pending": "Очікує підтвердження",
@@ -581,10 +581,10 @@
     "calendar_typeErrand": "Справи",
     "calendar_typeRegular": "Звичайна",
     "calendar_allowAppLinks": "Дозволити посилання програми",
-    "calendar_allowAppLinksSubtitle": "Дозволити jTool відкривати посилання безпосередньо без браузера",
+    "calendar_allowAppLinksSubtitle": "Дозволити jTools відкривати посилання безпосередньо без браузера",
     "calendar_appLinksVerified": "Посилання програми підтверджено",
     "general_stranger": "Незнайомець",
     "general_aboutApp": "Про додаток",
-    "general_landingPageSubtitle": "Дізнайтеся більше про можливості jTool"
+    "general_landingPageSubtitle": "Дізнайтеся більше про можливості jTools"
   }
 }

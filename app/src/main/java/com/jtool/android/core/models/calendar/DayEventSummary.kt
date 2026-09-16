@@ -7,7 +7,8 @@ data class EventPreview(
     val id: String = "",
     val title: String = "",
     val colorKey: String? = null,
-    val isDeclined: Boolean = false
+    val isDeclined: Boolean = false,
+    val groupTagName: String? = null
 )
 
 @Keep

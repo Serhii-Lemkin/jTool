@@ -51,13 +51,7 @@ fun ResetCalendarConfirmSheet(
             ) {
                 Text("Reset Everything")
             }
-            Spacer(Modifier.height(8.dp))
-            TextButton(
-                onClick = onDismiss, 
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
-            ) {
-                Text(Loc.General.cancel)
-            }
+
         }
     }
 }
