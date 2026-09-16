@@ -42,7 +42,9 @@ fun AppNavigation(
     currentLang: String,
     onLangToggle: () -> Unit,
     notificationCount: Int,
-    onNotificationsClick: () -> Unit
+    onNotificationsClick: () -> Unit,
+    pendingScreen: AppScreenEnum? = null,
+    onPendingScreenHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var currentScreen by remember { mutableStateOf(AppScreenEnum.LAUNCHER) }
@@ -69,6 +71,13 @@ fun AppNavigation(
             currentScreen = screenStack.last()
         } else {
             currentScreen = AppScreenEnum.LAUNCHER
+        }
+    }
+
+    LaunchedEffect(pendingScreen) {
+        if (pendingScreen != null) {
+            navigateTo(pendingScreen)
+            onPendingScreenHandled()
         }
     }
     

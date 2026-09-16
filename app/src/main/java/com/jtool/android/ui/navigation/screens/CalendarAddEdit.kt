@@ -1,6 +1,7 @@
 package com.jtool.android.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,16 +28,28 @@ object CalendarAddEdit : AppProperties(AppScreenEnum.CALENDAR_ADD_EDIT) {
         )
         
         val uiState by viewModel.uiState.collectAsState()
+        
+        LaunchedEffect(Unit) {
+            if (uiState.editingEvent == null) {
+                deps.settingsManager.getSelectedCalendarEventId()?.let { id ->
+                    viewModel.prepareEdit(id)
+                }
+            }
+        }
+
+        val extension = uiState.editingEvent?.id?.let { uiState.extensions[it] }
 
         CalendarAddEditScreen(
             event = uiState.editingEvent,
+            extension = extension,
             selectedDate = uiState.selectedDate,
             onBack = { deps.onBack() },
-            onConfirm = { event, groupIds ->
-                viewModel.addEvent(context, event, groupIds)
+            onConfirm = { event, ext ->
+                viewModel.addEvent(context, event, ext)
                 deps.onBack()
             },
-            settingsManager = deps.settingsManager
+            settingsManager = deps.settingsManager,
+            groups = deps.groups
         )
     }
 }

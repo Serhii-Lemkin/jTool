@@ -30,7 +30,9 @@ fun ActionListItem(
     headlineColor: Color = MaterialTheme.colorScheme.onSurface,
     supportingColor: Color = MaterialTheme.colorScheme.secondary,
     metadataColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-    supportingMaxLines: Int = 1
+    supportingMaxLines: Int = Int.MAX_VALUE,
+    headlineMaxLines: Int = Int.MAX_VALUE,
+    metadataMaxLines: Int = Int.MAX_VALUE
 ) {
     val alpha = if (isPending) 0.5f else 1.0f
     
@@ -48,8 +50,8 @@ fun ActionListItem(
                     textDecoration = if (isStrikethrough) TextDecoration.LineThrough else TextDecoration.None
                 ),
                 color = headlineColor.copy(alpha = if (isStrikethrough) 0.6f else alpha),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                maxLines = headlineMaxLines,
+                overflow = if (headlineMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis
             )
         },
         supportingContent = {
@@ -61,7 +63,7 @@ fun ActionListItem(
                             style = MaterialTheme.typography.bodyMedium,
                             color = supportingColor.copy(alpha = alpha),
                             maxLines = supportingMaxLines,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = if (supportingMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis
                         )
                     }
                     if (metadataText != null) {
@@ -69,8 +71,8 @@ fun ActionListItem(
                             text = metadataText,
                             style = MaterialTheme.typography.labelSmall,
                             color = metadataColor.copy(alpha = alpha),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines = metadataMaxLines,
+                            overflow = if (metadataMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis
                         )
                     }
                 }

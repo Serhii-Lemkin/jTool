@@ -137,20 +137,15 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
         }
     }
 
+    val authorName = userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy
+    val dateStr = dateFormat.format(Date(note.timestamp))
+    val metadataText = "${Loc.General.by} $authorName • $dateStr"
+
     ActionListItem(
         onClick = { viewModel.onEvent(NotesEvent.OpenNote(note, false)) },
         headline = note.title.ifBlank { Loc.Notes.untitledNote },
         supportingText = contentPreview,
-        metadataText = buildString {
-            append("${Loc.General.by} ${userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy}")
-            append(" • ")
-            append(dateFormat.format(Date(note.timestamp)))
-            if (note.commentCount > 0) {
-                append(" • ")
-                append(note.commentCount)
-                append(" 💬")
-            }
-        },
+        metadataText = metadataText,
         leadingContent = {
             Icon(
                 imageVector = if (note.type == NoteTypeEnum.TEXT) Icons.AutoMirrored.Filled.Notes else Icons.Default.Checklist,

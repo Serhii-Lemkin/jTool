@@ -1,37 +1,42 @@
 package com.jtool.android.core.models.calendar
 
 import androidx.annotation.Keep
-import com.google.firebase.firestore.IgnoreExtraProperties
-import com.jtool.android.core.models.calendar.enums.CalendarEventStatusEnum
-import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import kotlinx.serialization.Serializable
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 @Keep
-@IgnoreExtraProperties
 @Serializable
 data class CalendarEvent(
-    val id: String = "",
+    val id: String = "", // Google Event ID
     val title: String = "",
-    val type: CalendarEventTypeEnum = CalendarEventTypeEnum.COMMON,
-    val date: String = "", // Legacy: keeping for backward compatibility
-    val startTime: String = "", // Legacy: keeping for backward compatibility
-    val endTime: String? = null, // Legacy: keeping for backward compatibility
-    val dateCreated: Long = System.currentTimeMillis(),
-    val createdBy: String = "",
-    val sharedGroupIds: List<String> = emptyList(), // Visibility list
     val note: String = "",
-    val status: CalendarEventStatusEnum = CalendarEventStatusEnum.REGULAR,
-    val origin: String? = null,
     val allDay: Boolean = false,
-
-    // Collaboration & Permissions
-    val ownerUid: String = "",
-    val originalEventId: String? = null,
-    val sharedToGroups: Map<String, String> = emptyMap(),
-
-    // Google Sync
+    val dtStart: Long? = null,
+    val dtEnd: Long? = null,
+    val attendees: List<String> = emptyList(), // Emails
     val googleCalendarId: String? = null,
-    val googleEventId: String? = null,
-    val dtStart: Long? = null, // SOURCE OF TRUTH
-    val dtEnd: Long? = null  // SOURCE OF TRUTH
-)
+    val currentUserStatus: Int? = null, // From CalendarContract.Attendees.ATTENDEE_STATUS
+    val iCalUID: String? = null,
+    val organizer: String? = null,
+    val attendeeStatuses: Map<String, Int> = emptyMap(),
+    val colorKey: String? = null
+) {
+    val date: String get() = dtStart?.let { 
+        if (allDay) {
+            Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
+        } else {
+            Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate().toString() 
+        }
+    } ?: ""
+
+    val startTime: String get() = dtStart?.let { 
+        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+    } ?: ""
+
+    val endTime: String get() = dtEnd?.let { 
+        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+    } ?: ""
+}

@@ -1,5 +1,6 @@
 package com.jtool.android.features.admin
 
+import android.util.Log
 import com.jtool.android.core.models.admin.enums.AdminSubScreenEnum
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -15,7 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -120,7 +123,8 @@ fun AdminPanelScreen(
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (uiState.currentSubScreen) {
                 AdminSubScreenEnum.MAIN -> AdminMainScreen(
-                    onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) }
+                    onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) },
+                    onCleanupCalendar = { viewModel.onEvent(AdminEvent.CleanupCalendarData) }
                 )
                 AdminSubScreenEnum.USERS -> UsersTab(viewModel, uiState)
                 AdminSubScreenEnum.GROUPS -> GroupsTab(viewModel, uiState)
@@ -132,8 +136,11 @@ fun AdminPanelScreen(
 
 @Composable
 fun AdminMainScreen(
-    onNavigate: (AdminSubScreenEnum) -> Unit
+    onNavigate: (AdminSubScreenEnum) -> Unit,
+    onCleanupCalendar: () -> Unit
 ) {
+    val clipboardManager = LocalClipboardManager.current
+
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             AdminMenuItem(
@@ -156,7 +163,7 @@ fun AdminMainScreen(
         item {
             AdminMenuItem(
                 title = Loc.General.notifications,
-                subtitle = "Send messages to users or groups",
+                subtitle = Loc.Admin.sendNotifSubtitle,
                 icon = Icons.Default.NotificationAdd,
                 onClick = { onNavigate(AdminSubScreenEnum.NOTIFICATIONS) }
             )
@@ -164,10 +171,37 @@ fun AdminMainScreen(
         }
         item {
             AdminMenuItem(
-                title = "Simulate Crash",
-                subtitle = "Triggers a fatal exception to test crash reporting",
+                title = Loc.Admin.copyLogs,
+                subtitle = Loc.Admin.copyLogsSubtitle,
+                icon = Icons.Default.ContentPaste,
+                onClick = {
+                    try {
+                        val process = Runtime.getRuntime().exec("logcat -d")
+                        val reader = process.inputStream.bufferedReader()
+                        val logs = reader.readText()
+                        clipboardManager.setText(AnnotatedString(logs))
+                    } catch (e: Exception) {
+                        Log.e("AdminPanel", "Failed to copy logs", e)
+                    }
+                }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        }
+        item {
+            AdminMenuItem(
+                title = Loc.Admin.simulateCrash,
+                subtitle = Loc.Admin.simulateCrashSubtitle,
                 icon = Icons.Default.BugReport,
                 onClick = { throw RuntimeException("Manual Crash Simulation") }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        }
+        item {
+            AdminMenuItem(
+                title = "Cleanup Calendar Data",
+                subtitle = "Delete all Firestore calendar events and reset user configs",
+                icon = Icons.Default.DeleteSweep,
+                onClick = onCleanupCalendar
             )
         }
     }

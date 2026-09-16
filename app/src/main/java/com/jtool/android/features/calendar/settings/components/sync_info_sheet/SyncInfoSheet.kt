@@ -28,15 +28,6 @@ fun SyncInfoSheet(
             InfoSection(Loc.Calendar.pullEvents, Loc.Calendar.syncInfoPull)
             InfoSection(Loc.Calendar.pushEvents, Loc.Calendar.syncInfoPush)
             InfoSection(Loc.Calendar.shared, Loc.Calendar.syncInfoPartial)
-            
-            Spacer(Modifier.height(8.dp))
-            
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
-            ) {
-                Text(Loc.General.gotIt)
-            }
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.jtool.android.features.calendar.grid
 
+import android.provider.CalendarContract
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,26 +19,35 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle as ComposeTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.calendar.CalendarEvent
+import com.jtool.android.core.models.calendar.CalendarEventExtension
 import com.jtool.android.core.models.calendar.DayEventSummary
-import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
+import com.jtool.android.core.models.calendar.enums.GridEventStyleEnum
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getEventColor
+import com.jtool.android.features.calendar.grid.components.CalendarGridActionSheet
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.Locale
+import java.time.format.TextStyle as TimeTextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,11 +55,17 @@ fun CalendarGridScreen(
     onBack: () -> Unit,
     onNavigate: (AppScreenEnum) -> Unit,
     viewModel: CalendarGridViewModel,
-    settingsManager: SettingsManager
+    groups: Map<String, GroupInfo>
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val groups = remember { settingsManager.getGroups() }
-    var showFilterSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
+    val workShiftColorKey = settingsManager.getWorkShiftColorKey()
+    var showActionSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
 
     if (uiState.showAddEditDialog) {
         SideEffect {
@@ -56,47 +74,13 @@ fun CalendarGridScreen(
         }
     }
 
-    if (showFilterSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showFilterSheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 48.dp, start = 24.dp, end = 24.dp)
-            ) {
-                Text(
-                    text = Loc.Calendar.selectGroups,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(16.dp))
-                groups.values.filter { !it.isPrivate }.forEach { group ->
-                    val isVisible = uiState.visibleGroupIds.isEmpty() || uiState.visibleGroupIds.contains(group.id)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.toggleGroupVisibility(group.id) }
-                            .padding(vertical = 12.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = group.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        
-                        Switch(
-                            checked = isVisible,
-                            onCheckedChange = { viewModel.toggleGroupVisibility(group.id) }
-                        )
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                }
-            }
-        }
+    if (showActionSheet) {
+        CalendarGridActionSheet(
+            showDeclinedEvents = uiState.showDeclinedEvents,
+            onToggleShowDeclined = { viewModel.toggleShowDeclinedEvents() },
+            onSettings = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) },
+            onDismiss = { showActionSheet = false }
+        )
     }
 
     Scaffold(
@@ -106,16 +90,12 @@ fun CalendarGridScreen(
                 onBack = onBack,
                 actions = {
                     TitleActionIcon(
-                        icon = Icons.Default.FilterList,
-                        onClick = { showFilterSheet = true }
-                    )
-                    TitleActionIcon(
                         icon = Icons.Default.Refresh,
                         onClick = { viewModel.refresh() }
                     )
                     TitleActionIcon(
-                        icon = Icons.Default.Settings,
-                        onClick = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) }
+                        icon = Icons.Default.MoreVert,
+                        onClick = { showActionSheet = true }
                     )
                 }
             )
@@ -126,34 +106,20 @@ fun CalendarGridScreen(
             }
         }
     ) { padding ->
-        if (uiState.syncResultMessage != null) {
-            ModalBottomSheet(
-                onDismissRequest = { viewModel.clearSyncMessage() },
-                sheetState = rememberModalBottomSheetState()
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val isSuccess = uiState.syncResultMessage == Loc.Calendar.syncCompleted
-                    Icon(
-                        if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
-                        null,
-                        tint = if (isSuccess) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(64.dp)
-                    )
+        val calendarId = viewModel.settingsManager.getGoogleCalendarId()
+        if (calendarId.isEmpty()) {
+            Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                    Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = uiState.syncResultMessage!!,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(32.dp))
-                    Button(onClick = { viewModel.clearSyncMessage() }, modifier = Modifier.fillMaxWidth()) {
-                        Text(Loc.General.close)
+                    Text(Loc.Calendar.selectCalendarSubtitle, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(24.dp))
+                    Button(onClick = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) }) {
+                        Text(Loc.Calendar.selectCalendar)
                     }
                 }
             }
+            return@Scaffold
         }
 
         PullToRefreshBox(
@@ -167,16 +133,18 @@ fun CalendarGridScreen(
                         currentMonth = uiState.selectedMonth,
                         onMonthChange = { viewModel.onMonthChange(it) }
                     )
-                    
+
                     Spacer(Modifier.height(16.dp))
-                    
+
                     DaysOfWeekHeader()
-                    
+
+                    val gridStyle = remember(uiState) { settingsManager.getGridEventStyle() }
                     CalendarGrid(
                         selectedMonth = uiState.selectedMonth,
                         selectedDate = uiState.selectedDate,
                         eventSummaries = uiState.eventSummaries,
-                        onDateSelected = { 
+                        gridStyle = gridStyle,
+                        onDateSelected = {
                             viewModel.onDateSelected(it)
                         }
                     )
@@ -185,7 +153,7 @@ fun CalendarGridScreen(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 val selectedDateEvents = uiState.privateEvents.filter { it.date == uiState.selectedDate.toString() }
-                
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
@@ -204,7 +172,7 @@ fun CalendarGridScreen(
                                 text = Loc.Calendar.eventsFor.format(formattedSelectedDate),
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            
+
                             TextButton(onClick = { onNavigate(AppScreenEnum.CALENDAR_DAY) }) {
                                 Icon(Icons.Default.CalendarViewDay, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -221,21 +189,20 @@ fun CalendarGridScreen(
                         }
                     } else {
                         items(selectedDateEvents, key = { it.id }) { event ->
+                            val extension = uiState.extensions[event.id]
                             EventItem(
                                 event = event,
-                                settingsManager = settingsManager,
-                                onClick = { 
+                                extension = extension,
+                                groups = groups,
+                                workShiftColorKey = workShiftColorKey,
+                                onClick = {
                                     viewModel.onEventClicked(event)
-                                    if (event.id.startsWith("virtual_")) {
-                                        onNavigate(AppScreenEnum.CALENDAR_ADD_EDIT)
-                                    } else {
-                                        onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
-                                    }
+                                    onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
                                 }
                             )
                         }
                     }
-                    
+
                     item { Spacer(Modifier.height(80.dp)) }
                 }
             }
@@ -244,7 +211,18 @@ fun CalendarGridScreen(
 }
 
 @Composable
-private fun EventItem(event: CalendarEvent, settingsManager: SettingsManager, onClick: () -> Unit) {
+private fun EventItem(
+    event: CalendarEvent,
+    extension: CalendarEventExtension?,
+    groups: Map<String, GroupInfo>,
+    workShiftColorKey: String,
+    onClick: () -> Unit
+) {
+    val isDeclined = event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
+    val themeColor = getEventColor(event.colorKey)
+    val isWork = (event.colorKey != null && event.colorKey == workShiftColorKey) ||
+            (event.colorKey == null && workShiftColorKey == "1")
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -253,37 +231,60 @@ private fun EventItem(event: CalendarEvent, settingsManager: SettingsManager, on
         )
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(16.dp).alpha(if (isDeclined) 0.6f else 1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (event.type == CalendarEventTypeEnum.SHIFT) Icons.Default.Work else Icons.Default.Event,
-                contentDescription = null,
-                tint = if (event.type == CalendarEventTypeEnum.SHIFT) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (isDeclined) MaterialTheme.colorScheme.error else themeColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isWork) Icons.Default.Work else Icons.Default.Event,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(event.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    text = event.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = if (isDeclined) TextDecoration.LineThrough else null
+                )
                 if (event.allDay) {
-                    Text(Loc.Calendar.allDay ?: "All Day", style = MaterialTheme.typography.bodySmall)
+                    Text(Loc.Calendar.allDay, style = MaterialTheme.typography.labelSmall)
                 } else {
-                    Text("${event.startTime} - ${event.endTime ?: ""}", style = MaterialTheme.typography.bodySmall)
+                    Text("${event.startTime} - ${event.endTime}", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            
-            if (event.sharedGroupIds.isNotEmpty()) {
-                val groups = settingsManager.getGroups()
-                Column(horizontalAlignment = Alignment.End) {
-                    event.sharedGroupIds.forEach { gid ->
+
+            val sharedGroupIds = extension?.sharedGroupIds ?: emptyList()
+            if (sharedGroupIds.isNotEmpty()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.padding(vertical = 1.dp)
+                ) {
+                    val label = if (sharedGroupIds.size == 1) {
+                        val gid = sharedGroupIds.first()
                         val group = groups[gid]
-                        if (group != null) {
-                            AssistChip(
-                                onClick = {},
-                                label = { Text(if (group.isPrivate) "Private" else group.name, fontSize = 10.sp) },
-                                modifier = Modifier.height(20.dp).padding(vertical = 1.dp)
-                            )
-                        }
+                        if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
+                    } else {
+                        "${sharedGroupIds.size} groups"
                     }
+
+                    Text(
+                        text = label.uppercase(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 }
             }
         }
@@ -300,13 +301,13 @@ private fun MonthHeader(currentMonth: YearMonth, onMonthChange: (YearMonth) -> U
         IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
             Icon(Icons.Default.ChevronLeft, null)
         }
-        
+
         Text(
             text = "${Loc.getMonthName(currentMonth.month)} ${currentMonth.year}",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        
+
         IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
             Icon(Icons.Default.ChevronRight, null)
         }
@@ -319,7 +320,7 @@ private fun DaysOfWeekHeader() {
         val days = listOf(DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)
         days.forEach { day ->
             Text(
-                text = Loc.getDayOfWeekName(day, TextStyle.SHORT),
+                text = Loc.getDayOfWeekName(day, TimeTextStyle.SHORT),
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.labelMedium,
@@ -334,19 +335,21 @@ private fun CalendarGrid(
     selectedMonth: YearMonth,
     selectedDate: LocalDate,
     eventSummaries: Map<String, DayEventSummary>,
+    gridStyle: GridEventStyleEnum,
     onDateSelected: (LocalDate) -> Unit
 ) {
     val firstDayOfMonth = selectedMonth.atDay(1)
     val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
     val daysInMonth = selectedMonth.lengthOfMonth()
-    
+
     val totalCells = daysInMonth + firstDayOfWeek
     val rows = (totalCells + 6) / 7
-    
+    val gridHeight = if (gridStyle == GridEventStyleEnum.CHIPS) (rows * 78).dp else 280.dp
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(7),
-        modifier = Modifier.fillMaxWidth().height(280.dp),
-        contentPadding = PaddingValues(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().height(gridHeight),
+        contentPadding = PaddingValues(vertical = 4.dp),
         userScrollEnabled = false
     ) {
         items(rows * 7) { index ->
@@ -357,63 +360,142 @@ private fun CalendarGrid(
                     date = date,
                     summary = eventSummaries[date.toString()],
                     isSelected = date == selectedDate,
+                    gridStyle = gridStyle,
                     onClick = { onDateSelected(date) }
                 )
             } else {
-                Box(modifier = Modifier.aspectRatio(1f))
+                Box(modifier = Modifier.height(if (gridStyle == GridEventStyleEnum.CHIPS) 76.dp else 40.dp))
             }
         }
     }
 }
 
 @Composable
-private fun DayCell(date: LocalDate, summary: DayEventSummary?, isSelected: Boolean, onClick: () -> Unit) {
+private fun DayCell(
+    date: LocalDate,
+    summary: DayEventSummary?,
+    isSelected: Boolean,
+    gridStyle: GridEventStyleEnum,
+    onClick: () -> Unit
+) {
     val isToday = date == LocalDate.now()
-    
-    Box(
-        modifier = Modifier
+    val cellModifier = if (gridStyle == GridEventStyleEnum.CHIPS) {
+        Modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .padding(1.dp)
+            .clip(MaterialTheme.shapes.small)
+    } else {
+        Modifier
             .aspectRatio(1f)
             .padding(1.dp)
             .clip(MaterialTheme.shapes.small)
+    }
+
+    Box(
+        modifier = cellModifier
             .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer
                 else if (isToday) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
                 else Color.Transparent
             )
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize().padding(2.dp)
+            verticalArrangement = Arrangement.Top,
+            modifier = Modifier.fillMaxSize().padding(1.dp)
         ) {
             Text(
                 text = date.dayOfMonth.toString(),
-                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Normal,
+                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Bold,
                 color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                fontSize = 14.sp
+                fontSize = 11.sp
             )
-            
-            if (summary != null) {
-                val shifts = summary.typeCounts[CalendarEventTypeEnum.SHIFT] ?: 0
-                val common = summary.typeCounts[CalendarEventTypeEnum.COMMON] ?: 0
-                val total = shifts + common
 
-                if (total > 0) {
+            if (summary != null && summary.hasEvents) {
+                if (gridStyle == GridEventStyleEnum.DOTS) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 2.dp)
                     ) {
-                        val shiftDots = shifts.coerceAtMost(2)
-                        val commonDots = common.coerceAtMost(4 - shiftDots)
-                        
-                        repeat(shiftDots) {
-                            Box(Modifier.size(4.dp).background(Color(0xFF4CAF50), CircleShape))
+                        val colorKeys = if (summary.eventColorKeys.isNotEmpty()) summary.eventColorKeys else listOf(null)
+                        colorKeys.take(3).forEach { colorKey ->
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .background(getEventColor(colorKey), CircleShape)
+                            )
                         }
-                        repeat(commonDots) {
-                            Box(Modifier.size(4.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                    }
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 1.dp, start = 1.dp, end = 1.dp)
+                    ) {
+                        summary.eventPreviews.take(2).forEach { preview ->
+                            val eventColor = getEventColor(preview.colorKey)
+                            Surface(
+                                color = eventColor,
+                                shape = RoundedCornerShape(2.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(13.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 2.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = preview.title.ifEmpty { "Shared Event" },
+                                        fontSize = 8.sp,
+                                        lineHeight = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textDecoration = if (preview.isDeclined) TextDecoration.LineThrough else null,
+                                        style = ComposeTextStyle(
+                                            platformStyle = PlatformTextStyle(
+                                                includeFontPadding = false
+                                            )
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        if (summary.eventCount > 2) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(2.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(11.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "...",
+                                        fontSize = 8.sp,
+                                        lineHeight = 8.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        style = ComposeTextStyle(
+                                            platformStyle = PlatformTextStyle(
+                                                includeFontPadding = false
+                                            )
+                                        )
+                                    )
+                                }
+                            }
                         }
                     }
                 }

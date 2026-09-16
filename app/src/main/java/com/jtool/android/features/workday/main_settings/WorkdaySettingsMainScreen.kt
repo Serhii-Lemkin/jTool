@@ -1,12 +1,16 @@
 package com.jtool.android.features.workday.main_settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -17,6 +21,8 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.EventColorPickerSheet
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getGoogleCalendarColorPalette
 import java.time.DayOfWeek
 import kotlinx.coroutines.launch
 
@@ -111,6 +117,39 @@ fun WorkdaySettingsMainScreen(
                 supportingMaxLines = Int.MAX_VALUE
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            var showWorkShiftColorPicker by remember { mutableStateOf(false) }
+            var currentWorkShiftColorKey by remember { mutableStateOf(settingsManager.getWorkShiftColorKey()) }
+            val colorPalette = getGoogleCalendarColorPalette()
+            val currentColorOption = colorPalette.find { it.key == currentWorkShiftColorKey } ?: colorPalette.first()
+
+            ActionListItem(
+                headline = Loc.Calendar.workShiftColor,
+                supportingText = Loc.Calendar.workShiftColorSubtitle,
+                leadingContent = {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(currentColorOption.hexColor)
+                    )
+                },
+                onClick = { showWorkShiftColorPicker = true },
+                supportingMaxLines = Int.MAX_VALUE
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            if (showWorkShiftColorPicker) {
+                EventColorPickerSheet(
+                    selectedColorKey = currentWorkShiftColorKey,
+                    onSelectColor = { colorOption ->
+                        currentWorkShiftColorKey = colorOption.key
+                        settingsManager.setWorkShiftColorKey(colorOption.key)
+                        scope.launch { dataManager.pushUserSettings() }
+                    },
+                    onDismiss = { showWorkShiftColorPicker = false }
+                )
+            }
 
             Spacer(Modifier.weight(1f))
             

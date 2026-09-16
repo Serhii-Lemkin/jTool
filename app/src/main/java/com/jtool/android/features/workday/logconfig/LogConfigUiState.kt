@@ -20,5 +20,7 @@ data class LogConfigUiState(
     val pendingUseStable: Boolean = true,
     val pendingStableStart: String? = null,
     val pendingStableEnd: String? = null,
-    val pendingWeeklySchedule: Map<DayOfWeek, DayLogHours> = emptyMap()
+    val pendingWeeklySchedule: Map<DayOfWeek, DayLogHours> = emptyMap(),
+    
+    val showVirtualShiftsOnlyCurrentWeek: Boolean = false
 )

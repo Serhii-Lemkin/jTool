@@ -18,6 +18,7 @@ object GeneralLoc {
     val search get() = Loc.s("general_search", "Search")
     val searchGroups get() = Loc.s("general_searchGroups", "Search Groups")
     val cancel get() = Loc.s("general_cancel", "Cancel")
+    val decline get() = Loc.s("general_decline", "Decline")
     val save get() = Loc.s("general_save", "Save")
     val reset get() = Loc.s("general_reset", "Reset")
     val select get() = Loc.s("general_select", "Select")
@@ -38,4 +39,7 @@ object GeneralLoc {
     val item get() = Loc.s("general_item", "item")
     val items get() = Loc.s("general_items", "items")
     val gotIt get() = Loc.s("general_gotIt", "Got it")
+    val stranger get() = Loc.s("general_stranger", "Stranger")
+    val aboutApp get() = Loc.s("general_aboutApp", "About App")
+    val landingPageSubtitle get() = Loc.s("general_landingPageSubtitle", "Learn more about jTool features")
 }

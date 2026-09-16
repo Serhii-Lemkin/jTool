@@ -13,6 +13,7 @@ data class TimerState(
     val overtimeMillis: Long = 0L,
     val progress: Float = 0f,
     val isFinished: Boolean = false,
+    val isNotStarted: Boolean = false,
     val label: String? = null
 )
 
@@ -42,6 +43,7 @@ data class WorkdayTrackerUiState(
     val isSessionActive: Boolean = false,
     val activeSessionMode: WorkModeEnum? = null,
     val activeEventId: String? = null,
+    val quickStartEventId: String? = null,
     
     // Legacy / Shared
     val timeLeftMillis: Long = 0L,

@@ -22,7 +22,8 @@ object CalendarEventDetail : AppProperties(AppScreenEnum.CALENDAR_EVENT_DETAIL) 
         CalendarEventDetailScreen(
             onBack = deps.onBack,
             onNavigate = { deps.setScreen(it) },
-            viewModel = calendarViewModel
+            viewModel = calendarViewModel,
+            groups = deps.groups
         )
     }
 }

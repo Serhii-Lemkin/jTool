@@ -2,13 +2,13 @@ package com.jtool.android.ui.components.notifications_sheet
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,6 +33,7 @@ fun NotificationsSheet(
     onAcceptJoinRequest: (UserNotification) -> Unit,
     onDeclineJoinRequest: (UserNotification) -> Unit,
     onDismissNotification: (UserNotification) -> Unit,
+    onLinkClick: (String) -> Unit,
     onShowError: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -65,7 +66,7 @@ fun NotificationsSheet(
                         onAcceptJoinRequest = onAcceptJoinRequest,
                         onDeclineJoinRequest = onDeclineJoinRequest,
                         onDismissNotification = onDismissNotification,
-                        onShowError = onShowError
+                        onLinkClick = onLinkClick
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
                 }
@@ -82,24 +83,23 @@ fun AppNotificationItem(
     onAcceptJoinRequest: (UserNotification) -> Unit,
     onDeclineJoinRequest: (UserNotification) -> Unit,
     onDismissNotification: (UserNotification) -> Unit,
-    onShowError: (String) -> Unit
+    onLinkClick: (String) -> Unit
 ) {
-    val context = LocalContext.current
-
     ActionListItem(
-        onClick = if (notification.link != null) {
-            {
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(notification.link))
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    onShowError(Loc.Links.invalidUrl)
-                }
+        onClick = {
+            if (notification.link != null) {
+                onLinkClick(notification.link)
             }
-        } else null,
+            if (notification.link?.contains("/event/") != true) {
+                onDismissNotification(notification)
+            }
+        },
         headline = notification.typeTitle,
         supportingText = notification.displayTitle,
         metadataText = notification.displaySubtitle,
+        supportingMaxLines = Int.MAX_VALUE,
+        headlineMaxLines = Int.MAX_VALUE,
+        metadataMaxLines = Int.MAX_VALUE,
         leadingContent = {
             Icon(
                 imageVector = notification.icon,
@@ -110,15 +110,6 @@ fun AppNotificationItem(
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (notification.link != null) {
-                    Icon(
-                        imageVector = Icons.Default.Link,
-                        contentDescription = "Link",
-                        modifier = Modifier.size(18.dp).padding(end = 8.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                    )
-                }
-
                 when (notification.type) {
                     NotificationTypeEnum.INVITE -> {
                         IconButton(onClick = { onDeclineInvite(notification) }) {
@@ -138,7 +129,7 @@ fun AppNotificationItem(
                     }
                     else -> {
                         IconButton(onClick = { 
-                            android.util.Log.d("jTool", "User pressed dismiss on notification: ${notification.id}")
+                            Log.d("jTool", "User pressed dismiss on notification: ${notification.id}")
                             onDismissNotification(notification) 
                         }) {
                             Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)

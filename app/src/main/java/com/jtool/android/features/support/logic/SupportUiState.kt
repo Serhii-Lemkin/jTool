@@ -11,6 +11,7 @@ data class SupportUiState(
     val isAdmin: Boolean = false,
     val activeTypeFilters: Set<SupportTypeEnum> = emptySet(),
     val activeStatusFilters: Set<SupportStatusEnum> = setOf(SupportStatusEnum.OPENED, SupportStatusEnum.IN_PROGRESS),
+    val newRequestType: SupportTypeEnum = SupportTypeEnum.BUG,
     
     val isSending: Boolean = false,
     val isSuccess: Boolean = false,

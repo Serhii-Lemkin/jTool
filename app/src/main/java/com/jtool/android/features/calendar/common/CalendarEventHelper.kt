@@ -1,39 +1,46 @@
 package com.jtool.android.features.calendar.common
 
 import com.jtool.android.core.models.calendar.CalendarEvent
-import com.jtool.android.core.models.calendar.enums.CalendarEventStatusEnum
-import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import com.jtool.android.core.models.workday.WorktimeOptions
 import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
 import com.jtool.android.core.localization.Loc
+import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 
 object CalendarEventHelper {
     fun generateVirtualShifts(options: WorktimeOptions, start: LocalDate, end: LocalDate): List<CalendarEvent> {
         val virtualEvents = mutableListOf<CalendarEvent>()
+        val now = LocalDate.now()
+        val startOfWeek = now.with(DayOfWeek.valueOf(options.weeklyStartDay)).let {
+            if (it.isAfter(now)) it.minusDays(7) else it
+        }
+        val endOfWeek = startOfWeek.plusDays(6)
+
         var current = start
         while (!current.isAfter(end)) {
             val dayOfWeek = current.dayOfWeek
             
-            if (options.trackingPreference == WorkTrackingPreferenceEnum.SCHEDULE) {
-                // Do not generate virtual shifts for SCHEDULE mode as they are saved as real events
-            } else if (options.trackingPreference == WorkTrackingPreferenceEnum.LOG_HOURS) {
+            val isVisible = !options.showVirtualShiftsOnlyCurrentWeek || (!current.isBefore(startOfWeek) && !current.isAfter(endOfWeek))
+
+            if (isVisible && options.trackingPreference == WorkTrackingPreferenceEnum.LOG_HOURS) {
                 val logGoal = options.logSchedule[dayOfWeek.name]
                 if (logGoal != null && !logGoal.isConfirmedOff) {
                     val startTime = if (options.useStableApproximateHours) options.stableApproximateStart else logGoal.approximateStartTime
                     val endTime = if (options.useStableApproximateHours) options.stableApproximateEnd else logGoal.approximateEndTime
                     
                     if (!startTime.isNullOrEmpty()) {
+                        val startLdt = current.atTime(parseTime(startTime))
+                        val endLdt = if (endTime.isNullOrEmpty()) startLdt.plusHours(1) else current.atTime(parseTime(endTime))
+                        
                         virtualEvents.add(CalendarEvent(
                             title = Loc.Calendar.shift,
-                            type = CalendarEventTypeEnum.SHIFT,
-                            date = current.toString(),
-                            startTime = startTime,
-                            endTime = endTime,
-                            status = CalendarEventStatusEnum.REGULAR,
                             id = "virtual_${current}",
-                            note = "(${Loc.Calendar.private})"
+                            note = "(${Loc.Calendar.private})",
+                            dtStart = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                            dtEnd = endLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                         ))
                     }
                 }
@@ -41,20 +48,6 @@ object CalendarEventHelper {
             current = current.plusDays(1)
         }
         return virtualEvents
-    }
-
-    fun isOverlapping(s1: String, e1: String, s2: String, e2: String): Boolean {
-        return try {
-            val start1 = parseTime(s1)
-            var end1 = if (e1.isBlank()) start1.plusHours(1) else parseTime(e1)
-            if (end1.isBefore(start1) || end1 == start1) end1 = LocalTime.MAX
-            
-            val start2 = parseTime(s2)
-            var end2 = if (e2.isBlank()) start2.plusHours(1) else parseTime(e2)
-            if (end2.isBefore(start2) || end2 == start2) end2 = LocalTime.MAX
-            
-            start1.isBefore(end2) && start2.isBefore(end1)
-        } catch (_: Exception) { false }
     }
 
     fun parseTime(timeStr: String?): LocalTime {
@@ -67,7 +60,6 @@ object CalendarEventHelper {
                 val minute = if (parts.size > 1) parts[1].trim().toIntOrNull() ?: 0 else 0
                 LocalTime.of(hour.coerceIn(0, 23), minute.coerceIn(0, 59))
             } else {
-                // Handle cases like "07" or "7"
                 val hour = sanitized.trim().toIntOrNull() ?: 0
                 LocalTime.of(hour.coerceIn(0, 23), 0)
             }
@@ -93,17 +85,11 @@ object CalendarEventHelper {
                 if (t.isBefore(start) || t == start) LocalTime.MAX else t
             }
             
-            val durationMinutes = java.time.Duration.between(start, end).toMinutes().toInt()
-            
-            // Coerce to at least 15 minutes for UI interaction, but allow smaller boxes if requested.
+            val durationMinutes = Duration.between(start, end).toMinutes().toInt()
             (durationMinutes * hourHeight / 60).coerceAtLeast(hourHeight / 4)
         } catch (_: Exception) { hourHeight }
     }
 
-    /**
-     * Groups events into columns to handle side-by-side display of overlaps.
-     * Returns a map of event ID to (columnIndex, totalColumnsInGroup)
-     */
     fun calculateOverlapGroups(events: List<CalendarEvent>): Map<String, Pair<Int, Int>> {
         if (events.isEmpty()) return emptyMap()
         
@@ -133,7 +119,7 @@ object CalendarEventHelper {
     }
 
     private fun assignColumns(group: List<CalendarEvent>, result: MutableMap<String, Pair<Int, Int>>) {
-        val columns = mutableListOf<LocalTime?>() // tracks end time of last event in each column
+        val columns = mutableListOf<LocalTime?>() 
         val eventColumns = mutableMapOf<String, Int>()
         
         for (event in group) {
@@ -157,5 +143,19 @@ object CalendarEventHelper {
         for (event in group) {
             result[event.id] = Pair(eventColumns[event.id]!!, totalCols)
         }
+    }
+
+    fun mergeEvents(firestoreVer: CalendarEvent?, googleVer: CalendarEvent?): CalendarEvent {
+        return googleVer ?: firestoreVer ?: CalendarEvent()
+    }
+
+    fun mergeEventLists(firestoreEvents: List<CalendarEvent>, googleEvents: List<CalendarEvent>): List<CalendarEvent> {
+        return googleEvents // For pure Google integration, we only care about Google events
+    }
+
+    fun isWorkShift(event: CalendarEvent, workShiftColorKey: String): Boolean {
+        if (event.allDay) return false
+        val target = workShiftColorKey.ifEmpty { "7" }
+        return event.colorKey == target || (event.colorKey == null && (target == "7" || target == "1"))
     }
 }

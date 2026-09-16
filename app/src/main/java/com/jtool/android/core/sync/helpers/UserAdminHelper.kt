@@ -1,13 +1,16 @@
 package com.jtool.android.core.sync.helpers
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.jtool.android.core.models.group.GroupInfo
+import com.jtool.android.core.models.group.MemberInfo
 import com.jtool.android.core.models.user.User
 import com.jtool.android.core.models.user.UserData
-import com.jtool.android.core.models.calendar.CalendarConfig
+import com.jtool.android.core.models.user.PublicProfile
 import com.jtool.android.core.settings.SettingsManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +32,7 @@ class UserAdminHelper(
         val uid = auth.currentUser?.uid ?: return false
         val appUserId = settings.getAppUserId()
         val globalUserName = settings.getUserName()
+        val now = System.currentTimeMillis()
         return try {
             val userDoc = getUsersColl().document(uid)
             val snapshot = userDoc.get().await()
@@ -37,7 +41,8 @@ class UserAdminHelper(
             
             val coreData = mapOf(
                 User::email.name to auth.currentUser?.email,
-                User::isAdmin.name to isAdmin
+                User::isAdmin.name to isAdmin,
+                User::lastModified.name to now
             )
             userDoc.set(coreData, SetOptions.merge()).await()
             
@@ -53,29 +58,43 @@ class UserAdminHelper(
             
             val profileDoc = getPublicProfilesColl().document(uid)
             val profileSnapshot = profileDoc.get().await()
-            val existingServerName = profileSnapshot.getString(com.jtool.android.core.models.user.PublicProfile::displayName.name)
+            val existingServerName = profileSnapshot.getString(PublicProfile::displayName.name)
             
-            val profile = if (existingServerName != null && (globalUserName == "User" || globalUserName.isEmpty())) {
-                // Keep server name if local is default
-                mapOf(com.jtool.android.core.models.user.PublicProfile::displayName.name to existingServerName)
-            } else {
-                mapOf(com.jtool.android.core.models.user.PublicProfile::displayName.name to globalUserName)
-            }
+            val authEmail = auth.currentUser?.email
+            val calEmail = settings.getGoogleCalendarEmail()
+            val profile = PublicProfile(
+                uid = uid,
+                displayName = if (existingServerName != null && (globalUserName == "User" || globalUserName.isEmpty())) existingServerName else globalUserName,
+                email = authEmail?.ifEmpty { null },
+                calendarEmail = calEmail.ifEmpty { authEmail ?: "" }.ifEmpty { null },
+                lastModified = now
+            )
             
-            profileDoc.set(profile, SetOptions.merge()).await()
+            profileDoc.set(profile).await()
+            
+            // Update global metadata to trigger others to refresh
+            firestore.collection("metadata").document("public_profiles")
+                .set(mapOf("lastUpdated" to now), SetOptions.merge()).await()
+            
+            settings.setLastSyncTimestamp(now)
             true
         } catch (e: Exception) {
             false
         }
     }
 
-    suspend fun fetchUserSettings(): Boolean {
+    suspend fun fetchUserSettings(force: Boolean = false): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
             val userRef = getUsersColl().document(uid)
             val snapshot = userRef.get().await()
             val user = snapshot.toObject(User::class.java) ?: return false
             
+            val localLastSync = settings.getLastSyncTimestamp()
+            if (!force && user.lastModified != 0L && user.lastModified <= localLastSync) {
+                return true
+            }
+
             val statsSnap = getUserDataColl().document(uid).get().await()
             val stats = statsSnap.toObject(UserData::class.java) ?: UserData()
             
@@ -84,13 +103,13 @@ class UserAdminHelper(
             val validIds = mutableListOf<String>()
             var listChanged = false
             
-            // 1. Proactive scan: Find any groups user might be in but are missing from list
-            // We can check groups where ownerUid == uid as a baseline for recovery
-            val ownedGroups = getGroupsColl().whereEqualTo(GroupInfo::ownerUid.name, uid).get().await()
-            ownedGroups.documents.forEach { doc ->
-                if (!groupIds.contains(doc.id)) {
-                    groupIds.add(doc.id)
-                    listChanged = true
+            if (force || localLastSync == 0L) {
+                val ownedGroups = getGroupsColl().whereEqualTo(GroupInfo::ownerUid.name, uid).get().await()
+                ownedGroups.documents.forEach { doc ->
+                    if (!groupIds.contains(doc.id)) {
+                        groupIds.add(doc.id)
+                        listChanged = true
+                    }
                 }
             }
 
@@ -98,19 +117,16 @@ class UserAdminHelper(
                 for (gid in groupIds) {
                     try {
                         val gSnap = getGroupsColl().document(gid).get().await()
-                        
                         if (gSnap.exists()) {
                             val memberSnap = getGroupsColl().document(gid).collection("members").document(uid).get().await()
-                            
                             val group = gSnap.toObject(GroupInfo::class.java)
                             if (memberSnap.exists() || group?.ownerUid == uid) {
                                 if (group != null) {
                                     finalGroupsMap[gid] = group.copy(id = gid)
                                     validIds.add(gid)
-                                    
                                     if (!memberSnap.exists() && group.ownerUid == uid) {
                                         getGroupsColl().document(gid).collection("members").document(uid)
-                                            .set(com.jtool.android.core.models.group.MemberInfo(joinedAt = System.currentTimeMillis())).await()
+                                            .set(MemberInfo(joinedAt = System.currentTimeMillis())).await()
                                     }
                                 } else {
                                     validIds.add(gid)
@@ -123,7 +139,6 @@ class UserAdminHelper(
                         }
                     } catch (e: Exception) {
                         validIds.add(gid)
-                        android.util.Log.w("UserAdmin", "Could not verify group $gid: ${e.message}")
                     }
                 }
             }
@@ -136,7 +151,6 @@ class UserAdminHelper(
             
             val localCurrentGroupId = settings.getCurrentGroupId()
             val remoteCurrentGroupId = stats.currentGroupId
-            
             val targetGroupId = if (localCurrentGroupId != null && validIds.contains(localCurrentGroupId)) {
                 localCurrentGroupId
             } else if (remoteCurrentGroupId != null && validIds.contains(remoteCurrentGroupId)) {
@@ -145,26 +159,24 @@ class UserAdminHelper(
                 validIds.firstOrNull()
             }
             
-            if (targetGroupId != localCurrentGroupId) {
-                settings.setCurrentGroupId(targetGroupId)
-            }
-            
+            if (targetGroupId != localCurrentGroupId) settings.setCurrentGroupId(targetGroupId)
             if (remoteCurrentGroupId != targetGroupId) {
                 getUserDataColl().document(uid).update(UserData::currentGroupId.name, targetGroupId).await()
             }
             
             val pSnap = getPublicProfilesColl().document(uid).get().await()
-            pSnap.getString(com.jtool.android.core.models.user.PublicProfile::displayName.name)?.let { settings.saveUserName(it) }
+            pSnap.getString(PublicProfile::displayName.name)?.let { settings.saveUserName(it) }
+            pSnap.getString(PublicProfile::calendarEmail.name)?.let { settings.setGoogleCalendarEmail(it) }
             
             if (stats.appUserId.isNotEmpty()) settings.saveAppUserId(stats.appUserId)
             settings.setDarkMode(stats.isDarkMode)
             settings.setLanguage(stats.language)
             settings.saveWorktimeOptions(stats.worktimeOptions)
             settings.saveCalendarConfig(stats.calendarConfig)
+            settings.setLastSyncTimestamp(user.lastModified)
             
             true
         } catch (e: Exception) {
-            android.util.Log.e("UserAdmin", "Fetch settings failed", e)
             false
         }
     }
@@ -179,20 +191,30 @@ class UserAdminHelper(
     }
 
     fun allUsersFlow(): Flow<List<User>> = callbackFlow {
-        val listener = getUsersColl().addSnapshotListener { snapshot, _ ->
-            if (snapshot != null) {
-                val list = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        doc.toObject(User::class.java)?.copy(uid = doc.id)
-                    } catch (e: Exception) {
-                        android.util.Log.e("UserAdmin", "Corrupted user document ${doc.id}", e)
-                        null
-                    }
+        val listener = try {
+            getUsersColl().addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("UserAdmin", "allUsersFlow listen failed: ${error.message}")
+                    trySend(emptyList())
+                    return@addSnapshotListener
                 }
-                trySend(list)
+                if (snapshot != null) {
+                    val list = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toObject(User::class.java)?.copy(uid = doc.id)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    trySend(list)
+                }
             }
+        } catch (e: Exception) {
+            Log.e("UserAdmin", "Failed to setup allUsersFlow listener", e)
+            trySend(emptyList())
+            null
         }
-        awaitClose { listener.remove() }
+        awaitClose { listener?.remove() }
     }
 
     suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) {
@@ -200,7 +222,7 @@ class UserAdminHelper(
     }
 
     suspend fun clearWorkdayData(uid: String) {
-        getUserDataColl().document(uid).update(UserData::worktimeOptions.name, com.google.firebase.firestore.FieldValue.delete()).await()
+        getUserDataColl().document(uid).update(UserData::worktimeOptions.name, FieldValue.delete()).await()
     }
 
     suspend fun cleanupLegacyWorkHours() {
@@ -208,11 +230,11 @@ class UserAdminHelper(
             val snapshots = getUserDataColl().get().await()
             firestore.runBatch { batch ->
                 snapshots.documents.forEach { doc ->
-                    batch.update(doc.reference, "hours", com.google.firebase.firestore.FieldValue.delete())
+                    batch.update(doc.reference, "hours", FieldValue.delete())
                 }
             }.await()
         } catch (e: Exception) {
-            android.util.Log.e("UserAdmin", "Cleanup failed", e)
+            Log.e("UserAdmin", "Cleanup failed", e)
         }
     }
 
@@ -223,7 +245,6 @@ class UserAdminHelper(
                     try {
                         doc.toObject(GroupInfo::class.java)?.copy(id = doc.id)
                     } catch (e: Exception) {
-                        android.util.Log.e("UserAdmin", "Corrupted group document ${doc.id}", e)
                         null
                     }
                 }
@@ -237,24 +258,16 @@ class UserAdminHelper(
         try {
             val groupDoc = getGroupsColl().document(groupId)
             val members = groupDoc.collection("members").get().await()
-            
-            val arrayRemove = com.google.firebase.firestore.FieldValue.arrayRemove(groupId)
+            val arrayRemove = FieldValue.arrayRemove(groupId)
             members.documents.forEach { memberDoc ->
-                val uid = memberDoc.id
-                getUsersColl().document(uid).update(User::groupIds.name, arrayRemove).await()
+                getUsersColl().document(memberDoc.id).update(User::groupIds.name, arrayRemove).await()
             }
-            
-            // Delete all member documents
             members.documents.forEach { it.reference.delete().await() }
-            
             groupDoc.delete().await()
-            
-            if (settings.getCurrentGroupId() == groupId) {
-                settings.setCurrentGroupId(null)
-            }
+            if (settings.getCurrentGroupId() == groupId) settings.setCurrentGroupId(null)
             settings.removeGroup(groupId)
         } catch (e: Exception) {
-            android.util.Log.e("UserAdmin", "Delete group failed", e)
+            Log.e("UserAdmin", "Delete group failed", e)
         }
     }
 
@@ -264,16 +277,14 @@ class UserAdminHelper(
             val userSnap = userDoc.get().await()
             val user = userSnap.toObject(User::class.java)
             val groupIds = user?.groupIds ?: emptyList()
-            
             groupIds.forEach { gid ->
                 getGroupsColl().document(gid).collection("members").document(uid).delete().await()
             }
-            
             getUserDataColl().document(uid).delete().await()
             getPublicProfilesColl().document(uid).delete().await()
             userDoc.delete().await()
         } catch (e: Exception) {
-            android.util.Log.e("UserAdmin", "Failed to delete user", e)
+            Log.e("UserAdmin", "Failed to delete user", e)
         }
     }
 
@@ -290,7 +301,7 @@ class UserAdminHelper(
             val appUserId = settings.getAppUserId()
             getPublicProfilesColl().document(appUserId).delete().await()
             getPublicProfilesColl().document(uid).delete().await()
-            getUserDataColl().document(uid).delete().await() // Delete user_data
+            getUserDataColl().document(uid).delete().await()
             getUsersColl().document(uid).delete().await()
             user.delete().await()
             settings.setCurrentGroupId(null)
@@ -303,14 +314,51 @@ class UserAdminHelper(
     }
 
     fun userNamesFlow(): Flow<Map<String, String>> = callbackFlow {
-        val listener = getPublicProfilesColl().addSnapshotListener { snapshot, _ ->
-            if (snapshot != null) {
-                val map = snapshot.documents.associateBy({ it.id }, { doc ->
-                    doc.getString(com.jtool.android.core.models.user.PublicProfile::displayName.name) ?: "Unknown"
-                })
-                trySend(map)
+        val listener = try {
+            getPublicProfilesColl().addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("UserAdmin", "userNamesFlow listen failed: ${error.message}")
+                    trySend(emptyMap())
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val map = snapshot.documents.associateBy({ it.id }, { doc ->
+                        doc.getString(PublicProfile::displayName.name) ?: "Unknown"
+                    })
+                    trySend(map)
+                }
             }
+        } catch (e: Exception) {
+            Log.e("UserAdmin", "Failed to setup userNamesFlow listener", e)
+            trySend(emptyMap())
+            null
         }
-        awaitClose { listener.remove() }
+        awaitClose { listener?.remove() }
+    }
+
+    fun publicProfilesFlow(): Flow<Map<String, PublicProfile>> = callbackFlow {
+        val cached = settings.getPublicProfiles()
+        if (cached.isNotEmpty()) trySend(cached)
+
+        val listener = try {
+            getPublicProfilesColl().addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("UserAdmin", "Profiles listen failed: ${e.message}")
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val freshProfiles = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(PublicProfile::class.java)?.copy(uid = doc.id)
+                    }
+                    val map = freshProfiles.associateBy { it.uid }
+                    settings.savePublicProfiles(map)
+                    trySend(map)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("UserAdmin", "Failed to setup publicProfilesFlow listener", e)
+            null
+        }
+        awaitClose { listener?.remove() }
     }
 }

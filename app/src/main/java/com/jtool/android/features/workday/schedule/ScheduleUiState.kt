@@ -24,5 +24,6 @@ data class ScheduleUiState(
     val scrollToShiftKey: String? = null, // Format: "DAY_INDEX"
     val syncToGoogle: Boolean = false,
     val dayEvents: Map<DayOfWeek, List<CalendarEvent>> = emptyMap(),
-    val pendingNavigateWeek: Int? = null
+    val pendingNavigateWeek: Int? = null,
+    val showSavedSuccess: Boolean = false
 )

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import com.jtool.android.core.models.feature.notes.ChecklistItem
 import com.jtool.android.core.models.feature.notes.NoteItem
 import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
@@ -269,77 +270,35 @@ class NotesViewModel(
 
     private fun addChecklistItem() {
         val text = _uiState.value.checklistInput.trim()
-        val gid = settingsManager.getCurrentGroupId() ?: return
         if (text.isNotBlank()) {
             val id = System.currentTimeMillis().toString()
             val newItem = ChecklistItem(id = id, text = text, isChecked = false, timestamp = System.currentTimeMillis())
-            val editingNote = _uiState.value.editingNote
-            
-            if (editingNote != null) {
-                _uiState.update { state ->
-                    val updatedNote = state.editingNote?.copy(
-                        checklist = state.editingNote.checklist + newItem
-                    )
-                    state.copy(editingNote = updatedNote, checklistInput = "", isLoading = true)
-                }
-
-                viewModelScope.launch {
-                    try {
-                        val noteRef = getNotesColl(gid).document(editingNote.id)
-                        noteRef.collection("checklist").document(id).set(newItem).await()
-                        noteRef.set(mapOf(NoteItem::timestamp.name to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
-                        _uiState.update { it.copy(isLoading = false) }
-                    } catch (e: Exception) {
-                        _uiState.update { it.copy(isLoading = false) }
-                    }
-                }
-            } else {
-                _uiState.update { it.copy(checklistInput = "") }
+            _uiState.update { state ->
+                val editingNote = state.editingNote ?: return@update state
+                val updatedChecklist = editingNote.checklist + newItem
+                val updatedNote = editingNote.copy(checklist = updatedChecklist)
+                state.copy(editingNote = updatedNote, checklistInput = "")
             }
         }
     }
 
     private fun toggleChecklistItem(id: String) {
-        val gid = settingsManager.getCurrentGroupId() ?: return
-        val note = _uiState.value.editingNote ?: return
-        val item = note.checklist.find { it.id == id } ?: return
-        val updatedItem = item.copy(isChecked = !item.isChecked, timestamp = System.currentTimeMillis())
-        
         _uiState.update { state ->
-            val updatedList = state.editingNote?.checklist?.map { if (it.id == id) updatedItem else it } ?: emptyList()
-            state.copy(editingNote = state.editingNote?.copy(checklist = updatedList), isLoading = true)
-        }
-
-        viewModelScope.launch {
-            try {
-                val noteRef = getNotesColl(gid).document(note.id)
-                noteRef.collection("checklist").document(id).set(updatedItem).await()
-                noteRef.set(mapOf(NoteItem::timestamp.name to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
-                _uiState.update { it.copy(isLoading = false) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false) }
+            val editingNote = state.editingNote ?: return@update state
+            val updatedChecklist = editingNote.checklist.map { 
+                if (it.id == id) it.copy(isChecked = !it.isChecked, timestamp = System.currentTimeMillis()) else it 
             }
+            val updatedNote = editingNote.copy(checklist = updatedChecklist)
+            state.copy(editingNote = updatedNote)
         }
     }
 
     private fun removeChecklistItem(id: String) {
-        val gid = settingsManager.getCurrentGroupId() ?: return
-        val note = _uiState.value.editingNote ?: return
-        
         _uiState.update { state ->
-            val updatedList = state.editingNote?.checklist?.filter { it.id != id } ?: emptyList()
-            state.copy(editingNote = state.editingNote?.copy(checklist = updatedList), isLoading = true)
-        }
-
-        viewModelScope.launch {
-            try {
-                val noteRef = getNotesColl(gid).document(note.id)
-                noteRef.collection("checklist").document(id).delete().await()
-                noteRef.set(mapOf(NoteItem::timestamp.name to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge()).await()
-                _uiState.update { it.copy(isLoading = false) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false) }
-            }
+            val editingNote = state.editingNote ?: return@update state
+            val updatedChecklist = editingNote.checklist.filter { it.id != id }
+            val updatedNote = editingNote.copy(checklist = updatedChecklist)
+            state.copy(editingNote = updatedNote)
         }
     }
 
@@ -349,21 +308,61 @@ class NotesViewModel(
         val gid = settingsManager.getCurrentGroupId() ?: return
         
         val title = state.draftTitle.trim()
+        val content = state.draftContent.trim()
+        val now = System.currentTimeMillis()
+        val userId = settingsManager.getAppUserId()
         
         _uiState.update { it.copy(isLoading = true) }
         
         val noteData = mapOf(
             NoteItem::title.name to title,
-            NoteItem::content.name to state.draftContent.trim(),
+            NoteItem::content.name to content,
             NoteItem::type.name to note.type.name,
-            NoteItem::timestamp.name to System.currentTimeMillis(),
-            NoteItem::lastUpdatedBy.name to settingsManager.getAppUserId()
+            NoteItem::timestamp.name to now,
+            NoteItem::lastUpdatedBy.name to userId
         )
         
         viewModelScope.launch {
             try {
-                getNotesColl(gid).document(note.id).set(noteData, com.google.firebase.firestore.SetOptions.merge()).await()
-                _uiState.update { it.copy(isEditMode = false, isLoading = false) }
+                val noteRef = getNotesColl(gid).document(note.id)
+                noteRef.set(noteData, SetOptions.merge()).await()
+
+                if (note.type == NoteTypeEnum.CHECKLIST) {
+                    val checklistColl = noteRef.collection("checklist")
+                    val existingDocs = checklistColl.get().await()
+                    val batch = firestore.batch()
+                    
+                    val currentIds = note.checklist.map { it.id }.toSet()
+                    existingDocs.documents.forEach { doc ->
+                        if (!currentIds.contains(doc.id)) {
+                            batch.delete(doc.reference)
+                        }
+                    }
+                    
+                    note.checklist.forEach { item ->
+                        val itemRef = checklistColl.document(item.id)
+                        batch.set(itemRef, item)
+                    }
+                    batch.commit().await()
+                }
+
+                val updatedNote = note.copy(
+                    title = title,
+                    content = content,
+                    timestamp = now,
+                    lastUpdatedBy = userId
+                )
+
+                _uiState.update { st ->
+                    val updatedNotes = st.notes.map { if (it.id == updatedNote.id) updatedNote else it }
+                    st.copy(
+                        notes = if (updatedNotes.any { it.id == updatedNote.id }) updatedNotes else listOf(updatedNote) + updatedNotes,
+                        editingNote = updatedNote,
+                        isEditMode = false,
+                        isLoading = false
+                    )
+                }
+                manager.save(_uiState.value.notes, gid)
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false) }
             }

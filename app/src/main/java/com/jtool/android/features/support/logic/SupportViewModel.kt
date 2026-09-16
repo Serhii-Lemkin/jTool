@@ -2,6 +2,9 @@ package com.jtool.android.features.support.logic
 
 import android.util.Log
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
@@ -84,14 +87,21 @@ class SupportViewModel(
             .onEach { isAdmin ->
                 clearListeners()
                 _isLoading.update { true }
-                _uiState.update { it.copy(requests = emptyList()) }
+                val userId = settings.getUserId()
+                val coll = dataManager.getSupportColl()
+
                 val query = if (isAdmin) {
-                    dataManager.getSupportColl().orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    coll.orderBy("timestamp", Query.Direction.DESCENDING)
                 } else {
-                    dataManager.getSupportColl().whereEqualTo("userId", settings.getUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    coll.whereEqualTo("userId", userId)
                 }
 
-                val listener = query.addSnapshotListener { snapshot, _ ->
+                val listener = query.addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e("SupportVM", "Snapshot listener error: ${error.message}", error)
+                        viewModelScope.launch { fetchSupportRequestsInternal(fromServer = false) }
+                        return@addSnapshotListener
+                    }
                     if (snapshot != null) {
                         cancelJobs()
                         val job = viewModelScope.launch {
@@ -99,30 +109,25 @@ class SupportViewModel(
                                 try {
                                     doc.toObject(SupportRequest::class.java)?.copy(id = doc.id)
                                 } catch (e: Exception) {
-                                    Log.e("SupportVM", "Error deserializing request ${doc.id}", e)
                                     null
                                 }
-                            }
-                            
-                            _uiState.update { state ->
-                                val updatedList = list.map { req ->
-                                    val existing = state.requests.find { it.id == req.id }
-                                    if (existing != null) {
-                                        existing.copy(
-                                            status = req.status,
-                                            type = req.type,
-                                            text = req.text,
-                                            number = req.number,
-                                            pendingStatus = if (req.status != existing.pendingStatus) existing.pendingStatus else null,
-                                            pendingType = if (req.type != existing.pendingType) existing.pendingType else null
-                                        ).apply { 
-                                            commentCount = existing.commentCount
-                                        }
-                                    } else req
+                            }.sortedByDescending { it.timestamp }
+
+                            val listWithCounts = list.map { req ->
+                                viewModelScope.async {
+                                    try {
+                                        val countSnap = dataManager.getSupportColl().document(req.id).collection("comments").count()
+                                            .get(AggregateSource.SERVER).await()
+                                        req.apply { commentCount = countSnap.count.toInt() }
+                                    } catch (_: Exception) {
+                                        req
+                                    }
                                 }
-                                
-                                val selected = updatedList.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
-                                state.copy(requests = updatedList, selectedRequest = selected)
+                            }.awaitAll()
+
+                            _uiState.update { state ->
+                                val selected = listWithCounts.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
+                                state.copy(requests = listWithCounts, selectedRequest = selected, isLoading = false)
                             }
                             _isLoading.update { false }
                         }
@@ -134,6 +139,58 @@ class SupportViewModel(
                 addListener(listener)
             }
             .launchIn(viewModelScope)
+    }
+
+    private suspend fun fetchSupportRequestsInternal(fromServer: Boolean) {
+        val isAdmin = _uiState.value.isAdmin
+        val userId = settings.getUserId()
+        val coll = dataManager.getSupportColl()
+
+        val documents = try {
+            if (isAdmin) {
+                val q = coll.orderBy("timestamp", Query.Direction.DESCENDING)
+                if (fromServer) q.get(Source.SERVER).await().documents
+                else q.get().await().documents
+            } else {
+                try {
+                    val q = coll.whereEqualTo("userId", userId).orderBy("timestamp", Query.Direction.DESCENDING)
+                    if (fromServer) q.get(Source.SERVER).await().documents
+                    else q.get().await().documents
+                } catch (e: Exception) {
+                    val q = coll.whereEqualTo("userId", userId)
+                    if (fromServer) q.get(Source.SERVER).await().documents
+                    else q.get().await().documents
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SupportVM", "Error fetching requests: ${e.message}", e)
+            emptyList()
+        }
+
+        val list = documents.mapNotNull { doc ->
+            try {
+                doc.toObject(SupportRequest::class.java)?.copy(id = doc.id)
+            } catch (e: Exception) {
+                null
+            }
+        }.sortedByDescending { it.timestamp }
+
+        val listWithCounts = list.map { req ->
+            viewModelScope.async {
+                try {
+                    val countSnap = dataManager.getSupportColl().document(req.id).collection("comments").count()
+                        .get(AggregateSource.SERVER).await()
+                    req.apply { commentCount = countSnap.count.toInt() }
+                } catch (_: Exception) {
+                    req
+                }
+            }
+        }.awaitAll()
+
+        _uiState.update { state ->
+            val selected = listWithCounts.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
+            state.copy(requests = listWithCounts, selectedRequest = selected, isLoading = false)
+        }
     }
 
     fun onEvent(event: SupportEvent) {
@@ -159,6 +216,9 @@ class SupportViewModel(
                 saveFilters()
             }
             is SupportEvent.SetFilterType -> { }
+            is SupportEvent.SetNewRequestType -> {
+                _uiState.update { it.copy(newRequestType = event.type) }
+            }
             is SupportEvent.ToggleArchived -> { }
             is SupportEvent.ToggleSearch -> _uiState.update { it.copy(isSearchVisible = !it.isSearchVisible, searchQuery = "") }
             is SupportEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query, pagingLimit = 15) }
@@ -180,39 +240,13 @@ class SupportViewModel(
             SupportEvent.Refresh -> performRefresh {
                 _uiState.update { 
                     it.copy(
-                        requests = emptyList(),
-                        selectedRequest = null,
                         searchQuery = "",
                         isSearchVisible = false,
                         pagingLimit = 15
                     )
                 }
                 loadFilters()
-                
-                val isAdmin = _uiState.value.isAdmin
-                val query = if (isAdmin) {
-                    dataManager.getSupportColl().orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                } else {
-                    dataManager.getSupportColl().whereEqualTo("userId", settings.getUserId()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                }
-                
-                // Explicitly force fetch from server
-                val snapshot = query.get(com.google.firebase.firestore.Source.SERVER).await()
-                val list = snapshot.documents.mapNotNull { it.toObject(SupportRequest::class.java)?.copy(id = it.id) }
-                
-                val listWithCounts = list.map { req ->
-                    viewModelScope.async {
-                        try {
-                            val countSnap = dataManager.getSupportColl().document(req.id).collection("comments").count()
-                                .get(com.google.firebase.firestore.AggregateSource.SERVER).await()
-                            req.apply { commentCount = countSnap.count.toInt() }
-                        } catch (e: Exception) {
-                            req
-                        }
-                    }
-                }.awaitAll()
-                
-                _uiState.update { it.copy(requests = listWithCounts) }
+                fetchSupportRequestsInternal(fromServer = true)
             }
             is SupportEvent.Navigate -> {
                 if (event.screen == SupportScreenTypeEnum.HUB) commentController.stop()

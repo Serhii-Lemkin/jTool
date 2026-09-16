@@ -1,7 +1,10 @@
 package com.jtool.android.features.calendar.day
 
+import android.provider.CalendarContract
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,27 +22,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.localization.domains.CalendarLoc
 import com.jtool.android.core.models.calendar.CalendarEvent
-import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
 import com.jtool.android.core.models.common.enums.AppScreenEnum
-import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.models.group.GroupInfo
+import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.features.calendar.common.CalendarEventHelper
-import com.jtool.android.features.calendar.components.AddEditEventDialog
 import com.jtool.android.features.calendar.components.TimelineEventCard
 import com.jtool.android.features.calendar.components.TimelineHourMarkers
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getEventColor
+import com.jtool.android.features.calendar.grid.components.CalendarGridActionSheet
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,15 +52,19 @@ import java.util.Locale
 fun CalendarDayScreen(
     onBack: () -> Unit,
     onNavigate: (AppScreenEnum) -> Unit,
-    viewModel: CalendarDayViewModel
+    viewModel: CalendarDayViewModel,
+    groups: Map<String, GroupInfo>
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
+    val currentWorkShiftColorKey = remember { settingsManager.getWorkShiftColorKey() }
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val hourHeight = 90 // dp
-    
+
     var currentTime by remember { mutableStateOf(LocalTime.now()) }
-    
+
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = LocalTime.now()
@@ -63,15 +72,19 @@ fun CalendarDayScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     LaunchedEffect(uiState.selectedDate) {
         viewModel.refresh()
-        val startHour = if (uiState.selectedDate == LocalDate.now()) {
-            (LocalTime.now().hour - 1).coerceAtLeast(0)
-        } else {
-            viewModel.getWorkdayStartHour()
+    }
+
+    LaunchedEffect(uiState.isLoading) {
+        if (!uiState.isLoading) {
+            val startHour = viewModel.getWorkdayStartHour()
+            scrollState.scrollTo((startHour * hourHeight * density.density).toInt())
         }
-        val scrollPos = with(density) { (startHour * hourHeight).dp.toPx() }
-        scrollState.scrollTo(scrollPos.toInt())
     }
 
     if (uiState.showAddEditDialog) {
@@ -81,16 +94,21 @@ fun CalendarDayScreen(
         }
     }
 
+    var showDayActionSheet by remember { mutableStateOf(false) }
+
+    if (showDayActionSheet) {
+        CalendarGridActionSheet(
+            showDeclinedEvents = uiState.showDeclinedEvents,
+            onToggleShowDeclined = { viewModel.toggleShowDeclinedEvents() },
+            onSettings = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) },
+            onDismiss = { showDayActionSheet = false }
+        )
+    }
+
     Scaffold(
         topBar = {
-            val dateTitle = remember(uiState.selectedDate, Loc.lang) {
-                val day = uiState.selectedDate.dayOfMonth
-                val month = Loc.getMonthName(uiState.selectedDate.month, TextStyle.SHORT)
-                val year = uiState.selectedDate.year
-                "$day $month $year"
-            }
             GenericTitle(
-                title = dateTitle,
+                title = uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd MMMM", Locale(Loc.lang))),
                 onBack = onBack,
                 actions = {
                     IconButton(onClick = { viewModel.toggleViewMode() }) {
@@ -98,6 +116,9 @@ fun CalendarDayScreen(
                             imageVector = if (uiState.viewMode == CalendarDayViewMode.TIMELINE) Icons.AutoMirrored.Filled.ViewList else Icons.Default.ViewTimeline,
                             contentDescription = null
                         )
+                    }
+                    IconButton(onClick = { showDayActionSheet = true }) {
+                        Icon(Icons.Default.MoreVert, null)
                     }
                     IconButton(onClick = { viewModel.navigateDay(-1) }) {
                         Icon(Icons.Default.ChevronLeft, null)
@@ -110,16 +131,38 @@ fun CalendarDayScreen(
         },
         floatingActionButton = {
             UnifiedFAB(
-                onClick = { viewModel.toggleAddEditDialog(true) },
-                contentDescription = Loc.Calendar.addEvent
+                icon = Icons.Default.Add,
+                onClick = { viewModel.toggleAddEditDialog(true) }
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            if (uiState.viewMode == CalendarDayViewMode.TIMELINE) {
-                TimelineView(uiState, currentTime, hourHeight, scrollState, onNavigate, viewModel)
-            } else {
-                ListView(uiState, onNavigate, viewModel)
+        if (uiState.isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+                if (uiState.viewMode == CalendarDayViewMode.TIMELINE) {
+                    TimelineView(
+                        uiState = uiState,
+                        groups = groups,
+                        scrollState = scrollState,
+                        hourHeight = hourHeight,
+                        currentTime = currentTime,
+                        onEventClick = {
+                            viewModel.toggleAddEditDialog(false, it)
+                            onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
+                        }
+                    )
+                } else {
+                    ListView(
+                        uiState = uiState,
+                        groups = groups,
+                        viewModel = viewModel,
+                        workShiftColorKey = currentWorkShiftColorKey,
+                        onNavigate = onNavigate
+                    )
+                }
             }
         }
     }
@@ -128,112 +171,88 @@ fun CalendarDayScreen(
 @Composable
 private fun TimelineView(
     uiState: CalendarDayUiState,
-    currentTime: LocalTime,
-    hourHeight: Int,
+    groups: Map<String, GroupInfo>,
     scrollState: ScrollState,
-    onNavigate: (AppScreenEnum) -> Unit,
-    viewModel: CalendarDayViewModel
+    hourHeight: Int,
+    currentTime: LocalTime,
+    onEventClick: (CalendarEvent) -> Unit
 ) {
     val allDayEvents = uiState.privateEvents.filter { it.allDay }
     val timedEvents = uiState.privateEvents.filter { !it.allDay }
-    
-    val overlapGroups = remember(timedEvents) {
-        CalendarEventHelper.calculateOverlapGroups(timedEvents)
-    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (allDayEvents.isNotEmpty()) {
-            AllDaySection(allDayEvents, onNavigate, viewModel)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
-
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(scrollState)
-        ) {
-            TimelineHourMarkers(hourHeight)
-
-            if (uiState.selectedDate == LocalDate.now()) {
-                val timeTop = (currentTime.hour * hourHeight) + (currentTime.minute * hourHeight / 60)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = timeTop.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.size(8.dp).background(MaterialTheme.colorScheme.error, shape = CircleShape))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.error, thickness = 2.dp, modifier = Modifier.fillMaxWidth())
-                }
-            }
-
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth().padding(start = 48.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 130.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val containerWidth = maxWidth
-                timedEvents.forEach { event ->
-                    val groupInfo = overlapGroups[event.id] ?: Pair(0, 1)
-                    val column = groupInfo.first
-                    val totalCols = groupInfo.second
-                    
-                    val eventTop = CalendarEventHelper.getEventTop(event.startTime, hourHeight)
-                    val eventHeight = CalendarEventHelper.getEventHeight(event.startTime, event.endTime, hourHeight)
-                    val cardWidth = containerWidth / totalCols
-
-                    Box(
+                allDayEvents.forEach { event ->
+                    TimelineEventCard(
+                        event = event,
+                        groups = groups,
+                        onClick = { onEventClick(event) },
                         modifier = Modifier
-                            .padding(top = eventTop.dp)
-                            .offset(x = (column * (containerWidth.value / totalCols)).dp)
-                            .width(cardWidth)
-                            .height(eventHeight.dp)
-                            .padding(horizontal = 1.dp, vertical = 0.5.dp)
-                    ) {
-                        TimelineEventCard(
-                            event = event,
-                            onClick = {
-                                viewModel.toggleAddEditDialog(false, event)
-                                if (event.id.startsWith("virtual_")) onNavigate(AppScreenEnum.CALENDAR_ADD_EDIT)
-                                else onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
-                            }
-                        )
-                    }
+                            .fillMaxWidth()
+                            .height(36.dp)
+                    )
                 }
             }
+            HorizontalDivider()
         }
-    }
-}
 
-@Composable
-private fun AllDaySection(
-    events: List<CalendarEvent>,
-    onNavigate: (AppScreenEnum) -> Unit,
-    viewModel: CalendarDayViewModel
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            text = Loc.Calendar.allDay, 
-            style = MaterialTheme.typography.labelSmall, 
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
-        events.forEach { event ->
-            Surface(
-                onClick = { 
-                    viewModel.toggleAddEditDialog(false, event)
-                    onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
-                },
-                color = if (event.type == CalendarEventTypeEnum.SHIFT) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).background(if (event.type == CalendarEventTypeEnum.SHIFT) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary, CircleShape))
-                    Spacer(Modifier.width(12.dp))
-                    Text(event.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        Box(modifier = Modifier.weight(1f).verticalScroll(scrollState)) {
+            TimelineHourMarkers(hourHeight = hourHeight)
+
+            val overlapGroups = remember(timedEvents) { CalendarEventHelper.calculateOverlapGroups(timedEvents) }
+
+            timedEvents.forEach { event ->
+                val groupInfo = overlapGroups[event.id] ?: Pair(0, 1)
+                val widthPercent = 1f / groupInfo.second
+                val leftOffset = groupInfo.first * widthPercent
+
+                val eventTop = CalendarEventHelper.getEventTop(event.startTime, hourHeight)
+                val eventHeight = CalendarEventHelper.getEventHeight(event.startTime, event.endTime, hourHeight)
+
+                Box(
+                    modifier = Modifier
+                        .padding(start = 60.dp) // Offset for hour markers
+                        .fillMaxWidth()
+                        .height(eventHeight.dp)
+                        .offset(y = eventTop.dp)
+                        .padding(horizontal = 2.dp)
+                ) {
+                    TimelineEventCard(
+                        event = event,
+                        groups = groups,
+                        onClick = { onEventClick(event) },
+                        modifier = Modifier
+                            .fillMaxWidth(widthPercent)
+                            .offset(x = (leftOffset * 100).dp)
+                    )
                 }
+            }
+
+            // Current time indicator
+            if (uiState.selectedDate == LocalDate.now()) {
+                val nowTop = CalendarEventHelper.getEventTop(currentTime.toString(), hourHeight)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .offset(y = nowTop.dp)
+                        .background(MaterialTheme.colorScheme.error)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .offset(x = 56.dp, y = (nowTop - 4).dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
+                )
             }
         }
     }
@@ -242,8 +261,10 @@ private fun AllDaySection(
 @Composable
 private fun ListView(
     uiState: CalendarDayUiState,
-    onNavigate: (AppScreenEnum) -> Unit,
-    viewModel: CalendarDayViewModel
+    groups: Map<String, GroupInfo>,
+    viewModel: CalendarDayViewModel,
+    workShiftColorKey: String,
+    onNavigate: (AppScreenEnum) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -252,37 +273,85 @@ private fun ListView(
     ) {
         if (uiState.privateEvents.isEmpty()) {
             item {
-                Box(Modifier.fillMaxWidth().padding(top = 64.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text(Loc.Calendar.noEvents, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else {
             items(uiState.privateEvents.sortedBy { if (it.allDay) 0 else 1 }.sortedBy { it.startTime }, key = { it.id }) { event ->
+                val isDeclined = event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
+                val extension = uiState.extensions[event.id]
+                val themeColor = getEventColor(event.colorKey)
+                val isWork = (event.colorKey != null && event.colorKey == workShiftColorKey) ||
+                        (event.colorKey == null && workShiftColorKey == "1")
+
                 Card(
                     onClick = {
                         viewModel.toggleAddEditDialog(false, event)
-                        if (event.id.startsWith("virtual_")) onNavigate(AppScreenEnum.CALENDAR_ADD_EDIT)
-                        else onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
+                        onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(16.dp).alpha(if (isDeclined) 0.6f else 1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (event.allDay) "ALL" else event.startTime,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (isDeclined) MaterialTheme.colorScheme.error else themeColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isWork) Icons.Default.Work else Icons.Default.Event,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text(event.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                            if (event.allDay) {
-                                Text(Loc.Calendar.allDay, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                            } else if (!event.endTime.isNullOrEmpty()) {
-                                Text(event.endTime!!, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = event.title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                textDecoration = if (isDeclined) TextDecoration.LineThrough else null
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (event.allDay) Loc.Calendar.allDay else "${event.startTime} - ${event.endTime}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        val sharedGroupIds = extension?.sharedGroupIds ?: emptyList()
+                        if (sharedGroupIds.isNotEmpty()) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.padding(start = 4.dp)
+                            ) {
+                                val label = if (sharedGroupIds.size == 1) {
+                                    val gid = sharedGroupIds.first()
+                                    val group = groups[gid]
+                                    if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
+                                } else {
+                                    "${sharedGroupIds.size} groups"
+                                }
+
+                                Text(
+                                    text = label.uppercase(),
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
                         }
                     }

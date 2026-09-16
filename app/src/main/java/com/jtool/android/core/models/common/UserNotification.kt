@@ -21,5 +21,13 @@ data class UserNotification(
     val targetUid: String? = null,
     val fromEmail: String? = null,
     val targetName: String? = null,
-    val targetEmail: String? = null
+    val targetEmail: String? = null,
+
+    // Localization keys for dynamic display
+    val titleKey: String? = null,
+    val messageKey: String? = null,
+    val messageArgs: List<String> = emptyList(),
+
+    // Optimization: flattened seen status
+    val seenByUids: List<String> = emptyList()
 )

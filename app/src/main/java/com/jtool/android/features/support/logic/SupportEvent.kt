@@ -10,6 +10,7 @@ sealed interface SupportEvent {
     data class ToggleStatusFilter(val status: SupportStatusEnum) : SupportEvent
     object ClearFilters : SupportEvent
     data class SetFilterType(val type: SupportTypeEnum?) : SupportEvent
+    data class SetNewRequestType(val type: SupportTypeEnum) : SupportEvent
     data class ToggleArchived(val show: Boolean) : SupportEvent
     data class UpdateRequestText(val text: String) : SupportEvent
     data class SubmitRequest(val type: SupportTypeEnum, val context: android.content.Context) : SupportEvent

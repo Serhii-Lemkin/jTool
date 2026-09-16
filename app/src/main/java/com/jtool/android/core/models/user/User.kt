@@ -10,6 +10,7 @@ data class User(
     var uid: String = "",
     val email: String? = null,
     val groupIds: List<String> = emptyList(),
+    val lastModified: Long = 0L,
     @get:PropertyName("isAdmin")
     @set:PropertyName("isAdmin")
     var isAdmin: Boolean = false

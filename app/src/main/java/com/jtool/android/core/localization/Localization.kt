@@ -65,7 +65,7 @@ object Loc {
         }
     }
 
-    internal fun s(key: String, fallback: String): String {
+    fun s(key: String, fallback: String): String {
         return loadedStrings[key] ?: fallback
     }
 

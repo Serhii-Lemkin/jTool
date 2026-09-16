@@ -1,5 +1,7 @@
 package com.jtool.android
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,11 +31,13 @@ import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.firebase.auth.FirebaseAuth
+import com.jtool.android.BuildConfig
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.crash.CrashInterceptor
 import com.jtool.android.core.crash.AnrInterceptor
 import com.jtool.android.core.connectivity.ConnectivityObserver
+import com.jtool.android.core.config.Config
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.common.UserNotification
 import com.jtool.android.core.models.common.enums.NotificationTypeEnum
@@ -42,6 +46,7 @@ import com.jtool.android.core.models.group.JoinRequest
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.SyncStatusOverlay
+import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.utils.AppUtils
 import com.jtool.android.features.auth.SignInHandler
 import com.jtool.android.features.cleaning.CleaningManager
@@ -56,6 +61,7 @@ import java.util.Locale
 import androidx.core.view.WindowCompat
 import com.jtool.android.ui.components.common.MessageSheet
 import com.jtool.android.ui.components.common.MessageType
+import kotlinx.coroutines.flow.combine
 
 class MainActivity : ComponentActivity() {
     private lateinit var settingsManager: SettingsManager
@@ -65,6 +71,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var backupManager: BackupManager
     private lateinit var authManager: AuthManager
     private lateinit var dataManager: DataManager
+    
+    private var pendingScreen by mutableStateOf<AppScreenEnum?>(null)
     
     private lateinit var connectivityObserver: ConnectivityObserver
     private lateinit var signInHandler: SignInHandler
@@ -102,6 +110,8 @@ class MainActivity : ComponentActivity() {
         initializeLanguage()
 
         Loc.load(this, settingsManager.getLanguage())
+
+        handleIntent(intent)
 
         appUpdateManager = AppUpdateManagerFactory.create(this)
         checkForUpdates()
@@ -188,9 +198,11 @@ class MainActivity : ComponentActivity() {
                 else flowOf(emptyList())
             }.collectAsState(initial = emptyList())
 
-            val groupNotifications by remember(currentGroupId) {
-                if (currentGroupId != null) dataManager.groupNotificationsFlow(currentGroupId!!)
-                else flowOf(emptyList())
+            val groupNotifications by remember(groups) {
+                if (groups.isNotEmpty()) {
+                    val flows = groups.keys.map { dataManager.groupNotificationsFlow(it) }
+                    combine(flows) { it.flatMap { list -> list } }
+                } else flowOf(emptyList())
             }.collectAsState(initial = emptyList())
 
             LaunchedEffect(invites, joinRequests, personalNotifications, groupNotifications) {
@@ -203,7 +215,10 @@ class MainActivity : ComponentActivity() {
                         timestamp = invite.timestamp,
                         type = NotificationTypeEnum.INVITE,
                         targetName = invite.groupName,
-                        fromEmail = invite.fromEmail
+                        fromEmail = invite.fromEmail,
+                        titleKey = "settings_groupInvitation",
+                        messageKey = "settings_invitedToJoin",
+                        messageArgs = listOf(invite.groupName)
                     ))
                 }
                 
@@ -216,7 +231,10 @@ class MainActivity : ComponentActivity() {
                         type = NotificationTypeEnum.JOIN_REQUEST,
                         targetUid = req.userId,
                         targetName = req.userName,
-                        targetEmail = req.userEmail
+                        targetEmail = req.userEmail,
+                        titleKey = "settings_joinRequests",
+                        messageKey = "settings_wantsToJoin",
+                        messageArgs = listOf(req.userName)
                     ))
                 }
                 
@@ -271,12 +289,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 notificationCount = allNotifications.size,
                                 onNotificationsClick = { 
-                                    if (allNotifications.isNotEmpty()) {
-                                        showNotificationsSheet = true 
-                                    }
+                                    showNotificationsSheet = true 
                                 },
                                 groups = groups,
-                                onGroupsUpdated = { groups = it }
+                                onGroupsUpdated = { groups = it },
+                                pendingScreen = pendingScreen,
+                                onPendingScreenHandled = { pendingScreen = null }
                             )
                             
                             if (isAuthLoading) {
@@ -390,6 +408,20 @@ class MainActivity : ComponentActivity() {
                                     onDismissNotification = { notif ->
                                         lifecycleScope.launch { dataManager.markNotificationAsRead(notif) }
                                     },
+                                    onLinkClick = { link ->
+                                        val uri = Uri.parse(link)
+                                        if (uri.host == BuildConfig.DEEP_LINK_HOST) {
+                                            val path = uri.path ?: ""
+                                            if (path.startsWith("/event/")) {
+                                                val eventId = path.removePrefix("/event/")
+                                                if (eventId.isNotEmpty()) {
+                                                    settingsManager.setSelectedCalendarEventId(eventId)
+                                                    pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
+                                                    showNotificationsSheet = false
+                                                }
+                                            }
+                                        }
+                                    },
                                     onShowError = { authError = it },
                                     onDismiss = { showNotificationsSheet = false }
                                 )
@@ -413,6 +445,32 @@ class MainActivity : ComponentActivity() {
                     )
                 } catch (e: Exception) {
                     Log.e("AppUpdate", "Failed to resume update", e)
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        intent?.data?.let { uri ->
+            if ((uri.scheme == "https" || uri.scheme == "http") && uri.host == BuildConfig.DEEP_LINK_HOST) {
+                val path = uri.path ?: ""
+                if (path.startsWith("/event/")) {
+                    val eventId = path.removePrefix("/event/")
+                    if (eventId.isNotEmpty()) {
+                        settingsManager.setSelectedCalendarEventId(eventId)
+                        pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
+                    }
+                }
+            } else if (uri.scheme == "jtool" && uri.host == "event") {
+                val eventId = uri.lastPathSegment
+                if (!eventId.isNullOrEmpty()) {
+                    settingsManager.setSelectedCalendarEventId(eventId)
+                    pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
                 }
             }
         }

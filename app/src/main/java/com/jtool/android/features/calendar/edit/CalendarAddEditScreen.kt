@@ -2,9 +2,9 @@ package com.jtool.android.features.calendar.edit
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -13,53 +13,68 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.calendar.CalendarEvent
-import com.jtool.android.core.models.calendar.enums.CalendarEventStatusEnum
-import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
+import com.jtool.android.core.models.calendar.CalendarEventExtension
+import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.features.calendar.components.group_picker_sheet.GroupPickerSheet
-import com.jtool.android.features.calendar.components.type_picker_sheet.TypePickerSheet
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.EventColorPickerSheet
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getGoogleCalendarColorPalette
+import com.jtool.android.features.calendar.edit.components.required_fields_sheet.RequiredFieldsSheet
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarAddEditScreen(
     event: CalendarEvent?,
+    extension: CalendarEventExtension?,
     selectedDate: LocalDate,
     onBack: () -> Unit,
-    onConfirm: (CalendarEvent, List<String>) -> Unit,
-    settingsManager: SettingsManager
+    onConfirm: (CalendarEvent, CalendarEventExtension) -> Unit,
+    settingsManager: SettingsManager,
+    groups: Map<String, GroupInfo>
 ) {
-    val groups = remember { settingsManager.getGroups() }
+    val stateKey = remember(event?.id, selectedDate) { Any() }
+
+    var title by remember(stateKey) { mutableStateOf(event?.title ?: "") }
+    var note by remember(stateKey) { mutableStateOf(event?.note ?: "") }
+    var startTime by remember(stateKey) { mutableStateOf(event?.startTime ?: "09:00") }
+    var endTime by remember(stateKey) { mutableStateOf(event?.endTime ?: "") }
+    var allDay by remember(stateKey) { mutableStateOf(event?.allDay ?: false) }
+    var currentDate by remember(stateKey) { 
+        mutableStateOf(
+            if (event?.date != null && event.date.isNotEmpty()) LocalDate.parse(event.date) else selectedDate
+        ) 
+    }
     
-    var title by remember { mutableStateOf(event?.title ?: "") }
-    var note by remember { mutableStateOf(event?.note ?: "") }
-    var startTime by remember { mutableStateOf(event?.startTime ?: "09:00") }
-    var endTime by remember { mutableStateOf(event?.endTime ?: "") }
-    var allDay by remember { mutableStateOf(event?.allDay ?: false) }
-    var type by remember { mutableStateOf(event?.type ?: CalendarEventTypeEnum.COMMON) }
-    var status by remember { mutableStateOf(event?.status ?: CalendarEventStatusEnum.REGULAR) }
+    var colorKey by remember(stateKey) { mutableStateOf(event?.colorKey ?: "7") }
     
-    val initialSelectedGroups = remember { event?.sharedGroupIds?.toSet() ?: emptySet() }
-    val selectedGroupIds = remember { mutableStateListOf<String>().apply { addAll(initialSelectedGroups) } }
-    
-    var syncToGoogle by remember { mutableStateOf(settingsManager.isGoogleCalendarSyncEnabled() && settingsManager.isGoogleCalendarPushEnabled()) }
+    val selectedGroupIds = remember(stateKey) { mutableStateListOf<String>().apply { addAll(extension?.sharedGroupIds ?: emptyList()) } }
 
     var showGroupPicker by remember { mutableStateOf(false) }
-    var showTypePicker by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showRequiredFieldsSheet by remember { mutableStateOf(false) }
     var pickingStartTime by remember { mutableStateOf<Boolean?>(null) }
 
-    val themeColor = if (type == CalendarEventTypeEnum.SHIFT) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+    val themeColor = MaterialTheme.colorScheme.primary
+
+    if (showRequiredFieldsSheet) {
+        RequiredFieldsSheet(onDismiss = { showRequiredFieldsSheet = false })
+    }
 
     if (showGroupPicker) {
         GroupPickerSheet(
@@ -76,12 +91,36 @@ fun CalendarAddEditScreen(
         )
     }
 
-    if (showTypePicker) {
-        TypePickerSheet(
-            selectedType = type,
-            onTypeSelected = { type = it },
-            onDismiss = { showTypePicker = false }
+    if (showColorPicker) {
+        EventColorPickerSheet(
+            selectedColorKey = colorKey,
+            onSelectColor = { colorOption ->
+                colorKey = colorOption.key
+            },
+            onDismiss = { showColorPicker = false }
         )
+    }
+    
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        currentDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                    }
+                    showDatePicker = false
+                }) { Text(Loc.General.select) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text(Loc.General.cancel) }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 
     if (pickingStartTime != null) {
@@ -125,34 +164,37 @@ fun CalendarAddEditScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            val startLdt = LocalDate.parse(selectedDate.toString()).atTime(LocalTime.parse(startTime))
-                            val endLdt = if (endTime.isNotEmpty()) LocalDate.parse(selectedDate.toString()).atTime(LocalTime.parse(endTime)) else startLdt.plusHours(1)
+                            if (title.trim().isEmpty()) {
+                                showRequiredFieldsSheet = true
+                                return@IconButton
+                            }
+
+                            val startLdt = LocalDate.parse(currentDate.toString()).atTime(LocalTime.parse(startTime))
+                            val endLdt = if (endTime.isNotEmpty()) LocalDate.parse(currentDate.toString()).atTime(LocalTime.parse(endTime)) else startLdt.plusHours(1)
                             
                             val dtStart = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                             val dtEnd = endLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-                            onConfirm(
-                                CalendarEvent(
-                                    id = event?.id ?: "",
-                                    title = title,
-                                    type = type,
-                                    date = selectedDate.toString(),
-                                    startTime = startTime,
-                                    endTime = endTime.ifEmpty { null },
-                                    allDay = allDay,
-                                    note = note,
-                                    status = status,
-                                    ownerUid = settingsManager.getUserId(),
-                                    dtStart = dtStart,
-                                    dtEnd = dtEnd,
-                                    googleCalendarId = event?.googleCalendarId,
-                                    googleEventId = event?.googleEventId,
-                                    sharedGroupIds = selectedGroupIds.toList()
-                                ),
-                                selectedGroupIds.toList()
+                            val finalEvent = CalendarEvent(
+                                id = event?.id ?: "",
+                                title = title.trim(),
+                                allDay = allDay,
+                                note = note,
+                                dtStart = dtStart,
+                                dtEnd = dtEnd,
+                                colorKey = colorKey,
+                                googleCalendarId = event?.googleCalendarId ?: settingsManager.getGoogleCalendarId()
                             )
+                            
+                            val finalExt = CalendarEventExtension(
+                                googleEventId = event?.id ?: "",
+                                sharedGroupIds = selectedGroupIds.toList(),
+                                dateTimestamp = dtStart
+                            )
+
+                            onConfirm(finalEvent, finalExt)
                         },
-                        enabled = title.isNotBlank()
+                        enabled = true
                     ) {
                         Icon(Icons.Default.Save, null, tint = themeColor)
                     }
@@ -169,7 +211,6 @@ fun CalendarAddEditScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Title & Type Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -179,7 +220,12 @@ fun CalendarAddEditScreen(
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text(Loc.Calendar.eventTitle) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(Loc.Calendar.eventTitle)
+                                Text(" *", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
@@ -188,33 +234,36 @@ fun CalendarAddEditScreen(
                             focusedLabelColor = themeColor
                         )
                     )
-                    
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showTypePicker = true }
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(if (type == CalendarEventTypeEnum.SHIFT) Icons.Default.Work else Icons.Default.Category, null, tint = themeColor)
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = if (type == CalendarEventTypeEnum.SHIFT) Loc.Calendar.shift else Loc.Calendar.common,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = themeColor
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowDropDown, null, tint = themeColor)
-                    }
                 }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            ) {
+                val colorPalette = getGoogleCalendarColorPalette()
+                val currentColorOption = colorPalette.find { it.key == colorKey } ?: colorPalette.first()
+                ActionListItem(
+                    headline = Loc.Calendar.eventColor,
+                    supportingText = currentColorOption.name,
+                    leadingContent = {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(currentColorOption.hexColor)
+                        )
+                    },
+                    onClick = { showColorPicker = true }
+                )
             }
 
             Spacer(Modifier.height(24.dp))
 
-            // Time & Date Card
             Text(
                 text = Loc.Calendar.time,
                 style = MaterialTheme.typography.titleMedium,
@@ -225,9 +274,20 @@ fun CalendarAddEditScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ActionListItem(
+                        headline = Loc.Calendar.date,
+                        supportingText = currentDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
+                        leadingContent = { Icon(Icons.Default.CalendarToday, null, tint = themeColor) },
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+
+                    HorizontalDivider(modifier = Modifier.alpha(0.1f))
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(Loc.Calendar.allDay, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                         Switch(checked = allDay, onCheckedChange = { allDay = it }, colors = SwitchDefaults.colors(checkedThumbColor = themeColor, checkedTrackColor = themeColor.copy(alpha = 0.5f)))
@@ -254,7 +314,6 @@ fun CalendarAddEditScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // Visibility Card
             Text(
                 text = Loc.Calendar.belongsTo,
                 style = MaterialTheme.typography.titleMedium,
@@ -265,7 +324,8 @@ fun CalendarAddEditScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     ActionListItem(
@@ -283,26 +343,11 @@ fun CalendarAddEditScreen(
                         onClick = { showGroupPicker = true },
                         supportingMaxLines = 1
                     )
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = syncToGoogle, 
-                            onCheckedChange = { syncToGoogle = it },
-                            colors = CheckboxDefaults.colors(checkedColor = themeColor)
-                        )
-                        Text(Loc.Calendar.syncSubtitle, style = MaterialTheme.typography.bodyMedium)
-                    }
                 }
             }
 
             Spacer(Modifier.height(24.dp))
 
-            // Note Card
             Text(
                 text = Loc.Calendar.note,
                 style = MaterialTheme.typography.titleMedium,

@@ -4,5 +4,6 @@ import androidx.annotation.Keep
 
 @Keep
 data class MemberInfo(
-    val joinedAt: Long = 0L
+    val joinedAt: Long = 0L,
+    val calendarEmail: String? = null
 )

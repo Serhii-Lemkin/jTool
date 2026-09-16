@@ -2,7 +2,7 @@
 
 ## 1. Code Generation & Refactoring
 * **No Comments:** Never add inline comments or documentation blocks to generated code.
-*   **Firestore Rules Management**: When updating the database schema or making any changes that affect access control, ensure the `core/firestore.rules` file is updated to the latest version. Never update this file without explicit confirmation from the developer. 
+*   **Firestore Rules Management**: When updating the database schema or making any changes that affect access control, ensure the `core/firestore.rules` file is updated to the latest version. Never update this file without explicit confirmation from the developer. NEVER simplify the rules for convenience; only modify them if technically required for a new feature while maintaining maximum security.
 *   **Strong Typing & Generics**: Strictly enforce strong typing across all data models. Abstract shared functionality using interfaces and generic implementations where applicable.
 *   **String IDs**: All data models and Firestore documents must use `String` for their `id` property. Never use numeric types for identifiers.
 *   **Enum Extraction, Naming & Location**: All `enum class` definitions must be extracted into their own dedicated files. Every enum class name must end with the `Enum` suffix (e.g., `SupportStatusEnum`). These files must be placed within the `core/models` directory under a relevant category's `enums` subfolder (e.g., `core/models/support/enums/SupportStatusEnum.kt`) or in `core/models/common/enums/` if shared across multiple domains. Never define enums inside other classes or feature logic files.
@@ -11,6 +11,7 @@
 * **Component Extraction Prompting:** Whenever an opportunity arises to modularize code, prompt the developer to extract the logic into a reusable file and add it to the Admin Panel "Kitchen Sink."
 * **File Size Limit:** Strictly keep all Kotlin files under 500 lines. If a file exceeds or is nearing this limit, split it into smaller helper classes, components, or sub-viewmodels immediately.
 * **Database Field Stability**: Never modify, rename, or remove existing data model property names to maintain database schema stability and prevent connection errors.
+* **Timestamp-Based Dates & Times**: Always use `Long` timestamps (UTC milliseconds) for all date and time properties in data models and Firestore. Never store dates or times as `String` (e.g., "2023-10-01" or "09:00"). For UI display, convert these timestamps dynamically in the model or view layer.
 
 ## 2. Verification & Build Safety
 * **Build Verification**: Always verify that the project builds successfully before finishing a request. If compilation errors are introduced, they must be resolved immediately.

@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.localization.domains.CalendarLoc
 import com.jtool.android.ui.components.common.GenericSheet
 
 @Composable
@@ -21,7 +22,7 @@ fun CalendarPickerSheet(
 ) {
     GenericSheet(
         onDismiss = onDismiss,
-        title = Loc.Calendar.selectCalendarTitle,
+        title = CalendarLoc.eventDestinationCalendar,
         showCloseButton = false
     ) {
         Column(
@@ -29,6 +30,12 @@ fun CalendarPickerSheet(
                 .fillMaxWidth()
                 .padding(bottom = 32.dp)
         ) {
+            Text(
+                text = CalendarLoc.eventDestinationCalendarSubtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
             if (availableCalendars.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -59,18 +66,6 @@ fun CalendarPickerSheet(
                         }
                     }
                 }
-            }
-            
-            Spacer(Modifier.height(16.dp))
-            
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .height(56.dp)
-            ) {
-                Text(Loc.General.close)
             }
         }
     }

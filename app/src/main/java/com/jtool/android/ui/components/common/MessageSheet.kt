@@ -11,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
@@ -66,14 +65,7 @@ fun MessageSheet(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(Modifier.height(32.dp))
-            
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
-            ) {
-                Text(Loc.General.gotIt, fontWeight = FontWeight.Bold)
-            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

@@ -6,16 +6,20 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.helpers.GroupOperationsHelper
+import com.jtool.android.core.sync.helpers.GroupMembershipHelper
+import com.jtool.android.core.sync.helpers.GroupInviteHelper
+import com.jtool.android.core.sync.helpers.NotificationHelper
 import com.jtool.android.core.sync.helpers.SupportDatabaseHelper
 import com.jtool.android.core.sync.helpers.UserAdminHelper
 import com.jtool.android.core.sync.helpers.SystemDatabaseHelper
 import com.jtool.android.core.sync.helpers.WorkdayDatabaseHelper
-import com.jtool.android.core.sync.helpers.CalendarDatabaseHelper
 import com.jtool.android.core.sync.helpers.TrackerDatabaseHelper
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
-import com.jtool.android.core.models.calendar.CalendarEvent
+import com.jtool.android.core.sync.helpers.CalendarExtensionDatabaseHelper
+import com.jtool.android.core.models.calendar.CalendarEventExtension
+import com.jtool.android.core.models.user.PublicProfile
 import com.jtool.android.core.models.common.Comment
 import com.jtool.android.core.models.common.UserNotification
 import com.jtool.android.core.models.group.Invite
@@ -24,92 +28,43 @@ import com.jtool.android.core.models.tracker.Tracker
 import com.jtool.android.core.models.tracker.TrackerRecord
 import com.jtool.android.core.models.user.User
 import com.jtool.android.core.models.workday.WorkHistoryItem
-import com.jtool.android.features.calendar.common.GoogleCalendarSyncHelper
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class DataManager(val context: Context) {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val settings = SettingsManager(context)
 
+    private val _optimisticDeletedIds = MutableStateFlow<Set<String>>(emptySet())
+    val optimisticDeletedIds = _optimisticDeletedIds.asStateFlow()
+
+    fun recordOptimisticDelete(eventId: String) {
+        val current = _optimisticDeletedIds.value
+        _optimisticDeletedIds.value = current + eventId
+    }
+
+    fun reconcileOptimisticDeletions(currentGoogleIds: Set<String>) {
+        val pending = _optimisticDeletedIds.value
+        _optimisticDeletedIds.value = pending.intersect(currentGoogleIds)
+    }
+
+    fun clearOptimisticDeletions() {
+        _optimisticDeletedIds.value = emptySet()
+    }
+
     private val userAdminHelper: UserAdminHelper = UserAdminHelper(firestore, auth, settings) { groupOpsHelper }
-    private val groupOpsHelper: GroupOperationsHelper = GroupOperationsHelper(context, firestore, auth, settings) { userAdminHelper }
+    private val notificationHelper: NotificationHelper = NotificationHelper(firestore, auth, settings)
+    private val groupOpsHelper: GroupOperationsHelper = GroupOperationsHelper(context, firestore, auth, settings, notificationHelper) { userAdminHelper }
+    private val groupMembershipHelper: GroupMembershipHelper = GroupMembershipHelper(firestore, auth, settings, notificationHelper)
+    private val groupInviteHelper: GroupInviteHelper = GroupInviteHelper(firestore, auth, settings, notificationHelper) { groupOpsHelper }
+    
     private val supportHelper: SupportDatabaseHelper = SupportDatabaseHelper(firestore)
     private val systemHelper: SystemDatabaseHelper = SystemDatabaseHelper(firestore)
     private val workdayHelper: WorkdayDatabaseHelper = WorkdayDatabaseHelper(firestore)
-    private val calendarHelper: CalendarDatabaseHelper = CalendarDatabaseHelper(firestore)
     private val trackerHelper: TrackerDatabaseHelper = TrackerDatabaseHelper(firestore)
-
-    // --- Unified Calendar Methods ---
-
-    fun allCalendarEventsFlow(fromMs: Long, toMs: Long): Flow<List<CalendarEvent>> {
-        val uid = auth.currentUser?.uid ?: return flowOf(emptyList())
-        val groupIds = settings.getGroups().keys.toList()
-        return calendarHelper.getAllEventsFlow(uid, groupIds, fromMs, toMs)
-    }
-
-    suspend fun allCalendarEventsOneTime(fromMs: Long, toMs: Long): List<CalendarEvent> {
-        val uid = auth.currentUser?.uid ?: return emptyList()
-        val groupIds = settings.getGroups().keys.toList()
-        return calendarHelper.getAllEventsOneTime(uid, groupIds, fromMs, toMs)
-    }
-
-    suspend fun saveCalendarEvent(event: CalendarEvent) {
-        val uid = auth.currentUser?.uid ?: return
-        val finalEvent = if (event.ownerUid.isEmpty()) event.copy(ownerUid = uid) else event
-        calendarHelper.saveEvent(finalEvent)
-    }
-
-    suspend fun deleteCalendarEvent(eventId: String) {
-        val uid = auth.currentUser?.uid ?: return
-        
-        val doc = firestore.collection("calendar_events").document(eventId).get().await()
-        if (!doc.exists()) return
-        
-        val event = doc.toObject(CalendarEvent::class.java) ?: return
-
-        if (event.ownerUid != uid) return
-
-        if (!event.googleEventId.isNullOrEmpty()) {
-            try {
-                GoogleCalendarSyncHelper.deleteFromGoogleCalendar(context, event.googleEventId)
-            } catch (_: Exception) {}
-        }
-
-        calendarHelper.deleteEvent(eventId)
-    }
-
-    suspend fun deleteCalendarEventLocalOnly(eventId: String) {
-        val uid = auth.currentUser?.uid ?: return
-        
-        val doc = firestore.collection("calendar_events").document(eventId).get().await()
-        if (!doc.exists()) return
-        
-        val event = doc.toObject(CalendarEvent::class.java) ?: return
-        if (event.ownerUid != uid) return
-
-        calendarHelper.deleteEventLocalOnly(eventId)
-    }
-
-    suspend fun clearCalendarShifts(userId: String, groupIds: List<String>, fromMs: Long, toMs: Long) {
-        calendarHelper.clearShiftsInRange(userId, groupIds, fromMs, toMs)
-    }
-
-    // --- Legacy / Compatibility ---
-
-    fun getPrivateCalendarEventsFlow(userId: String, fromDate: String, toDate: String) = calendarHelper.getPrivateEventsFlow(userId, fromDate, toDate)
-    fun getCalendarEventsFlow(groupId: String, fromDate: String, toDate: String) = calendarHelper.getSharedEventsFlow(groupId, fromDate, toDate)
-    
-    // --- Comments (Centralized) ---
-
-    fun calendarCommentsFlow(eventId: String) = calendarHelper.getEventCommentsFlow(eventId)
-    suspend fun addCalendarComment(eventId: String, comment: Comment) = calendarHelper.addComment(eventId, comment)
-    suspend fun updateCalendarComment(eventId: String, commentId: String, newContent: String) = calendarHelper.updateComment(eventId, commentId, newContent)
-    suspend fun deleteCalendarComment(eventId: String, commentId: String) = calendarHelper.deleteComment(eventId, commentId)
-
-    // --- Support & System ---
+    private val calendarExtensionHelper: CalendarExtensionDatabaseHelper = CalendarExtensionDatabaseHelper(firestore)
 
     fun getSupportColl() = firestore.collection("support_requests")
     suspend fun getAppOptions() = supportHelper.getAppOptions()
@@ -125,8 +80,6 @@ class DataManager(val context: Context) {
     suspend fun logRequestedLanguage(name: String, code: String) = systemHelper.logRequestedLanguage(name, code)
     suspend fun addHistoryItem(userId: String, item: WorkHistoryItem) = workdayHelper.addHistoryItem(userId, item)
 
-    // --- Groups ---
-
     fun currentGroupIdFlow(): Flow<String?> = groupOpsHelper.currentGroupIdFlow()
     suspend fun getUserGroups(): List<String> = groupOpsHelper.getUserGroups()
     suspend fun createGroup(groupName: String, isPrivate: Boolean = false): String? = groupOpsHelper.createGroup(groupName, isPrivate)
@@ -135,15 +88,14 @@ class DataManager(val context: Context) {
     suspend fun joinGroup(groupId: String, isInviteAcceptance: Boolean = false) = groupOpsHelper.joinGroup(groupId, isInviteAcceptance)
     suspend fun leaveGroup(groupId: String) = groupOpsHelper.leaveGroup(groupId)
     suspend fun switchGroup(groupId: String) = groupOpsHelper.switchGroup(groupId)
+    suspend fun updateUserCalendarEmailInGroups(email: String) = groupMembershipHelper.updateUserCalendarEmailInGroups(email)
     fun clearLocalCache() = groupOpsHelper.clearLocalCache()
-    suspend fun sendInvite(email: String, groupId: String): Boolean = groupOpsHelper.sendInvite(email, groupId)
-    fun invitesFlow(): Flow<List<Invite>> = groupOpsHelper.invitesFlow()
-    suspend fun respondToInvite(inviteId: String, groupId: String, accept: Boolean): Boolean = groupOpsHelper.respondToInvite(inviteId, groupId, accept)
+    suspend fun sendInvite(email: String, groupId: String): Boolean = groupInviteHelper.sendInvite(email, groupId)
+    fun invitesFlow(): Flow<List<Invite>> = groupInviteHelper.invitesFlow()
+    suspend fun respondToInvite(inviteId: String, groupId: String, accept: Boolean): Boolean = groupInviteHelper.respondToInvite(inviteId, groupId, accept)
     
-    // --- User Profile ---
-
     suspend fun pushUserSettings(): Boolean = userAdminHelper.pushUserSettings()
-    suspend fun fetchUserSettings(): Boolean = userAdminHelper.fetchUserSettings()
+    suspend fun fetchUserSettings(force: Boolean = false): Boolean = userAdminHelper.fetchUserSettings(force)
     fun isAdminFlow(): Flow<Boolean> = userAdminHelper.isAdminFlow()
     fun allUsersFlow(): Flow<List<User>> = userAdminHelper.allUsersFlow()
     suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) = userAdminHelper.setUserAdminStatus(uid, isAdmin)
@@ -154,17 +106,23 @@ class DataManager(val context: Context) {
     suspend fun deleteUserPermanently(uid: String) = userAdminHelper.deleteUserPermanently(uid)
     suspend fun deleteMyAccount(): Boolean = userAdminHelper.deleteMyAccount()
     fun userNamesFlow(): Flow<Map<String, String>> = userAdminHelper.userNamesFlow()
-    fun groupMembersFlow(groupId: String): Flow<List<String>> = groupOpsHelper.groupMembersFlow(groupId)
+    fun publicProfilesFlow(): Flow<Map<String, PublicProfile>> = userAdminHelper.publicProfilesFlow()
+    fun groupMembersFlow(groupId: String): Flow<List<String>> = groupMembershipHelper.groupMembersFlow(groupId)
+    fun groupMemberEmailsFlow(groupId: String): Flow<List<String>> = groupMembershipHelper.groupMemberEmailsFlow(groupId)
+    suspend fun getGroupMemberEmails(groupId: String): List<String> = groupMembershipHelper.getGroupMemberEmails(groupId)
     fun userGroupsFlow(): Flow<List<String>> = groupOpsHelper.userGroupsFlow()
     fun groupInfoFlow(groupIds: List<String>): Flow<Map<String, GroupInfo>> = groupOpsHelper.groupInfoFlow(groupIds)
-    fun joinRequestsFlow(groupId: String): Flow<List<JoinRequest>> = groupOpsHelper.joinRequestsFlow(groupId)
-    suspend fun acceptJoinRequest(request: JoinRequest) = groupOpsHelper.acceptJoinRequest(request)
-    suspend fun declineJoinRequest(request: JoinRequest) = groupOpsHelper.declineJoinRequest(request)
-    fun personalNotificationsFlow() = groupOpsHelper.personalNotificationsFlow()
-    fun groupNotificationsFlow(groupId: String) = groupOpsHelper.groupNotificationsFlow(groupId)
-    suspend fun markNotificationAsRead(notification: UserNotification) = groupOpsHelper.markNotificationAsRead(notification)
-
-    // --- Trackers ---
+    fun joinRequestsFlow(groupId: String): Flow<List<JoinRequest>> = groupMembershipHelper.joinRequestsFlow(groupId)
+    suspend fun acceptJoinRequest(request: JoinRequest) = groupMembershipHelper.acceptJoinRequest(request)
+    suspend fun declineJoinRequest(request: JoinRequest) = groupMembershipHelper.declineJoinRequest(request)
+    fun personalNotificationsFlow() = notificationHelper.personalNotificationsFlow()
+    fun groupNotificationsFlow(groupId: String) = notificationHelper.groupNotificationsFlow(groupId)
+    suspend fun markNotificationAsRead(notification: UserNotification) = notificationHelper.markNotificationAsRead(notification)
+    suspend fun sendEventNotification(groupId: String, eventTitle: String, googleEventId: String) = notificationHelper.sendEventNotification(groupId, eventTitle, googleEventId)
+    suspend fun sendEventResponseNotification(groupId: String, eventTitle: String, accepted: Boolean, googleEventId: String) = notificationHelper.sendEventResponseNotification(groupId, eventTitle, accepted, googleEventId)
+    suspend fun sendEventDeletedNotification(groupId: String, eventTitle: String) = notificationHelper.sendEventDeletedNotification(groupId, eventTitle)
+    suspend fun sendEventCommentNotification(groupId: String, eventTitle: String, googleEventId: String, commentCount: Int) = notificationHelper.sendEventCommentNotification(groupId, eventTitle, googleEventId, commentCount)
+    suspend fun markEventNotificationsAsRead(googleEventId: String) = notificationHelper.markEventNotificationsAsRead(googleEventId)
 
     fun getTrackersFlow(groupId: String) = trackerHelper.getTrackersFlow(groupId)
     fun getTrackerRecordsFlow(groupId: String, trackerId: String) = trackerHelper.getRecordsFlow(groupId, trackerId)
@@ -174,4 +132,12 @@ class DataManager(val context: Context) {
     suspend fun addTrackerRecord(groupId: String, record: TrackerRecord) = trackerHelper.addRecord(groupId, record)
     suspend fun updateTrackerRecord(groupId: String, record: TrackerRecord) = trackerHelper.updateRecord(groupId, record)
     suspend fun deleteTrackerRecord(groupId: String, recordId: String) = trackerHelper.deleteRecord(groupId, recordId)
+
+    suspend fun saveCalendarExtension(extension: CalendarEventExtension) = calendarExtensionHelper.saveExtension(extension)
+    suspend fun getCalendarExtension(googleEventId: String) = calendarExtensionHelper.getExtension(googleEventId)
+    fun calendarExtensionFlow(googleEventId: String) = calendarExtensionHelper.getExtensionFlow(googleEventId)
+    suspend fun getCalendarExtensionsForRange(startMs: Long, endMs: Long) = calendarExtensionHelper.getExtensionsForRange(startMs, endMs)
+    suspend fun deleteCalendarExtension(googleEventId: String) = calendarExtensionHelper.deleteExtension(googleEventId)
+    fun calendarCommentsFlow(googleEventId: String) = calendarExtensionHelper.getCommentsCollection(googleEventId)
+    suspend fun addCalendarComment(googleEventId: String, comment: Comment) = calendarExtensionHelper.addComment(googleEventId, comment)
 }

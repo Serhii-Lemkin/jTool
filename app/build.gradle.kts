@@ -23,10 +23,15 @@ android {
         applicationId = "com.jtool.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 55
-        versionName = "2.7.2"
+        versionCode = 56
+        versionName = "2.7.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val host = localProperties.getProperty("DEEP_LINK_HOST") ?: "jtools-72695.web.app"
+        buildConfigField("String", "DEEP_LINK_HOST", "\"$host\"")
+        buildConfigField("String", "DEEP_LINK_BASE_URL", "\"https://$host\"")
+        manifestPlaceholders["DEEP_LINK_HOST"] = host
     }
 
     signingConfigs {
@@ -61,6 +66,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

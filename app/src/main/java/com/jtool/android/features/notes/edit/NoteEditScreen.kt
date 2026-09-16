@@ -193,23 +193,6 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
 
                 item {
                     Spacer(Modifier.height(16.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                    Spacer(Modifier.height(8.dp))
-                    
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
-                            text = "${Loc.General.by} ${uiState.userNames[uiState.editingNote?.lastUpdatedBy] ?: uiState.editingNote?.lastUpdatedBy ?: "Me"}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = dateFormat.format(Date(uiState.editingNote?.timestamp ?: System.currentTimeMillis())),
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                    }
-                    
-                    Spacer(Modifier.height(16.dp))
                     
                     val currentNote = uiState.editingNote
                     if (currentNote != null && !uiState.isEditMode) {

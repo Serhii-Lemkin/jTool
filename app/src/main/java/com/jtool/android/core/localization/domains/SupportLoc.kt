@@ -28,4 +28,7 @@ object SupportLoc {
     val set_status get() = Loc.s("support_set_status", "Set Status")
     val enter_details get() = Loc.s("support_enter_details", "Enter details here...")
     val sent_success get() = Loc.s("support_sent_success", "Support request sent!")
+    val id_copied get() = Loc.s("support_id_copied", "ID Copied")
+    val copy_crash_log get() = Loc.s("support_copy_crash_log", "Copy Crash Log")
+    val crash_log_copied get() = Loc.s("support_crash_log_copied", "Crash log copied to clipboard")
 }

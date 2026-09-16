@@ -47,5 +47,8 @@ data class WorktimeOptions(
 
     val useStableApproximateHours: Boolean = true,
     val stableApproximateStart: String? = null,
-    val stableApproximateEnd: String? = null
+    val stableApproximateEnd: String? = null,
+
+    val showVirtualShiftsOnlyCurrentWeek: Boolean = false,
+    val workShiftColorKey: String = "7"
 )

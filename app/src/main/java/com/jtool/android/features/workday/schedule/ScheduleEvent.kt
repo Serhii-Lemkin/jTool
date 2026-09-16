@@ -24,6 +24,7 @@ sealed interface ScheduleEvent {
     data class RequestScroll(val shiftKey: String) : ScheduleEvent
     object ClearScroll : ScheduleEvent
     object ClearError : ScheduleEvent
+    object DismissSavedSuccess : ScheduleEvent
     data class ToggleGoogleSync(val enabled: Boolean) : ScheduleEvent
     data class ConvertEventToShift(val day: DayOfWeek, val event: CalendarEvent) : ScheduleEvent
 }

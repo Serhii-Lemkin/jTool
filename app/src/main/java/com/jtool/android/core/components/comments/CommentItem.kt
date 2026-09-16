@@ -35,8 +35,11 @@ fun CommentItem(
             .padding(start = (depth * 16).dp, top = 8.dp, bottom = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val displayName = remember(comment.userId, userNames) {
+                userNames[comment.userId] ?: if (comment.userId == currentUserId) "Me" else Loc.General.stranger
+            }
             Text(
-                text = userNames[comment.userId] ?: comment.userId,
+                text = displayName,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
                 color = if (comment.isPending) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primary

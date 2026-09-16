@@ -1,5 +1,7 @@
 package com.jtool.android.features.settings.main
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -7,11 +9,13 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.auth.AuthManager
+import com.jtool.android.core.config.Config
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
@@ -36,6 +40,7 @@ fun SettingsMainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var infoMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     if (infoMessage != null) {
         MessageSheet(
@@ -96,7 +101,23 @@ fun SettingsMainScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
             item {
-                val context = androidx.compose.ui.platform.LocalContext.current
+                SettingsMenuItem(
+                    title = Loc.General.aboutApp,
+                    subtitle = Loc.General.landingPageSubtitle,
+                    icon = Icons.Default.Info,
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(Config.DEEP_LINK_BASE_URL))
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            infoMessage = "Could not open landing page"
+                        }
+                    }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+            item {
                 val scope = rememberCoroutineScope()
                 SettingsMenuItem(
                     title = Loc.Settings.privacyPolicy,

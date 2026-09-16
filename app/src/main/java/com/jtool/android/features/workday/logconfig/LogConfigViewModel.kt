@@ -36,7 +36,8 @@ class LogConfigViewModel(
             pendingUseStable = options.useStableApproximateHours,
             pendingStableStart = options.stableApproximateStart,
             pendingStableEnd = options.stableApproximateEnd,
-            pendingWeeklySchedule = schedule
+            pendingWeeklySchedule = schedule,
+            showVirtualShiftsOnlyCurrentWeek = options.showVirtualShiftsOnlyCurrentWeek
         ) }
     }
 
@@ -53,7 +54,8 @@ class LogConfigViewModel(
                     isLogHoursSet = current.tempWeeklySchedule.isNotEmpty(),
                     useStableApproximateHours = current.useStableApproximateHours,
                     stableApproximateStart = current.stableApproximateStart,
-                    stableApproximateEnd = current.stableApproximateEnd
+                    stableApproximateEnd = current.stableApproximateEnd,
+                    showVirtualShiftsOnlyCurrentWeek = current.showVirtualShiftsOnlyCurrentWeek
                 )
                 settingsManager.saveWorktimeOptions(options)
                 _uiState.update { it.copy(weeklySchedule = current.tempWeeklySchedule, hasUnsavedChanges = false) }
@@ -96,6 +98,9 @@ class LogConfigViewModel(
                     pendingStableStart = event.stableStart ?: it.pendingStableStart,
                     pendingStableEnd = event.stableEnd ?: it.pendingStableEnd
                 ) }
+            }
+            is LogConfigEvent.UpdateShowVirtualShiftsOnlyCurrentWeek -> {
+                _uiState.update { it.copy(showVirtualShiftsOnlyCurrentWeek = event.show, hasUnsavedChanges = true) }
             }
         }
     }

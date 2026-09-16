@@ -136,7 +136,7 @@ fun ScheduleContent(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerVie
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (shift == null) {
                 Text(
-                    Loc.Workday.dayOff,
+                    Loc.Workday.noWorkDetected,
                     color = Color.Gray,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,

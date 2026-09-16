@@ -5,6 +5,8 @@ import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.workday.WorktimeOptions
 import com.jtool.android.core.models.calendar.CalendarConfig
+import com.jtool.android.core.models.calendar.enums.GridEventStyleEnum
+import com.jtool.android.core.models.user.PublicProfile
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import java.time.DayOfWeek
@@ -138,7 +140,8 @@ class SettingsManager(context: Context) {
                 map[id] = GroupInfo(
                     id = id,
                     name = groupJson.getString("name"),
-                    ownerUid = if (groupJson.has("ownerUid")) groupJson.getString("ownerUid") else null
+                    ownerUid = if (groupJson.has("ownerUid")) groupJson.getString("ownerUid") else null,
+                    isPrivate = if (groupJson.has("isPrivate")) groupJson.getBoolean("isPrivate") else false
                 )
             }
             map
@@ -153,6 +156,7 @@ class SettingsManager(context: Context) {
             val groupJson = org.json.JSONObject()
             groupJson.put("name", info.name)
             groupJson.put("ownerUid", info.ownerUid)
+            groupJson.put("isPrivate", info.isPrivate)
             obj.put(id, groupJson)
         }
         prefs.edit().putString("remembered_groups", obj.toString()).apply()
@@ -225,24 +229,32 @@ class SettingsManager(context: Context) {
     }
 
     fun getVisibleGroupIds(): Set<String> {
-        return prefs.getStringSet("visible_calendar_groups", null) ?: emptySet()
+        return prefs.getStringSet("visible_calendar_groups", emptySet()) ?: emptySet()
     }
 
     fun saveVisibleGroupIds(groupIds: Set<String>) {
         prefs.edit().putStringSet("visible_calendar_groups", groupIds).apply()
     }
 
+    fun getHiddenGroupIds(): Set<String> {
+        return prefs.getStringSet("hidden_calendar_groups", emptySet()) ?: emptySet()
+    }
+
+    fun saveHiddenGroupIds(groupIds: Set<String>) {
+        prefs.edit().putStringSet("hidden_calendar_groups", groupIds).apply()
+    }
+
+    fun getLastSyncTimestamp(): Long {
+        return prefs.getLong("last_sync_timestamp", 0L)
+    }
+
+    fun setLastSyncTimestamp(timestamp: Long) {
+        prefs.edit().putLong("last_sync_timestamp", timestamp).apply()
+    }
+
     // Calendar Config
     fun getCalendarConfig(): CalendarConfig {
-        val jsonString = prefs.getString("calendar_config", null) ?: return CalendarConfig(
-            googleSyncEnabled = prefs.getBoolean("calendar_google_sync_enabled", false),
-            googlePullEnabled = prefs.getBoolean("calendar_google_pull_enabled", true),
-            googlePushEnabled = prefs.getBoolean("calendar_google_push_enabled", false),
-            googleCalendarId = prefs.getString("calendar_google_id", "primary") ?: "primary",
-            autoWorkKeywords = prefs.getString("calendar_auto_work_keywords", "") ?: "",
-            lastMigrationTimestamp = prefs.getLong("calendar_last_migration", 0L),
-            lastGoogleSyncTimestamp = prefs.getLong("calendar_last_google_sync", 0L)
-        )
+        val jsonString = prefs.getString("calendar_config", null) ?: return CalendarConfig()
         return try {
             json.decodeFromString<CalendarConfig>(jsonString)
         } catch (_: Exception) {
@@ -252,35 +264,64 @@ class SettingsManager(context: Context) {
 
     fun saveCalendarConfig(config: CalendarConfig) {
         prefs.edit().putString("calendar_config", json.encodeToString(config)).apply()
-        // Legacy support
-        prefs.edit().putBoolean("calendar_google_sync_enabled", config.googleSyncEnabled).apply()
-        prefs.edit().putBoolean("calendar_google_pull_enabled", config.googlePullEnabled).apply()
-        prefs.edit().putBoolean("calendar_google_push_enabled", config.googlePushEnabled).apply()
-        prefs.edit().putString("calendar_google_id", config.googleCalendarId).apply()
-        prefs.edit().putString("calendar_auto_work_keywords", config.autoWorkKeywords).apply()
-        prefs.edit().putLong("calendar_last_migration", config.lastMigrationTimestamp).apply()
-        prefs.edit().putLong("calendar_last_google_sync", config.lastGoogleSyncTimestamp).apply()
     }
 
     // Calendar Sync Settings (Legacy Individual Accessors - Now pointing to CalendarConfig)
-    fun isGoogleCalendarSyncEnabled(): Boolean = getCalendarConfig().googleSyncEnabled
-    fun setGoogleCalendarSyncEnabled(enabled: Boolean) = saveCalendarConfig(getCalendarConfig().copy(googleSyncEnabled = enabled))
-
-    fun isGoogleCalendarPullEnabled(): Boolean = getCalendarConfig().googlePullEnabled
-    fun setGoogleCalendarPullEnabled(enabled: Boolean) = saveCalendarConfig(getCalendarConfig().copy(googlePullEnabled = enabled))
-
-    fun isGoogleCalendarPushEnabled(): Boolean = getCalendarConfig().googlePushEnabled
-    fun setGoogleCalendarPushEnabled(enabled: Boolean) = saveCalendarConfig(getCalendarConfig().copy(googlePushEnabled = enabled))
-
     fun getGoogleCalendarId(): String = getCalendarConfig().googleCalendarId
     fun setGoogleCalendarId(id: String) = saveCalendarConfig(getCalendarConfig().copy(googleCalendarId = id))
 
-    fun getAutoWorkKeywords(): String = getCalendarConfig().autoWorkKeywords
-    fun setAutoWorkKeywords(keywords: String) = saveCalendarConfig(getCalendarConfig().copy(autoWorkKeywords = keywords))
+    fun getGoogleCalendarEmail(): String = getCalendarConfig().googleCalendarEmail
+    fun setGoogleCalendarEmail(email: String) = saveCalendarConfig(getCalendarConfig().copy(googleCalendarEmail = email))
 
-    fun getLastCalendarMigration(): Long = getCalendarConfig().lastMigrationTimestamp
-    fun setLastCalendarMigration(timestamp: Long) = saveCalendarConfig(getCalendarConfig().copy(lastMigrationTimestamp = timestamp))
+    fun getGoogleCalendarSharedId(): String = getCalendarConfig().googleCalendarSharedId
+    fun setGoogleCalendarSharedId(id: String) = saveCalendarConfig(getCalendarConfig().copy(googleCalendarSharedId = id))
 
-    fun getLastGoogleSync(): Long = getCalendarConfig().lastGoogleSyncTimestamp
-    fun setLastGoogleSync(timestamp: Long) = saveCalendarConfig(getCalendarConfig().copy(lastGoogleSyncTimestamp = timestamp))
+    fun getWorkShiftColorKey(): String = getCalendarConfig().workShiftColorKey.ifEmpty { "7" }
+    fun setWorkShiftColorKey(colorKey: String) {
+        val config = getCalendarConfig().copy(workShiftColorKey = colorKey)
+        saveCalendarConfig(config)
+        val options = getWorktimeOptions().copy(workShiftColorKey = colorKey)
+        saveWorktimeOptions(options)
+    }
+
+    fun getDisplayedCalendarIds(): Set<String> {
+        val config = getCalendarConfig()
+        return if (config.displayedCalendarIds.isNotEmpty()) {
+            config.displayedCalendarIds.toSet()
+        } else if (config.googleCalendarId.isNotEmpty()) {
+            setOf(config.googleCalendarId)
+        } else {
+            emptySet()
+        }
+    }
+
+    fun setDisplayedCalendarIds(ids: Set<String>) {
+        saveCalendarConfig(getCalendarConfig().copy(displayedCalendarIds = ids.toList()))
+    }
+
+    fun getGridEventStyle(): GridEventStyleEnum = getCalendarConfig().gridEventStyle
+    fun setGridEventStyle(style: GridEventStyleEnum) {
+        saveCalendarConfig(getCalendarConfig().copy(gridEventStyle = style))
+    }
+
+    fun getPublicProfiles(): Map<String, PublicProfile> {
+        val jsonString = prefs.getString("public_profiles", null) ?: return emptyMap()
+        return try {
+            json.decodeFromString<Map<String, PublicProfile>>(jsonString)
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    fun savePublicProfiles(profiles: Map<String, PublicProfile>) {
+        prefs.edit().putString("public_profiles", json.encodeToString(profiles)).apply()
+    }
+
+    fun getProfilesLastModified(): Long {
+        return prefs.getLong("profiles_last_modified", 0L)
+    }
+
+    fun saveProfilesLastModified(timestamp: Long) {
+        prefs.edit().putLong("profiles_last_modified", timestamp).apply()
+    }
 }

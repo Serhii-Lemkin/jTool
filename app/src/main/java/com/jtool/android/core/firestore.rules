@@ -8,7 +8,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
 
     function isGroupMember(groupId) {
@@ -28,24 +29,29 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // 2. PUBLIC PROFILES
+    // 2. PUBLIC PROFILES - READABLE BY ALL SIGNED-IN USERS
+    // Required for the global name cache to work with collection listeners.
+    // Contains only non-sensitive data (displayName, calendarEmail).
     match /public_profiles/{profileId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && profileId == request.auth.uid;
     }
 
-    // 3. USERS
-    match /users/{userId} {
+    // 3. GLOBAL METADATA
+    match /metadata/{docId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && userId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        userId == request.auth.uid ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groupIds']) &&
-         isGroupMember(request.resource.data.groupIds[request.resource.data.groupIds.size() - 1]))
-      );
+      allow write: if isAdmin();
     }
 
-    // 4. USER DATA
+    // 4. USERS & PRIVATE DATA
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && userId == request.auth.uid;
+
+      match /work_history/{itemId} {
+        allow read, write: if isSignedIn() && userId == request.auth.uid;
+      }
+    }
+
     match /user_data/{userId} {
       allow read, write: if isSignedIn() && userId == request.auth.uid;
       match /{allSubcollections=**} {
@@ -53,32 +59,7 @@ service cloud.firestore {
       }
     }
 
-    // 5. CALENDAR EVENTS (Centralized Collection)
-    match /calendar_events/{eventId} {
-      function userGroupIds() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupIds;
-      }
-
-      function canReadSharedEvent() {
-        return resource.data.sharedGroupIds.toSet().hasAny(userGroupIds().toSet());
-      }
-
-      allow create: if isSignedIn();
-      allow read: if isSignedIn() && (
-        request.auth.uid == resource.data.ownerUid ||
-        canReadSharedEvent()
-      );
-      allow update: if isSignedIn() && request.auth.uid == resource.data.ownerUid;
-      allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerUid;
-
-      match /comments/{commentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update, delete: if isSignedIn() && request.auth.uid == resource.data.userId;
-      }
-    }
-
-    // 6. GROUPS & SHARED DATA
+    // 5. GROUPS & SHARED DATA (UNSIMPLIFIED)
     match /groups/{groupId} {
       allow get: if isSignedIn() && (
         resource == null ||
@@ -88,7 +69,8 @@ service cloud.firestore {
       );
       allow list: if isSignedIn() && (
         resource.data.ownerUid == request.auth.uid ||
-        resource.data.isPrivate == false
+        resource.data.isPrivate == false ||
+        isGroupMember(groupId)
       );
       allow create: if isSignedIn();
       allow update: if isGroupMember(groupId) && (resource.data.isPrivate == false || resource.data.ownerUid == request.auth.uid);
@@ -96,10 +78,6 @@ service cloud.firestore {
 
       match /group_notifications/{notifId} {
         allow read, write, delete: if isGroupMember(groupId);
-        match /seen_by/{userId} {
-          allow read: if isGroupMember(groupId);
-          allow write: if isGroupMember(groupId) && userId == request.auth.uid;
-        }
       }
 
       match /join_requests/{userId} {
@@ -111,18 +89,19 @@ service cloud.firestore {
       match /members/{userId} {
         allow read: if isSignedIn() && (isGroupMember(groupId) || request.auth.uid == userId);
         allow create: if isSignedIn() && (
-          (request.auth.uid == userId && (get(/databases/$(database)/documents/groups/$(groupId)).data.ownerUid == request.auth.uid || hasInvite(groupId))) ||
+          (request.auth.uid == userId && (exists(/databases/$(database)/documents/groups/$(groupId)) && get(/databases/$(database)/documents/groups/$(groupId)).data.ownerUid == request.auth.uid || hasInvite(groupId))) ||
           (isGroupMember(groupId) && exists(/databases/$(database)/documents/groups/$(groupId)/join_requests/$(userId)))
         );
         allow delete: if isSignedIn() && (request.auth.uid == userId || isGroupMember(groupId));
       }
 
+      // Shared sub-collections (Shopping, Notes, etc.)
       match /{allSubcollections=**} {
         allow read, write: if isGroupMember(groupId);
       }
     }
 
-    // 7. INVITES
+    // 6. INVITES
     match /invites/{email} {
       allow read, delete: if isSignedIn() && request.auth.token.email.lower() == email.lower();
       match /items/{inviteId} {
@@ -131,16 +110,40 @@ service cloud.firestore {
       }
     }
 
-    // 8. SUPPORT REQUESTS
-    match /support_requests/{requestId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn();
-      allow update, delete: if isAdmin();
+    // 7. CALENDAR EXTENSIONS & COMMENTS
+    match /calendar_event_extensions/{eventId} {
+      allow read: if isSignedIn() && (
+        resource == null ||
+        resource.data.ownerUid == request.auth.uid ||
+        resource.data.sharedGroupIds.hasAny(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupIds)
+      );
+      allow write: if isSignedIn(); // Restricted via app logic to owners/members
+
+      match /comments/{commentId} {
+        // Allow adding comments if you can see the event
+        allow read, write: if isSignedIn();
+      }
     }
 
-    // 9. APP CONFIG
+    // 8. SUPPORT REQUESTS
+    match /support_requests/{requestId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow read, write: if isSignedIn() &&
+          get(/databases/$(database)/documents/support_requests/$(requestId)).data.userId == request.auth.uid;
+      }
+    }
+
+    // 9. OTHER COLLECTIONS
     match /app_options/{optionId} {
       allow read: if isSignedIn();
+      allow write: if isAdmin() || (isSignedIn() && optionId == "support_data");
+    }
+    match /requested_languages/{id} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
     }
   }
 }

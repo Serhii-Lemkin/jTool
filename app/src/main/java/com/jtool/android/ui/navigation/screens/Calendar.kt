@@ -31,7 +31,7 @@ object Calendar : AppProperties(
             onBack = deps.onBack,
             onNavigate = { deps.setScreen(it) },
             viewModel = calendarViewModel,
-            settingsManager = deps.settingsManager
+            groups = deps.groups
         )
     }
 }

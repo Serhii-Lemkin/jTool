@@ -1,10 +1,7 @@
 package com.jtool.android.features.calendar.detail
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import android.provider.CalendarContract
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,27 +12,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.jtool.android.core.components.layout.GenericTitle
-import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.calendar.enums.CalendarEventTypeEnum
-import com.jtool.android.core.models.common.enums.AppScreenEnum
-import com.jtool.android.features.calendar.components.delete_event_confirm_sheet.DeleteEventConfirmSheet
+import androidx.compose.ui.text.style.TextAlign
+import com.google.firebase.auth.FirebaseAuth
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
+import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.localization.domains.CalendarLoc
+import com.jtool.android.core.models.calendar.CalendarEvent
+import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.core.models.group.GroupInfo
+import com.jtool.android.features.calendar.components.delete_event_confirm_sheet.DeleteEventConfirmSheet
 import com.jtool.android.features.calendar.detail.components.event_action_sheet.EventActionSheet
-import com.jtool.android.features.calendar.detail.components.group_sharing_sheet.GroupSharingSheet
-import com.jtool.android.ui.components.common.MessageSheet
-import com.jtool.android.ui.components.common.MessageType
-import com.jtool.android.ui.components.sheets.CalendarWarningSheet
+import com.jtool.android.features.calendar.detail.components.rsvp_status_sheet.RsvpStatusSheet
+import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getEventColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -45,28 +44,16 @@ import java.util.Locale
 fun CalendarEventDetailScreen(
     onBack: () -> Unit,
     onNavigate: (AppScreenEnum) -> Unit,
-    viewModel: CalendarEventDetailViewModel
+    viewModel: CalendarEventDetailViewModel,
+    groups: Map<String, GroupInfo>
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    val emailToProfile by viewModel.emailToProfile.collectAsState()
     val event = uiState.event
+    val extension = uiState.extension
     var showDeleteSheet by remember { mutableStateOf(false) }
     var showActionSheet by remember { mutableStateOf(false) }
-    var showSharingSheet by remember { mutableStateOf(false) }
-    var showCalendarWarning by remember { mutableStateOf(false) }
-    var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
-    
-    val currentUserId = viewModel.settingsManager.getUserId()
-    
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        if (results.values.all { it }) {
-            viewModel.syncWithGoogle(context)
-        } else {
-            infoMessage = "Calendar permissions are required for sync" to MessageType.ERROR
-        }
-    }
+    var showRsvpSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -74,7 +61,7 @@ fun CalendarEventDetailScreen(
 
     if (showDeleteSheet) {
         DeleteEventConfirmSheet(
-            isSynced = event?.googleEventId != null,
+            isSynced = true,
             onDismiss = { showDeleteSheet = false },
             onConfirm = {
                 viewModel.deleteEvent()
@@ -90,73 +77,40 @@ fun CalendarEventDetailScreen(
         }
     }
 
+    if (showRsvpSheet && event != null) {
+        RsvpStatusSheet(
+            currentStatus = event.currentUserStatus,
+            onAccept = { viewModel.acceptInvite() },
+            onDecline = { viewModel.declineInvite() },
+            onDismiss = { showRsvpSheet = false }
+        )
+    }
+
     if (showActionSheet && event != null) {
-        val isOwner = event.ownerUid == currentUserId
-        
+        val myEmail = viewModel.settingsManager.getGoogleCalendarEmail().ifEmpty {
+            FirebaseAuth.getInstance().currentUser?.email ?: ""
+        }.lowercase().trim()
+        val myAuthEmail = FirebaseAuth.getInstance().currentUser?.email?.lowercase()?.trim() ?: ""
+        val myUid = viewModel.settingsManager.getUserId()
+        val isCreator = (event.organizer != null && event.organizer.lowercase().trim().let { it == myEmail || it == myAuthEmail }) ||
+                        (extension != null && extension.ownerUid == myUid) ||
+                        event.id.startsWith("virtual_")
+
         EventActionSheet(
             event = event,
-            canEdit = isOwner,
+            canEdit = isCreator || !event.id.startsWith("virtual_"),
+            canChangeRsvp = !isCreator,
             onEdit = { viewModel.toggleEditDialog(true) },
             onDelete = { showDeleteSheet = true },
-            onSyncToggle = {
-                val calendarId = viewModel.settingsManager.getGoogleCalendarId()
-                if (calendarId.isEmpty() || calendarId == "primary") {
-                    showCalendarWarning = true
-                } else if (event.googleEventId != null) {
-                    viewModel.removeFromGoogle(context)
-                } else {
-                    if (context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED &&
-                        context.checkSelfPermission(Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED) {
-                        viewModel.syncWithGoogle(context)
-                    } else {
-                        permissionLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
-                    }
-                }
-            },
-            onShareToggle = { showSharingSheet = true },
+            onChangeRsvp = { showRsvpSheet = true },
+            onSyncToggle = {},
+            onShareToggle = {},
             onDismiss = { showActionSheet = false }
         )
     }
 
-    if (showSharingSheet && event != null) {
-        val groups = viewModel.settingsManager.getGroups()
-        
-        GroupSharingSheet(
-            groups = groups,
-            sharedGroupIds = event.sharedGroupIds,
-            onToggleGroup = { gid ->
-                val currentGroups = event.sharedGroupIds.toMutableList()
-                if (currentGroups.contains(gid)) {
-                    currentGroups.remove(gid)
-                } else {
-                    currentGroups.add(gid)
-                }
-                viewModel.updateEvent(context, event, currentGroups)
-            },
-            onDismiss = { showSharingSheet = false }
-        )
-    }
-
-    if (showCalendarWarning) {
-        CalendarWarningSheet(
-            onDismiss = { showCalendarWarning = false },
-            onNavigateToSettings = { 
-                showCalendarWarning = false
-                onNavigate(AppScreenEnum.CALENDAR_SETTINGS)
-            }
-        )
-    }
-
-    if (infoMessage != null) {
-        MessageSheet(
-            message = infoMessage!!.first,
-            type = infoMessage!!.second,
-            onDismiss = { infoMessage = null }
-        )
-    }
-
     Scaffold(
-        modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+        modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding(),
         topBar = {
             GenericTitle(
                 title = Loc.Calendar.event,
@@ -171,28 +125,78 @@ fun CalendarEventDetailScreen(
             )
         }
     ) { padding ->
-        if (event == null) {
+        if (uiState.isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (uiState.isPermissionDenied) {
+            Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Lock,
+                        null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        CalendarLoc.permissionDenied,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        CalendarLoc.permissionDeniedMsg,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Button(onClick = onBack) {
+                        Text(Loc.General.back)
+                    }
+                }
+            }
+        } else if (event == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(Loc.Calendar.noEventFound)
             }
         } else {
-            val isShift = event.type == CalendarEventTypeEnum.SHIFT
-            val themeColor = if (isShift) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+            val themeColor = MaterialTheme.colorScheme.primary
 
             Column(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.Top
             ) {
-                // Header Card
+                val myEmail = viewModel.settingsManager.getGoogleCalendarEmail().ifEmpty {
+                    FirebaseAuth.getInstance().currentUser?.email ?: ""
+                }.lowercase().trim()
+                val myAuthEmail = FirebaseAuth.getInstance().currentUser?.email?.lowercase()?.trim() ?: ""
+                val myUid = viewModel.settingsManager.getUserId()
+                val myName = viewModel.settingsManager.getUserName()
+
+                val isCreator = (event.organizer != null && event.organizer.lowercase().trim().let { it == myEmail || it == myAuthEmail }) ||
+                                (extension != null && extension.ownerUid == myUid) ||
+                                event.id.startsWith("virtual_")
+
+                val extStatus = extension?.attendeeStatuses?.get(myEmail) ?: extension?.attendeeStatuses?.get(myAuthEmail)
+                val myStatus = extStatus ?: event.currentUserStatus ?: event.attendeeStatuses[myEmail] ?: event.attendeeStatuses[myAuthEmail]
+
+                val isDeclined = myStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
+                val showRsvpButtons = !isCreator && myStatus != CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED
+
+                val eventColor = getEventColor(event.colorKey)
+                val workShiftColorKey = remember { viewModel.settingsManager.getWorkShiftColorKey() }
+                val isWork = (event.colorKey != null && event.colorKey == workShiftColorKey) || 
+                             (event.colorKey == null && (workShiftColorKey == "7" || workShiftColorKey == "1"))
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = themeColor.copy(alpha = 0.1f))
+                    colors = CardDefaults.cardColors(containerColor = eventColor.copy(alpha = 0.1f))
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -200,12 +204,12 @@ fun CalendarEventDetailScreen(
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(themeColor),
+                                    .background(eventColor),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    if (isShift) Icons.Default.Work else Icons.Default.Event,
-                                    null,
+                                    imageVector = if (isWork) Icons.Default.Work else Icons.Default.Event,
+                                    contentDescription = null,
                                     tint = Color.White
                                 )
                             }
@@ -215,13 +219,42 @@ fun CalendarEventDetailScreen(
                                     text = event.title.ifEmpty { Loc.Calendar.event },
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = themeColor
+                                    color = eventColor
                                 )
-                                Text(
-                                    text = if (isShift) Loc.Calendar.shift else Loc.Calendar.common,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = themeColor.copy(alpha = 0.7f)
-                                )
+                            }
+                        }
+                    }
+                }
+                
+                if (showRsvpButtons) {
+                    Spacer(Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Button(
+                            onClick = { viewModel.acceptInvite() },
+                            modifier = Modifier.weight(1f),
+                            enabled = !uiState.isResponding,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            if (uiState.isResponding) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                            } else {
+                                Icon(Icons.Default.Check, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(CalendarLoc.acceptInvite)
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.declineInvite() },
+                            modifier = Modifier.weight(1f),
+                            enabled = !uiState.isResponding,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            if (uiState.isResponding) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                            } else {
+                                Icon(Icons.Default.Close, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(Loc.General.decline)
                             }
                         }
                     }
@@ -229,7 +262,6 @@ fun CalendarEventDetailScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Info Section
                 Text(
                     text = Loc.General.details,
                     style = MaterialTheme.typography.titleMedium,
@@ -240,7 +272,8 @@ fun CalendarEventDetailScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         val formattedDate = remember(event.date, Loc.lang) {
@@ -251,83 +284,123 @@ fun CalendarEventDetailScreen(
                         }
                         
                         DetailRow(Icons.Default.CalendarToday, Loc.Calendar.date, formattedDate)
-                        
-                        val timeValue = if (event.allDay) Loc.Calendar.allDay else "${event.startTime}${event.endTime?.let { " - $it" } ?: ""}"
-                        DetailRow(Icons.Default.AccessTime, Loc.Calendar.time, timeValue)
-                        
-                        val belongsTo = if (event.sharedGroupIds.isEmpty()) {
-                            Loc.Calendar.private
-                        } else {
-                            val groups = viewModel.settingsManager.getGroups()
-                            event.sharedGroupIds.map { id -> groups[id]?.name ?: id }.joinToString(", ")
-                        }
-                        
-                        DetailRow(Icons.Default.Groups, Loc.Calendar.belongsTo, belongsTo)
+                        DetailRow(Icons.Default.AccessTime, Loc.Calendar.time, "${event.startTime} - ${event.endTime}")
 
                         if (event.note.isNotEmpty()) {
                             DetailRow(Icons.Default.Notes, Loc.Calendar.note, event.note)
                         }
 
-                        val creatorName = if (event.ownerUid == currentUserId) Loc.Calendar.me else event.createdBy
-                        DetailRow(Icons.Default.Person, Loc.Calendar.owner, creatorName)
-                        
-                        if (event.googleEventId != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                                Icon(Icons.Default.Sync, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Text(Loc.Calendar.synced, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
+                        if (extension != null && extension.sharedGroupIds.isNotEmpty()) {
+                            val groupNames = extension.sharedGroupIds.map { gid ->
+                                val group = groups[gid]
+                                if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
                             }
+                            DetailRow(Icons.Default.Groups, Loc.Calendar.belongsTo, groupNames.joinToString(", "))
+                        } else if (event.attendees.isNotEmpty()) {
+                            val attendeeNames = event.attendees.map { email ->
+                                val cleanEmail = email.lowercase().trim()
+                                val profile = emailToProfile[cleanEmail]
+                                when {
+                                    (cleanEmail == myEmail || cleanEmail == myAuthEmail) && myName.isNotEmpty() -> myName
+                                    profile != null && profile.displayName.isNotEmpty() -> profile.displayName
+                                    else -> email
+                                }
+                            }
+                            DetailRow(Icons.Default.Groups, Loc.Calendar.belongsTo, attendeeNames.joinToString(", "))
                         }
                     }
                 }
 
-                if (event.sharedGroupIds.isNotEmpty()) {
+                val allAttendeeEmails = remember(event.attendees) {
+                    event.attendees.map { it.lowercase().trim() }.distinct().filter { it.isNotEmpty() }
+                }
+
+                if (allAttendeeEmails.isNotEmpty()) {
                     Spacer(Modifier.height(24.dp))
                     Text(
-                        text = Loc.Calendar.shareWithGroups,
+                        text = Loc.Tracker.members,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 8.dp, bottom = 12.dp)
                     )
-                    
-                    val groupsMap = viewModel.settingsManager.getGroups()
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        event.sharedGroupIds.forEach { gid ->
-                            val group = groupsMap[gid]
-                            if (group != null) {
-                                Surface(
-                                    color = themeColor.copy(alpha = 0.1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Groups, null, tint = themeColor, modifier = Modifier.size(20.dp))
-                                        Spacer(Modifier.width(12.dp))
-                                        Text(group.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = themeColor)
-                                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            allAttendeeEmails.forEach { email ->
+                                val profile = emailToProfile[email]
+                                val displayName = when {
+                                    (email == myEmail || email == myAuthEmail) && myName.isNotEmpty() -> myName
+                                    profile != null && profile.displayName.isNotEmpty() -> profile.displayName
+                                    else -> email
+                                }
+
+                                val extAttendeeStatus = extension?.attendeeStatuses?.get(email)
+                                val status = extAttendeeStatus 
+                                    ?: (if (email == myEmail || email == myAuthEmail) event.currentUserStatus else null)
+                                    ?: event.attendeeStatuses[email] 
+                                    ?: event.attendeeStatuses[email.lowercase().trim()]
+
+                                val (statusIcon, statusColor, statusLabel) = when (status) {
+                                    CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED -> Triple(
+                                        Icons.Default.CheckCircle,
+                                        Color(0xFF4CAF50),
+                                        CalendarLoc.accepted
+                                    )
+                                    CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED -> Triple(
+                                        Icons.Default.Cancel,
+                                        MaterialTheme.colorScheme.error,
+                                        CalendarLoc.declined
+                                    )
+                                    else -> Triple(
+                                        Icons.Default.HourglassTop,
+                                        Color(0xFFFF9800),
+                                        CalendarLoc.pending
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(statusIcon, null, tint = statusColor, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        text = displayName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = statusLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = statusColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(32.dp))
-                
-                // Comments Section
-                val comments by viewModel.comments.collectAsState(initial = emptyList())
-                val userNames by viewModel.userNames.collectAsState(initial = emptyMap())
-                
-                CommentSection(
-                    comments = comments,
-                    currentUserId = currentUserId,
-                    userNames = userNames,
-                    onEvent = { viewModel.onCommentEvent(it) },
-                    initiallyExpanded = true
-                )
-                
+                if (!showRsvpButtons) {
+                    Spacer(Modifier.height(24.dp))
+                    
+                    CommentSection(
+                        comments = uiState.comments,
+                        currentUserId = viewModel.settingsManager.getUserId(),
+                        userNames = uiState.userNames,
+                        onEvent = { e ->
+                            when (e) {
+                                is CommentEvent.Add -> viewModel.addComment(e.content, e.parentId)
+                                is CommentEvent.Edit -> {} // Implement if needed
+                                is CommentEvent.Delete -> {} // Implement if needed
+                            }
+                        }
+                    )
+                }
+
                 Spacer(Modifier.height(100.dp))
             }
         }

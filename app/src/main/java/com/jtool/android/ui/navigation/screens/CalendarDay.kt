@@ -22,7 +22,8 @@ object CalendarDay : AppProperties(AppScreenEnum.CALENDAR_DAY) {
         CalendarDayScreen(
             onBack = deps.onBack,
             onNavigate = deps.setScreen,
-            viewModel = calendarViewModel
+            viewModel = calendarViewModel,
+            groups = deps.groups
         )
     }
 }

@@ -11,7 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -92,7 +94,7 @@ fun SupportHubScreen(
     if (showTypeSheet) {
         com.jtool.android.features.support.components.type_selection_sheet.SupportTypeSelectionSheet(
             onTypeSelected = { type ->
-                viewModel.onEvent(SupportEvent.SetFilterType(type))
+                viewModel.onEvent(SupportEvent.SetNewRequestType(type))
                 viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.NEW_FORM))
             },
             onDismiss = { showTypeSheet = false }
@@ -110,7 +112,7 @@ fun SupportHubScreen(
     val filteredRequests = remember(uiState.requests, uiState.activeTypeFilters, uiState.activeStatusFilters, uiState.searchQuery) {
         uiState.requests
             .filter { if (uiState.activeTypeFilters.isEmpty()) true else uiState.activeTypeFilters.contains(it.type) }
-            .filter { uiState.activeStatusFilters.contains(it.status) }
+            .filter { if (uiState.activeStatusFilters.isEmpty()) true else uiState.activeStatusFilters.contains(it.status) }
             .filter {
                 if (uiState.searchQuery.isBlank()) true
                 else {
@@ -274,8 +276,8 @@ fun SupportHubScreen(
                             text = uiState.requestText,
                             onTextChange = { viewModel.onEvent(SupportEvent.UpdateRequestText(it)) },
                             isSending = uiState.isSending,
-                            selectedType = uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG,
-                            onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.activeTypeFilters.firstOrNull() ?: SupportTypeEnum.BUG, context)) }
+                            selectedType = uiState.newRequestType,
+                            onSubmit = { viewModel.onEvent(SupportEvent.SubmitRequest(uiState.newRequestType, context)) }
                         )
                     }
                 }

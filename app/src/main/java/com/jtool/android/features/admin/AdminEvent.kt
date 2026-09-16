@@ -36,4 +36,5 @@ sealed interface AdminEvent {
     ) : AdminEvent
     
     object Refresh : AdminEvent
+    object CleanupCalendarData : AdminEvent
 }

@@ -1,18 +1,24 @@
 package com.jtool.android.core.sync.helpers
 
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
+import com.jtool.android.core.models.common.Comment
 import com.jtool.android.core.models.user.UserData
 import com.jtool.android.core.models.support.SupportConfig
 import com.jtool.android.core.models.support.SupportTicketMeta
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
+import com.jtool.android.core.models.user.User
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
 
@@ -48,44 +54,54 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
                 }
             }
 
+            val isAdmin = try {
+                val userRef = firestore.collection(SupportConfig.USERS_COLLECTION).document(uid)
+                userRef.get().await().toObject(User::class.java)?.isAdmin ?: false
+            } catch (_: Exception) { false }
+
+            val today = SimpleDateFormat(SupportConfig.DATE_FORMAT, Locale.US).format(Date())
+            var currentCount = 0
+            try {
+                val userDataSnapshot = getUserDataColl().document(uid).get().await()
+                val userData = userDataSnapshot.toObject(UserData::class.java)
+                if (userData?.lastSupportDate == today) {
+                    currentCount = userData.dailySupportCount
+                }
+            } catch (_: Exception) {}
+
+            var maxRequests = 2L
+            try {
+                val config = getOptionsDoc().get().await().toObject(SupportConfig::class.java)
+                maxRequests = config?.max_requests ?: 2L
+            } catch (_: Exception) {}
+
+            if (!isAdmin && !bypassLimit && currentCount >= maxRequests) {
+                throw Exception(SupportConfig.ERROR_LIMIT_REACHED)
+            }
+
+            val isCrash = request.type == SupportTypeEnum.CRASH
+            val increment = if (isCrash) 0 else 1
+
             firestore.runTransaction { transaction ->
-                val isAdmin = if (bypassLimit) true else {
-                    val userRef = firestore.collection(SupportConfig.USERS_COLLECTION).document(uid)
-                    val userSnapshot = transaction.get(userRef)
-                    userSnapshot.toObject(com.jtool.android.core.models.user.User::class.java)?.isAdmin ?: false
-                }
-
-                val userDataRef = getUserDataColl().document(uid)
-                val userDataSnapshot = transaction.get(userDataRef)
-                val userData = userDataSnapshot.toObject(UserData::class.java) ?: UserData()
-                
-                val today = java.text.SimpleDateFormat(SupportConfig.DATE_FORMAT, java.util.Locale.US).format(java.util.Date())
-                val currentCount = if (userData.lastSupportDate == today) userData.dailySupportCount else 0
-                
-                val optionsRef = getOptionsDoc()
-                val optionsSnapshot = transaction.get(optionsRef)
-                val config = optionsSnapshot.toObject(SupportConfig::class.java)
-                val maxRequests = config?.max_requests ?: 2L
-                
-                if (!isAdmin && currentCount >= maxRequests) {
-                    throw Exception(SupportConfig.ERROR_LIMIT_REACHED)
-                }
-
                 val supportDataRef = getSupportDataDoc()
-                val supportDataSnapshot = transaction.get(supportDataRef)
-                val meta = supportDataSnapshot.toObject(SupportTicketMeta::class.java)
-                val newNumber = (meta?.last_support_ticket_number ?: 0L) + 1
+                val meta = try { transaction.get(supportDataRef).toObject(SupportTicketMeta::class.java) } catch (_: Exception) { null }
                 
+                val newNumber = (meta?.last_support_ticket_number ?: 0L) + 1
                 transaction.set(supportDataRef, SupportTicketMeta(last_support_ticket_number = newNumber), SetOptions.merge())
                 
                 val finalRequest = request.copy(number = newNumber.toInt())
                 val newDocRef = getSupportColl().document()
                 transaction.set(newDocRef, finalRequest.copy(id = newDocRef.id))
                 
-                val isCrash = request.type == SupportTypeEnum.CRASH
-                val increment = if (isCrash) 0 else 1
-                
-                transaction.set(userDataRef, userData.copy(lastSupportDate = today, dailySupportCount = currentCount + increment), SetOptions.merge())
+                // Only update user data if the user is signed in to avoid permission errors for anonymous users
+                val auth = FirebaseAuth.getInstance()
+                if (auth.currentUser != null && auth.currentUser?.uid == uid) {
+                    val userDataRef = getUserDataColl().document(uid)
+                    transaction.set(userDataRef, mapOf(
+                        "lastSupportDate" to today,
+                        "dailySupportCount" to currentCount + increment
+                    ), SetOptions.merge())
+                }
             }.await()
             true
         } catch (e: Exception) {
@@ -123,21 +139,21 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
         ).await()
     }
 
-    fun getCommentsFlow(requestId: String): Flow<List<com.jtool.android.core.models.common.Comment>> = callbackFlow {
+    fun getCommentsFlow(requestId: String): Flow<List<Comment>> = callbackFlow {
         val listener = getSupportColl().document(requestId).collection(SupportConfig.COMMENTS_COLLECTION)
-            .orderBy(com.jtool.android.core.models.common.Comment::timestamp.name, Query.Direction.ASCENDING)
+            .orderBy(Comment::timestamp.name, Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, _ ->
                 if (snapshot != null) {
-                    val allComments = snapshot.documents.mapNotNull { it.toObject(com.jtool.android.core.models.common.Comment::class.java)?.copy(id = it.id) }
+                    val allComments = snapshot.documents.mapNotNull { it.toObject(Comment::class.java)?.copy(id = it.id) }
                     trySend(buildCommentTree(allComments))
                 }
             }
         awaitClose { listener.remove() }
     }
 
-    private fun buildCommentTree(allComments: List<com.jtool.android.core.models.common.Comment>): List<com.jtool.android.core.models.common.Comment> {
-        val roots = mutableListOf<com.jtool.android.core.models.common.Comment>()
-        val children = mutableMapOf<String, MutableList<com.jtool.android.core.models.common.Comment>>()
+    private fun buildCommentTree(allComments: List<Comment>): List<Comment> {
+        val roots = mutableListOf<Comment>()
+        val children = mutableMapOf<String, MutableList<Comment>>()
 
         allComments.forEach { comment ->
             if (comment.parentId == null) {
@@ -147,7 +163,7 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
             }
         }
 
-        fun assemble(comment: com.jtool.android.core.models.common.Comment): com.jtool.android.core.models.common.Comment {
+        fun assemble(comment: Comment): Comment {
             val replies = children[comment.id]
                 ?.map { assemble(it) }
                 ?.sortedBy { it.timestamp } ?: emptyList()
@@ -157,7 +173,7 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
         return roots.map { assemble(it) }.sortedByDescending { it.timestamp }
     }
 
-    suspend fun addComment(requestId: String, comment: com.jtool.android.core.models.common.Comment) {
+    suspend fun addComment(requestId: String, comment: Comment) {
         val docRef = getSupportColl().document(requestId)
         docRef.collection(SupportConfig.COMMENTS_COLLECTION).document(comment.id).set(comment).await()
         docRef.update(SupportRequest::timestamp.name, System.currentTimeMillis()).await()
@@ -167,9 +183,9 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
         val docRef = getSupportColl().document(requestId)
         docRef.collection(SupportConfig.COMMENTS_COLLECTION).document(commentId)
             .update(
-                com.jtool.android.core.models.common.Comment::content.name, newContent,
-                com.jtool.android.core.models.common.Comment::isEdited.name, true,
-                com.jtool.android.core.models.common.Comment::timestamp.name, System.currentTimeMillis()
+                Comment::content.name, newContent,
+                Comment::isEdited.name, true,
+                Comment::timestamp.name, System.currentTimeMillis()
             ).await()
         docRef.update(SupportRequest::timestamp.name, System.currentTimeMillis()).await()
     }

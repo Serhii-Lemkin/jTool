@@ -13,4 +13,5 @@ sealed interface LogConfigEvent {
         val stableStart: String? = null,
         val stableEnd: String? = null
     ) : LogConfigEvent
+    data class UpdateShowVirtualShiftsOnlyCurrentWeek(val show: Boolean) : LogConfigEvent
 }

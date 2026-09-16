@@ -193,11 +193,22 @@ fun SupportDetailCard(
                             text = { Text(Loc.Settings.copyId) },
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(request.id))
-                                onShowMessage("ID Copied", MessageType.SUCCESS)
+                                onShowMessage(Loc.Support.id_copied, MessageType.SUCCESS)
                                 actionMenuExpanded = false
                             },
                             leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
                         )
+                        if (request.crashLog != null) {
+                            DropdownMenuItem(
+                                text = { Text(Loc.Support.copy_crash_log) },
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(request.crashLog))
+                                    onShowMessage(Loc.Support.crash_log_copied, MessageType.SUCCESS)
+                                    actionMenuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
+                            )
+                        }
                         if (isAdmin || request.status == SupportStatusEnum.CUT) {
                             DropdownMenuItem(
                                 text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
@@ -217,26 +228,6 @@ fun SupportDetailCard(
         
         Text(text = request.text, style = MaterialTheme.typography.bodyLarge)
         
-        if (request.crashLog != null) {
-            Spacer(Modifier.height(24.dp))
-            Text(text = Loc.Support.crash_log, style = MaterialTheme.typography.titleSmall)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 300.dp)
-                    .padding(top = 8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-            ) {
-                Box(modifier = Modifier.padding(8.dp).verticalScroll(rememberScrollState())) {
-                    Text(
-                        text = request.crashLog,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
         
         if (isAdmin || request.deviceInfo.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))

@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
@@ -75,18 +76,19 @@ class CrashActivity : ComponentActivity() {
                             errorMessage = null
                             scope.launch {
                                 try {
-                                    val userId = settings.getUserId()
-                                    if (userId.isEmpty()) {
+                                    val authUser = FirebaseAuth.getInstance().currentUser
+                                    if (authUser == null) {
                                         isSending = false
                                         errorMessage = "User session expired. Please restart and sign in."
                                         return@launch
                                     }
+                                    val userId = authUser.uid
 
                                     val request = SupportRequest(
                                         type = SupportTypeEnum.CRASH,
                                         status = SupportStatusEnum.OPENED,
                                         text = Loc.Crash.automatedReport,
-                                        userId = settings.getAppUserId(),
+                                        userId = userId,
                                         userName = settings.getUserName(),
                                         timestamp = System.currentTimeMillis(),
                                         deviceInfo = DeviceInfoProvider.getDeviceInfo(this@CrashActivity),
