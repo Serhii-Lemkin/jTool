@@ -1,6 +1,8 @@
 package com.jtool.android.core.components.layout
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -16,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.text.input.ImeAction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,10 +63,10 @@ fun GenericTitle(
                                 }
                             }
                         },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Search
                         ),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        keyboardActions = KeyboardActions(
                             onSearch = { onSearchTriggered() }
                         )
                     )
@@ -74,7 +77,13 @@ fun GenericTitle(
                             Icon(navigationIcon, Loc.General.back)
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
         } else {
             TopAppBar(
@@ -101,9 +110,19 @@ fun GenericTitle(
                 },
                 actions = {
                     actions()
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
         }
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     }
 }
 
@@ -112,7 +131,7 @@ fun TitleActionIcon(
     icon: ImageVector,
     contentDescription: String? = null,
     onClick: () -> Unit,
-    tint: androidx.compose.ui.graphics.Color = LocalContentColor.current
+    tint: Color = LocalContentColor.current
 ) {
     IconButton(onClick = onClick) {
         Icon(imageVector = icon, contentDescription = contentDescription, tint = tint)

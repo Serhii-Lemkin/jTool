@@ -21,7 +21,11 @@ class GeneralSettingsViewModel(
     init {
         _uiState.update { it.copy(
             isDarkMode = settingsManager.isDarkMode(),
-            language = settingsManager.getLanguage()
+            language = settingsManager.getLanguage(),
+            lightPrimary = settingsManager.getLightPrimaryColor(),
+            lightBg = settingsManager.getLightBgColor(),
+            darkPrimary = settingsManager.getDarkPrimaryColor(),
+            darkBg = settingsManager.getDarkBgColor()
         ) }
     }
 
@@ -36,6 +40,18 @@ class GeneralSettingsViewModel(
             is GeneralSettingsEvent.SetLanguage -> {
                 settingsManager.setLanguage(event.lang)
                 _uiState.update { it.copy(language = event.lang) }
+                viewModelScope.launch { dataManager.pushUserSettings() }
+            }
+            is GeneralSettingsEvent.SetThemeColors -> {
+                if (event.isDarkMode) {
+                    settingsManager.setDarkPrimaryColor(event.primaryHex)
+                    settingsManager.setDarkBgColor(event.bgHex)
+                    _uiState.update { it.copy(darkPrimary = event.primaryHex, darkBg = event.bgHex) }
+                } else {
+                    settingsManager.setLightPrimaryColor(event.primaryHex)
+                    settingsManager.setLightBgColor(event.bgHex)
+                    _uiState.update { it.copy(lightPrimary = event.primaryHex, lightBg = event.bgHex) }
+                }
                 viewModelScope.launch { dataManager.pushUserSettings() }
             }
         }

@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.general.components.language_selection_sheet.LanguageSelectionSheet
+import com.jtool.android.features.settings.general.components.theme_customization_sheet.ThemeCustomizationSheet
 
 @Composable
 fun GeneralSettingsScreen(
@@ -38,6 +40,7 @@ fun GeneralSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLangSheet by remember { mutableStateOf(false) }
+    var showColorSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val languages = remember(context) { Loc.getAvailableLanguages(context) }
@@ -51,6 +54,19 @@ fun GeneralSettingsScreen(
                 onLangToggle()
             },
             onDismiss = { showLangSheet = false }
+        )
+    }
+
+    if (showColorSheet) {
+        ThemeCustomizationSheet(
+            isDarkMode = uiState.isDarkMode,
+            currentPrimaryHex = if (uiState.isDarkMode) uiState.darkPrimary else uiState.lightPrimary,
+            currentBgHex = if (uiState.isDarkMode) uiState.darkBg else uiState.lightBg,
+            onSave = { primary, bg ->
+                viewModel.onEvent(GeneralSettingsEvent.SetThemeColors(primary, bg, uiState.isDarkMode))
+                onThemeToggle()
+            },
+            onDismiss = { showColorSheet = false }
         )
     }
 
@@ -117,6 +133,33 @@ fun GeneralSettingsScreen(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showColorSheet = true }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Text("Customize Theme", style = MaterialTheme.typography.bodyLarge)
+            }
+            Text(
+                text = "Configure",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }

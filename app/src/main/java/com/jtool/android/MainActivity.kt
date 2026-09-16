@@ -144,6 +144,10 @@ class MainActivity : ComponentActivity() {
 
             var isDark by remember { mutableStateOf(settingsManager.isDarkMode()) }
             var currentLang by remember { mutableStateOf(settingsManager.getLanguage()) }
+            var lightPrimary by remember { mutableStateOf(settingsManager.getLightPrimaryColor()) }
+            var lightBg by remember { mutableStateOf(settingsManager.getLightBgColor()) }
+            var darkPrimary by remember { mutableStateOf(settingsManager.getDarkPrimaryColor()) }
+            var darkBg by remember { mutableStateOf(settingsManager.getDarkBgColor()) }
             var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
             var groups by remember { mutableStateOf(settingsManager.getGroups()) }
             var initialLoadDone by remember { mutableStateOf(false) }
@@ -264,7 +268,13 @@ class MainActivity : ComponentActivity() {
                 lastNotifCount = allNotifications.size
             }
 
-            JToolTheme(darkTheme = isDark) {
+            JToolTheme(
+                darkTheme = isDark,
+                lightPrimary = lightPrimary,
+                lightBg = lightBg,
+                darkPrimary = darkPrimary,
+                darkBg = darkBg
+            ) {
                 CompositionLocalProvider(LocalLayoutDirection provides Loc.layoutDirection) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
@@ -288,9 +298,11 @@ class MainActivity : ComponentActivity() {
                                     groups = settingsManager.getGroups()
                                 },
                                 onThemeToggle = {
-                                    isDark = !isDark
-                                    settingsManager.setDarkMode(isDark)
-                                    lifecycleScope.launch { dataManager.pushUserSettings() }
+                                    isDark = settingsManager.isDarkMode()
+                                    lightPrimary = settingsManager.getLightPrimaryColor()
+                                    lightBg = settingsManager.getLightBgColor()
+                                    darkPrimary = settingsManager.getDarkPrimaryColor()
+                                    darkBg = settingsManager.getDarkBgColor()
                                 },
                                 currentLang = currentLang,
                                 onLangToggle = {

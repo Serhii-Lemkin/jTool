@@ -54,7 +54,11 @@ class UserAdminHelper(
                 UserData::isDarkMode.name to settings.isDarkMode(),
                 UserData::language.name to settings.getLanguage(),
                 UserData::worktimeOptions.name to settings.getWorktimeOptions(),
-                "calendarConfig" to settings.getCalendarConfig()
+                "calendarConfig" to settings.getCalendarConfig(),
+                "lightPrimary" to settings.getLightPrimaryColor(),
+                "lightBg" to settings.getLightBgColor(),
+                "darkPrimary" to settings.getDarkPrimaryColor(),
+                "darkBg" to settings.getDarkBgColor()
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
@@ -184,6 +188,10 @@ class UserAdminHelper(
             settings.setLanguage(stats.language)
             settings.saveWorktimeOptions(stats.worktimeOptions)
             settings.saveCalendarConfig(stats.calendarConfig)
+            settings.setLightPrimaryColor(stats.lightPrimary)
+            settings.setLightBgColor(stats.lightBg)
+            settings.setDarkPrimaryColor(stats.darkPrimary)
+            settings.setDarkBgColor(stats.darkBg)
             settings.setLastSyncTimestamp(user.lastModified)
             
             true

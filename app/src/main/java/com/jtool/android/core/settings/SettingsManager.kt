@@ -330,6 +330,18 @@ class SettingsManager(context: Context) {
         prefs.edit().putLong("profiles_last_modified", timestamp).apply()
     }
 
+    fun getLightPrimaryColor(): String = prefs.getString("light_primary", "0xFF059669") ?: "0xFF059669"
+    fun setLightPrimaryColor(hex: String) = prefs.edit().putString("light_primary", hex).apply()
+
+    fun getLightBgColor(): String = prefs.getString("light_bg", "0xFFF0FDF4") ?: "0xFFF0FDF4"
+    fun setLightBgColor(hex: String) = prefs.edit().putString("light_bg", hex).apply()
+
+    fun getDarkPrimaryColor(): String = prefs.getString("dark_primary", "0xFF10B981") ?: "0xFF10B981"
+    fun setDarkPrimaryColor(hex: String) = prefs.edit().putString("dark_primary", hex).apply()
+
+    fun getDarkBgColor(): String = prefs.getString("dark_bg", "0xFF09090B") ?: "0xFF09090B"
+    fun setDarkBgColor(hex: String) = prefs.edit().putString("dark_bg", hex).apply()
+
     private val contextRef = context
 
     fun checkAndPurgeIfUserChanged(currentUid: String?): Boolean {
