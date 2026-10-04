@@ -14,5 +14,7 @@ data class ShoppingItem(
     val isChecked: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(),
     val lastUpdatedBy: String = "",
-    val aisle: ShoppingAisleEnum = ShoppingAisleEnum.COMMON
+    val aisle: ShoppingAisleEnum = ShoppingAisleEnum.COMMON,
+    val amount: Double? = null,
+    val unit: String = ""
 )

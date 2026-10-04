@@ -9,7 +9,9 @@ import com.jtool.android.core.models.common.enums.PersistencePrefixEnum
 class ShoppingListManager(context: Context) : LocalPersistenceManager<ShoppingItem>(context, PersistencePrefixEnum.SHOPPING) {
 
     override fun save(items: List<ShoppingItem>, groupId: String?) {
-        val encoded = items.joinToString(";") { "${it.id}|${it.text}|${it.isChecked}|${it.timestamp}|${it.lastUpdatedBy}|${it.aisle.name}" }
+        val encoded = items.joinToString(";") {
+            "${it.id}|${it.text}|${it.isChecked}|${it.timestamp}|${it.lastUpdatedBy}|${it.aisle.name}|${it.amount ?: ""}|${it.unit}"
+        }
         getPrefs(groupId).edit().putString("items", encoded).apply()
     }
 
@@ -28,7 +30,9 @@ class ShoppingListManager(context: Context) : LocalPersistenceManager<ShoppingIt
                     lastUpdatedBy = if (parts.size >= 5) parts[4] else "Unknown",
                     aisle = if (parts.size >= 6) {
                         try { ShoppingAisleEnum.valueOf(parts[5]) } catch (e: Exception) { ShoppingAisleEnum.COMMON }
-                    } else ShoppingAisleEnum.COMMON
+                    } else ShoppingAisleEnum.COMMON,
+                    amount = if (parts.size >= 7) parts[6].toDoubleOrNull() else null,
+                    unit = if (parts.size >= 8) parts[7] else ""
                 )
             } else null
         }

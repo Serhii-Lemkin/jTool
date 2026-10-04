@@ -57,7 +57,7 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
 
     BaseScreen(
         title = Loc.Notes.notes,
-        isLoading = uiState.isLoading,
+        isLoading = false,
         onBack = onBack,
         onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
         isSearchVisible = uiState.isSearchVisible,

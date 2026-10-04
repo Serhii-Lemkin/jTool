@@ -1,0 +1,58 @@
+[
+  {
+    "id": "g",
+    "aliases": ["g", "gram", "grams", "גרם", "грам", "грами"]
+  },
+  {
+    "id": "kg",
+    "aliases": ["kg", "kilo", "kilogram", "kilograms", "קילו", "ק\"ג", "кг", "кілограм"]
+  },
+  {
+    "id": "mg",
+    "aliases": ["mg", "milligram", "milligrams", "מ\"ג", "мг"]
+  },
+  {
+    "id": "l",
+    "aliases": ["l", "liter", "liters", "ליטר", "л", "літр"]
+  },
+  {
+    "id": "ml",
+    "aliases": ["ml", "milliliter", "milliliters", "מ\"ל", "мл", "мілілітр"]
+  },
+  {
+    "id": "oz",
+    "aliases": ["oz", "ounce", "ounces", "унція"]
+  },
+  {
+    "id": "lb",
+    "aliases": ["lb", "lbs", "pound", "pounds", "фунт"]
+  },
+  {
+    "id": "cup",
+    "aliases": ["cup", "cups", "כוס", "כוסות", "стакан", "чашка"]
+  },
+  {
+    "id": "tbsp",
+    "aliases": ["tbsp", "tablespoon", "tablespoons", "כף", "כפות", "ст. л.", "столова ложка"]
+  },
+  {
+    "id": "tsp",
+    "aliases": ["tsp", "teaspoon", "teaspoons", "כפית", "כפיות", "ч. л.", "чайна ложка"]
+  },
+  {
+    "id": "pinch",
+    "aliases": ["pinch", "pinches", "קורט", "щіпка"]
+  },
+  {
+    "id": "pack",
+    "aliases": ["pack", "package", "packages", "packet", "packets", "חבילה", "חבילות", "שקית", "пачка", "упаковка"]
+  },
+  {
+    "id": "pcs",
+    "aliases": ["pcs", "piece", "pieces", "unit", "units", "יחידה", "יחידות", "шт", "штука"]
+  },
+  {
+    "id": "can",
+    "aliases": ["can", "cans", "tin", "tins", "פחית", "קופסה", "קופסא", "банка"]
+  }
+]

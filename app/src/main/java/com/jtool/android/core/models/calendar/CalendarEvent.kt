@@ -10,15 +10,15 @@ import java.time.format.DateTimeFormatter
 @Keep
 @Serializable
 data class CalendarEvent(
-    val id: String = "", // Google Event ID
+    val id: String = "",
     val title: String = "",
     val note: String = "",
     val allDay: Boolean = false,
     val dtStart: Long? = null,
     val dtEnd: Long? = null,
-    val attendees: List<String> = emptyList(), // Emails
+    val attendees: List<String> = emptyList(),
     val googleCalendarId: String? = null,
-    val currentUserStatus: Int? = null, // From CalendarContract.Attendees.ATTENDEE_STATUS
+    val currentUserStatus: Int? = null,
     val iCalUID: String? = null,
     val organizer: String? = null,
     val attendeeStatuses: Map<String, Int> = emptyMap(),
@@ -33,10 +33,10 @@ data class CalendarEvent(
     } ?: ""
 
     val startTime: String get() = dtStart?.let { 
-        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+        if (allDay) "" else Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
     } ?: ""
 
     val endTime: String get() = dtEnd?.let { 
-        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+        if (allDay) "" else Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
     } ?: ""
 }

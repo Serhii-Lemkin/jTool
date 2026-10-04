@@ -110,6 +110,7 @@ object Loc {
             com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.HOUSEHOLD -> ShopList.aisle_household
             com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PERSONAL -> ShopList.aisle_personal
             com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PETS -> ShopList.aisle_pets
+            com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum.PANTRY -> ShopList.aisle_pantry
         }
     }
 

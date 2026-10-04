@@ -2,6 +2,7 @@ package com.jtool.android.features.shopping
 
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import com.jtool.android.core.measurement.MeasurementManager
 import com.jtool.android.core.models.feature.shopping.ShoppingItem
 import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 import com.jtool.android.core.settings.SettingsManager
@@ -14,7 +15,8 @@ import kotlinx.coroutines.tasks.await
 class ShoppingViewModel(
     private val manager: ShoppingListManager,
     private val settingsManager: SettingsManager,
-    private val dataManager: DataManager
+    private val dataManager: DataManager,
+    private val measurementManager: MeasurementManager
 ) : BaseSyncViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
@@ -73,6 +75,8 @@ class ShoppingViewModel(
     fun onEvent(event: ShoppingEvent) {
         when (event) {
             is ShoppingEvent.UpdateNewItemText -> _uiState.update { it.copy(newItemText = event.text) }
+            is ShoppingEvent.UpdateNewItemAmount -> _uiState.update { it.copy(newItemAmount = event.amount) }
+            is ShoppingEvent.UpdateNewItemUnit -> _uiState.update { it.copy(newItemUnit = event.unit) }
             is ShoppingEvent.ToggleAislePicker -> _uiState.update { it.copy(showAislePicker = event.show) }
             is ShoppingEvent.SelectAisle -> selectAisle(event.aisle)
             is ShoppingEvent.UpdateFilter -> _uiState.update { it.copy(filterType = event.filter, activeAisleFilters = emptySet(), dropdownExpanded = false) }
@@ -83,6 +87,8 @@ class ShoppingViewModel(
             ShoppingEvent.ConfirmDelete -> confirmDelete()
             is ShoppingEvent.RequestRename -> _uiState.update { it.copy(itemToRename = event.item) }
             is ShoppingEvent.ConfirmRename -> confirmRename(event.newName)
+            is ShoppingEvent.RequestEdit -> _uiState.update { it.copy(itemToEdit = event.item) }
+            is ShoppingEvent.ConfirmEdit -> confirmEdit(event.item, event.newName, event.newAmount, event.newUnit, event.newAisle)
             ShoppingEvent.AddItem -> addItem()
             is ShoppingEvent.ToggleItem -> toggleItem(event.item, event.isChecked)
             is ShoppingEvent.RestoreItem -> restoreItem(event.text)
@@ -145,6 +151,30 @@ class ShoppingViewModel(
         }
     }
 
+    private fun confirmEdit(
+        item: ShoppingItem,
+        newName: String,
+        newAmount: Double?,
+        newUnit: String,
+        newAisle: ShoppingAisleEnum
+    ) {
+        val gid = settingsManager.getCurrentGroupId() ?: return
+        if (newName.isNotBlank()) {
+            val resolvedUnit = measurementManager.resolveUnit(newUnit)
+            viewModelScope.launch {
+                getShoppingColl(gid).document(item.id).update(
+                    ShoppingItem::text.name, newName,
+                    ShoppingItem::amount.name, newAmount,
+                    ShoppingItem::unit.name, resolvedUnit,
+                    ShoppingItem::aisle.name, newAisle,
+                    ShoppingItem::timestamp.name, System.currentTimeMillis(),
+                    ShoppingItem::lastUpdatedBy.name, settingsManager.getAppUserId()
+                ).await()
+                _uiState.update { it.copy(itemToEdit = null) }
+            }
+        }
+    }
+
     private fun addItem() {
         val text = _uiState.value.newItemText.trim()
         val gid = settingsManager.getCurrentGroupId() ?: return
@@ -152,20 +182,30 @@ class ShoppingViewModel(
             val existing = _uiState.value.items.find { it.text.equals(text, ignoreCase = true) }
             if (existing != null) {
                 if (existing.isChecked) toggleItem(existing, false)
-                _uiState.update { it.copy(newItemText = "") }
+                _uiState.update { it.copy(newItemText = "", newItemAmount = null, newItemUnit = "") }
             } else {
                 val id = System.currentTimeMillis().toString()
+                val resolvedUnit = measurementManager.resolveUnit(_uiState.value.newItemUnit)
                 val newItem = ShoppingItem(
                     id = id,
                     text = text,
                     isChecked = false,
                     lastUpdatedBy = settingsManager.getAppUserId(),
                     aisle = _uiState.value.selectedAisle,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    amount = _uiState.value.newItemAmount,
+                    unit = resolvedUnit
                 )
                 viewModelScope.launch {
                     getShoppingColl(gid).document(id).set(newItem).await()
-                    _uiState.update { it.copy(newItemText = "", selectedAisle = ShoppingAisleEnum.COMMON) }
+                    _uiState.update {
+                        it.copy(
+                            newItemText = "",
+                            newItemAmount = null,
+                            newItemUnit = "",
+                            selectedAisle = ShoppingAisleEnum.COMMON
+                        )
+                    }
                 }
             }
         }
@@ -189,18 +229,21 @@ class ShoppingViewModel(
             toggleItem(existing, false)
         } else {
             val id = System.currentTimeMillis().toString()
+            val resolvedUnit = measurementManager.resolveUnit(_uiState.value.newItemUnit)
             val newItem = ShoppingItem(
                 id = id,
                 text = text,
                 isChecked = false,
                 lastUpdatedBy = settingsManager.getAppUserId(),
                 aisle = _uiState.value.selectedAisle,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                amount = _uiState.value.newItemAmount,
+                unit = resolvedUnit
             )
             viewModelScope.launch {
                 getShoppingColl(gid).document(id).set(newItem).await()
             }
         }
-        _uiState.update { it.copy(newItemText = "") }
+        _uiState.update { it.copy(newItemText = "", newItemAmount = null, newItemUnit = "") }
     }
 }

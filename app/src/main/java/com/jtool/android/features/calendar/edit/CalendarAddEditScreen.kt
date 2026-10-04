@@ -51,7 +51,7 @@ fun CalendarAddEditScreen(
 
     var title by remember(stateKey) { mutableStateOf(event?.title ?: "") }
     var note by remember(stateKey) { mutableStateOf(event?.note ?: "") }
-    var startTime by remember(stateKey) { mutableStateOf(event?.startTime ?: "09:00") }
+    var startTime by remember(stateKey) { mutableStateOf(if (event?.startTime.isNullOrBlank()) "09:00" else event!!.startTime) }
     var endTime by remember(stateKey) { mutableStateOf(event?.endTime ?: "") }
     var allDay by remember(stateKey) { mutableStateOf(event?.allDay ?: false) }
     var currentDate by remember(stateKey) { 
@@ -169,11 +169,18 @@ fun CalendarAddEditScreen(
                                 return@IconButton
                             }
 
-                            val startLdt = LocalDate.parse(currentDate.toString()).atTime(LocalTime.parse(startTime))
-                            val endLdt = if (endTime.isNotEmpty()) LocalDate.parse(currentDate.toString()).atTime(LocalTime.parse(endTime)) else startLdt.plusHours(1)
-                            
-                            val dtStart = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                            val dtEnd = endLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                            val (dtStart, dtEnd) = if (allDay) {
+                                val startUtc = currentDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                                val endUtc = currentDate.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                                startUtc to endUtc
+                            } else {
+                                val effectiveStart = if (startTime.isBlank()) "09:00" else startTime
+                                val startLdt = currentDate.atTime(LocalTime.parse(effectiveStart))
+                                val endLdt = if (endTime.isNotEmpty()) currentDate.atTime(LocalTime.parse(endTime)) else startLdt.plusHours(1)
+                                val startMs = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                val endMs = endLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                startMs to endMs
+                            }
 
                             val finalEvent = CalendarEvent(
                                 id = event?.id ?: "",

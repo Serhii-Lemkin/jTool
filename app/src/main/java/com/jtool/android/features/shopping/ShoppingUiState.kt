@@ -6,6 +6,8 @@ import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 data class ShoppingUiState(
     val items: List<ShoppingItem> = emptyList(),
     val newItemText: String = "",
+    val newItemAmount: Double? = null,
+    val newItemUnit: String = "",
     val selectedAisle: ShoppingAisleEnum = ShoppingAisleEnum.COMMON,
     val showAislePicker: Boolean = false,
     val filterType: String = "All",
@@ -13,6 +15,7 @@ data class ShoppingUiState(
     val dropdownExpanded: Boolean = false,
     val itemToDelete: ShoppingItem? = null,
     val itemToRename: ShoppingItem? = null,
+    val itemToEdit: ShoppingItem? = null,
     val remoteSuggestions: List<String> = emptyList(),
     val userNames: Map<String, String> = emptyMap(),
     val selectedItem: ShoppingItem? = null,

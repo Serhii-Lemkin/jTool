@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.tracker.Tracker
 import com.jtool.android.core.models.tracker.TrackerMetric
+import com.jtool.android.features.tracker.components.delete_metric_confirm_sheet.DeleteMetricConfirmSheet
 import com.jtool.android.ui.components.common.GenericSheet
 import java.util.UUID
 
@@ -29,6 +30,7 @@ fun CreateTrackerSheet(
     
     var newMetricName by remember { mutableStateOf("") }
     var newMetricUnit by remember { mutableStateOf("") }
+    var metricToDelete by remember { mutableStateOf<TrackerMetric?>(null) }
 
     GenericSheet(
         onDismiss = onDismiss,
@@ -111,7 +113,7 @@ fun CreateTrackerSheet(
                                     Text(metric.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                                     metric.unit?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                                 }
-                                IconButton(onClick = { metrics = metrics.filter { it.id != metric.id } }) {
+                                IconButton(onClick = { metricToDelete = metric }) {
                                     Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                                 }
                             }
@@ -140,5 +142,15 @@ fun CreateTrackerSheet(
             
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (metricToDelete != null) {
+        DeleteMetricConfirmSheet(
+            onDismiss = { metricToDelete = null },
+            onConfirm = {
+                metrics = metrics.filter { it.id != metricToDelete!!.id }
+                metricToDelete = null
+            }
+        )
     }
 }

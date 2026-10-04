@@ -17,6 +17,7 @@ import com.jtool.android.core.components.layout.CompactActionListItem
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.tracker.components.create_tracker_sheet.CreateTrackerSheet
+import com.jtool.android.features.tracker.components.delete_tracker_confirm_sheet.DeleteTrackerConfirmSheet
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +32,7 @@ fun TrackerListScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingTracker by remember { mutableStateOf<Tracker?>(null) }
+    var trackerToDelete by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentGroupId) {
         viewModel.setGroupId(currentGroupId)
@@ -109,7 +111,7 @@ fun TrackerListScreen(
                                         DropdownMenuItem(
                                             text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
                                             onClick = {
-                                                viewModel.onEvent(TrackerEvent.DeleteTracker(tracker.id))
+                                                trackerToDelete = tracker.id
                                                 menuExpanded = false
                                             }
                                         )
@@ -136,6 +138,16 @@ fun TrackerListScreen(
             editingTracker = editingTracker,
             onDismiss = { editingTracker = null },
             onConfirm = { viewModel.onEvent(TrackerEvent.UpdateTracker(it)) }
+        )
+    }
+
+    if (trackerToDelete != null) {
+        DeleteTrackerConfirmSheet(
+            onDismiss = { trackerToDelete = null },
+            onConfirm = {
+                viewModel.onEvent(TrackerEvent.DeleteTracker(trackerToDelete!!))
+                trackerToDelete = null
+            }
         )
     }
 }
