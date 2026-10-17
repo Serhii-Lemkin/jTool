@@ -5,7 +5,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.features.vaults.VaultsManager
+import com.jtool.android.features.vaults.VaultsViewModel
+import com.jtool.android.features.vaults.components.floating_upload_progress.FloatingUploadProgressIndicator
 import com.jtool.android.core.auth.AuthManager
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
@@ -44,7 +52,9 @@ fun AppNavigation(
     notificationCount: Int,
     onNotificationsClick: () -> Unit,
     pendingScreen: AppScreenEnum? = null,
-    onPendingScreenHandled: () -> Unit = {}
+    onPendingScreenHandled: () -> Unit = {},
+    openUploadProgressSheet: Boolean = false,
+    onUploadProgressHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var currentScreen by remember { mutableStateOf(AppScreenEnum.LAUNCHER) }
@@ -158,6 +168,20 @@ fun AppNavigation(
         onNotificationsClick = onNotificationsClick,
         onBack = { navigateBack() }
     )
+
+    val vaultsViewModel: VaultsViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                VaultsViewModel(
+                    vaultsManager = VaultsManager(context),
+                    settingsManager = settingsManager,
+                    dataManager = dataManager,
+                    context = context
+                )
+            }
+        }
+    )
+    val vaultsUiState by vaultsViewModel.uiState.collectAsState()
 
     val currentProps = AppProperties.fromId(currentScreen)
     currentProps?.Content(deps)

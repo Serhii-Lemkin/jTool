@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.common.enums.AppScreenEnum
@@ -160,26 +161,25 @@ fun WorkdayTrackerScreen(
 
     val allowedModes = listOf(WorkModeEnum.CALENDAR_EVENT, WorkModeEnum.QUICK_START)
 
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp,
-        sheetContainerColor = MaterialTheme.colorScheme.surface,
-        sheetContentColor = MaterialTheme.colorScheme.onSurface,
-        sheetTonalElevation = 0.dp,
-        sheetShadowElevation = 8.dp,
-        sheetDragHandle = { if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) BottomSheetDefaults.DragHandle() else null },
-        topBar = {
-            GenericTitle(
-                title = Loc.Workday.workTime,
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) }) {
-                        Icon(Icons.Default.Settings, null)
-                    }
-                }
-            )
-        },
-        sheetContent = {
+    BaseScreen(
+        title = Loc.Workday.workTime,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) }) {
+                Icon(Icons.Default.Settings, null)
+            }
+        }
+    ) { _ ->
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp,
+            sheetContainerColor = MaterialTheme.colorScheme.surface,
+            sheetContentColor = MaterialTheme.colorScheme.onSurface,
+            sheetTonalElevation = 0.dp,
+            sheetShadowElevation = 8.dp,
+            sheetDragHandle = { if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) BottomSheetDefaults.DragHandle() else null },
+            sheetContent = {
             if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) {
                 Column(
                     modifier = Modifier
@@ -293,6 +293,7 @@ fun WorkdayTrackerScreen(
             Spacer(Modifier.height(if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp))
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -452,7 +453,7 @@ fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerView
     }
 }
 
-private fun formatMillis(millis: Long): String {
+fun formatMillis(millis: Long): String {
     val h = millis / 3600000
     val m = (millis % 3600000) / 60000
     val s = (millis % 60000) / 1000

@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.components.layout.CompactActionListItem
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.measurement.MeasurementManager
@@ -128,48 +129,35 @@ fun ShoppingListScreen(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                val filterIcon = when {
-                    uiState.filterType == "Unactive" -> Icons.Default.CheckBox
-                    uiState.activeAisleFilters.isNotEmpty() -> {
-                        val first = uiState.activeAisleFilters.first()
-                        AisleIcons[first] ?: Icons.AutoMirrored.Filled.Label
-                    }
-                    else -> Icons.Default.FilterList
+    BaseScreen(
+        title = Loc.ShopList.shoppingList,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
+        actions = {
+            val filterIcon = when {
+                uiState.filterType == "Unactive" -> Icons.Default.CheckBox
+                uiState.activeAisleFilters.isNotEmpty() -> {
+                    val first = uiState.activeAisleFilters.first()
+                    AisleIcons[first] ?: Icons.AutoMirrored.Filled.Label
                 }
-                GenericTitle(
-                    title = Loc.ShopList.shoppingList,
-                    onBack = onBack,
-                    isLoading = uiState.isLoading,
-                    onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
-                    actions = {
-                        IconButton(onClick = { showFilterSheet = true }) {
-                            Icon(filterIcon, contentDescription = "Filter")
-                        }
-                    }
-                )
+                else -> Icons.Default.FilterList
             }
-        ) { padding ->
-            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-                isRefreshing = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(ShoppingEvent.Refresh) },
+            IconButton(onClick = { showFilterSheet = true }) {
+                Icon(filterIcon, contentDescription = "Filter")
+            }
+        }
+    ) { _ ->
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LazyColumn(
                 modifier = Modifier
-                    .padding(top = padding.calculateTopPadding())
-                    .fillMaxSize()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
                         items(uiState.displayItems, key = { it.id }) { item ->
                             ShoppingItemRow(
                                 item = item,
@@ -426,8 +414,6 @@ fun ShoppingListScreen(
                 }
             }
         }
-    }
-}
 
 @Composable
 fun ShoppingItemRow(
@@ -460,10 +446,9 @@ fun ShoppingItemRow(
         leadingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Checkbox(
+                    Switch(
                         checked = item.isChecked,
-                        onCheckedChange = { onToggle(it) },
-                        modifier = Modifier.size(32.dp)
+                        onCheckedChange = { onToggle(it) }
                     )
                 }
                 Icon(

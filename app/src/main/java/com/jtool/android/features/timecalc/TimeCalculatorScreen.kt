@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.ui.theme.JToolTheme
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import java.time.format.DateTimeFormatter
 
@@ -31,22 +32,17 @@ fun TimeCalculatorScreen(
     val uiState by viewModel.uiState.collectAsState()
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = Loc.TimeCalc.timeCalc,
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { viewModel.onEvent(TimeCalcEvent.ResetToNow) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = Loc.Workday.resetToNow)
-                    }
-                }
-            )
+    BaseScreen(
+        title = Loc.TimeCalc.timeCalc,
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { viewModel.onEvent(TimeCalcEvent.ResetToNow) }) {
+                Icon(Icons.Default.Refresh, contentDescription = Loc.Workday.resetToNow)
+            }
         }
-    ) { padding ->
+    ) { _ ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
                 .imePadding()
                 .padding(24.dp),

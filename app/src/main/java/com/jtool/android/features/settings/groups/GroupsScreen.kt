@@ -20,6 +20,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.TitleActionIcon
@@ -92,31 +93,26 @@ fun GroupsScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            GenericTitle(
-                title = Loc.Settings.groups,
-                onBack = onBack,
-                isLoading = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(GroupsEvent.Refresh) },
-                isSearchVisible = isSearching,
-                searchQuery = groupSearchQuery,
-                onSearchQueryChange = { groupSearchQuery = it },
-                onSearchClose = { isSearching = false; groupSearchQuery = "" },
-                actions = {
-                    if (!isSearching) {
-                        TitleActionIcon(icon = Icons.Default.Info, onClick = { showGroupsInfoSheet = true })
-                        IconButton(onClick = { isSearching = true }) {
-                            Icon(Icons.Default.Search, null)
-                        }
-                    }
+    BaseScreen(
+        title = Loc.Settings.groups,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.onEvent(GroupsEvent.Refresh) },
+        isSearchVisible = isSearching,
+        searchQuery = groupSearchQuery,
+        onSearchQueryChange = { groupSearchQuery = it },
+        onSearchClose = { isSearching = false; groupSearchQuery = "" },
+        actions = {
+            if (!isSearching) {
+                TitleActionIcon(icon = Icons.Default.Info, onClick = { showGroupsInfoSheet = true })
+                IconButton(onClick = { isSearching = true }) {
+                    Icon(Icons.Default.Search, null)
                 }
-            )
+            }
         }
-    ) { padding ->
+    ) { _ ->
         Column(
-            modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val activeGroup = uiState.groups[uiState.currentGroupId]

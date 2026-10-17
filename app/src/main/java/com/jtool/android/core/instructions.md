@@ -26,7 +26,8 @@
 
 ## 4. Page Consistency & Architectural Changes
 * **Structural Consistency:** New pages must conform strictly to existing project layouts, structural patterns, and implementation styles.
-* **Base Screen & Centralized Loading**: All screens must implement `BaseScreen` as their root layout wrapper. Loading states (`isLoading`) must be delegated to `BaseScreen`'s centralized loader rather than instantiating ad-hoc local loading boxes or progress indicators within individual screen implementations.
+* **Base Screen & Centralized Loading**: All screens MUST implement `BaseScreen` as their root layout wrapper. Loading states (`isLoading`) must be delegated to `BaseScreen`'s centralized loader rather than instantiating ad-hoc local loading boxes or progress indicators within individual screen implementations.
+* **Red Container Delegation**: `BaseScreen` automatically embeds `RedContainer` (`core/components/layout/RedContainer.kt`), which manages all floating action buttons, status indicators, and side-switching gestures. Never instantiate separate floating containers on individual screens.
 * **Change Approvals:** Any proposed deviations or new architectural implementations must be backed by a clear technical justification and explicitly prompted to the user for approval before applying.
 
 ## 5. UI Patterns: Popups, Paging & Refresh
@@ -34,6 +35,8 @@
     *   **Modular Structure**: Each Sheet must reside in its own dedicated subfolder within a `components` directory.
     *   **Naming Convention**: All Sheet components and their containing subfolders must end with the `Sheet` suffix in their names (e.g., `features/settings/groups/components/invite_sheet/InviteSheet.kt`).
     *   **Feature Integration**: Sheets should be reusable and isolated from the main screen logic, exposing only necessary callbacks for state management.
+    *   **No Cancel Buttons in Sheets**: Never add 'Cancel' buttons inside BottomSheets or slide-up Sheets. Since all Sheets can be dismissed naturally by swiping down or tapping outside, explicit Cancel buttons are redundant and strictly prohibited. Only primary action/confirmation buttons should be rendered inside Sheets.
+* **Switch Inputs Over Checkboxes**: Always use `Switch` (sliding toggle) for all boolean selections, checkable list items, and binary filter options instead of standard square `Checkbox` components.
 *   **Refresh Implementation**: Use `androidx.compose.material3.pulltorefresh.PullToRefreshBox`. Bind `isRefreshing` to `uiState.isLoading` and trigger a `Refresh` event.
     *   **ViewModel Pattern**: In the `Refresh` handler, first set `isLoading = true` and `data = emptyList()`. Perform a manual fetch if needed, then resume the real-time listener. This ensures the UI is reset to the server's state and prevents "expired" cached data from lingering.
 *   **Paging Implementation**: 
@@ -43,13 +46,45 @@
     *   Show a "Load More" `TextButton` in the `LazyColumn` footer if `fullData.size > uiState.pagingLimit`.
     *   The `LoadMore` event should increment `pagingLimit` by the page size.
 
-## 6. State & Async Handling
+## 6. Background File Transfers & Red Container Architecture
+
+### A. Centralized Background Services & Queue Managers
+All file operations across the application MUST run through dedicated background foreground services and queue managers. Never perform file uploads, downloads, or exports directly on the UI thread or within view models:
+1. **File Uploads**: `FileUploadQueueManager` & `FileUploadService` (`core/services/FileUploadService.kt`)
+2. **Offline Cache Downloads**: `FileDownloadQueueManager` & `FileDownloadService` (`core/services/FileDownloadService.kt`)
+3. **Public Exports to Downloads**: `FileExportQueueManager` & `FileExportService` (`core/services/FileExportService.kt`)
+4. **Notifications**: `NotificationQueueManager` (`core/services/NotificationQueueManager.kt`)
+
+### B. Color Coding Rules for Floating Action Buttons
+Every FAB and status indicator inside the Red Container has a strictly enforced, distinct color:
+* **Blue (`Color(0xFF2563EB)`)**: Active File Uploads (`FloatingUploadProgressIndicator`)
+* **Green (`Color(0xFF16A34A)`)**: Active Offline Cache Downloads (`FloatingDownloadProgressIndicator`)
+* **Orange (`Color(0xFFEA580C)`)**: Active Public Exports (`FloatingExportProgressIndicator`)
+* **Red (`MaterialTheme.colorScheme.error`)**: Unread Notifications
+* **Primary (`MaterialTheme.colorScheme.primary`)**: Child Screen Actions (`UnifiedFAB` / `floatingActionButton`)
+
+### C. Creating New FABs & Indicators
+When creating new floating action buttons or progress indicators:
+* **Delegation to `FloatingProgressIndicator`**: Always delegate UI rendering to `FloatingProgressIndicator` (`features/vaults/components/floating_progress_indicator/FloatingProgressIndicator.kt`). This handles circular progress rings, sizing, spring entrance/exit animations (`scaleIn` / `scaleOut`), and click callbacks.
+* **Spring Animation Specs**: Use bouncy spring specs (`dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow`) for button entrance/exit transitions.
+
+### D. Red Container Gestures & Side Persistence
+* **Deliberate Side-Switching**: Dragging the Red Container horizontally across **more than 50% of the screen width** (`screenWidth / 2`) flips the container side between Right and Left, persisting the choice locally in `SettingsManager`. Dragging less than 50% springs back without changing sides.
+* **Edge Collapsing**: Dragging the container towards the screen edge collapses it into a vertical stack of small, color-coded edge pills.
+* **Persistent Collapsed State**: The collapsed or expanded state is saved in `SettingsManager` and remains preserved across screen changes and app launches until the user expands it again via tap or drag.
+
+### E. Main Menu / Launcher Header Sync (`LauncherScreen.kt`)
+Whenever active tasks or notifications exist in `FileUploadQueueManager`, `FileDownloadQueueManager`, `FileExportQueueManager`, or `NotificationQueueManager`:
+* `LauncherScreen` MUST render corresponding smaller color-coded icon buttons (Blue Upload, Green Download, Orange Export, Red Notification) in its top app bar header next to the notification bell.
+* Tapping any header button opens its respective progress sheet (`UploadProgressSheet`, `DownloadProgressSheet`, `ExportProgressSheet`, or `NotificationsSheet`).
+
+## 7. State & Async Handling
 * **Safe Loading States:** Guarantee every loading state execution path (success, failure, cancellation, or exception) resolves properly to prevent deadlocks or frozen UIs.
 * **Keyboard Obstruction:** Always ensure that input fields and action buttons are not obstructed by the software keyboard. Use `Modifier.imePadding()` or `WindowInsets.ime` where appropriate to keep the focused element visible.
 * **User Change Awareness & Cache Isolation**: The app must be strictly user-change aware. Before loading any data or initializing view models, applications must actively check whether the current authenticated user UID (`FirebaseAuth.getInstance().currentUser?.uid`) matches the last active user UID via `SettingsManager.checkAndPurgeIfUserChanged(...)`. If a user change is detected (login, logout, or account switch), all local caches, SharedPreferences, and persistence files must be instantly purged. In-memory state flows must start empty. This prevents stale or sensitive data from the previous user from showing up even for a split second.
 * **Error Notification:** If an unresolved loading state risk arises, flag the issue to the developer immediately to determine a resolution.
 
-## 7. Change Logs & Developer Reporting
+## 8. Change Logs & Developer Reporting
 * **Technical Summaries:** End responses with a clear summary of modifications, including technical implementation details and an assessment of potential risks introduced by the changes.
 
 ---
@@ -66,4 +101,8 @@ Follow the architectural guidelines in 'app/src/main/java/com/jtool/android/core
 - Data models must have default values for all properties (Firestore compatibility).
 - Use Property::name.name for Firestore keys.
 - Use Localization Service (Loc) for all UI strings.
+- Route file transfers via background services & queue managers.
+- Respect Red Container color rules (Blue=Upload, Green=Download, Orange=Export, Red=Notif).
+- All FAB progress indicators must delegate to FloatingProgressIndicator.
+- Always use Switch instead of Checkbox. No Cancel buttons in Sheets.
 ```

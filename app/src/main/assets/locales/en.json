@@ -8,7 +8,6 @@
     "launcher_settings": "Settings",
     "launcher_supportHub": "Support Hub",
     "launcher_adminPanel": "Admin Panel",
-
     "worktime_today": "Today",
     "worktime_requiredHours": "Required Hours",
     "worktime_startTime": "Start Time",
@@ -197,7 +196,6 @@
     "calendar_syncInfoPull": "Pull Events: Automatically brings your Google events into the app.",
     "calendar_syncInfoPush": "Push Events: Changes made here will be sent to Google.",
     "calendar_syncInfoPartial": "Partial Sync: You can manually choose which items to sync via the checkbox in the add/edit screen.",
-
     "admin_cleanupLegacyWorkHours": "Cleanup Legacy Work Hours",
     "settings_setupNameTitle": "What's your name?",
     "settings_setupNameMsg": "Please enter your name so others can recognize you in shared groups.",
@@ -209,7 +207,6 @@
     "admin_notificationMessage": "Message",
     "admin_migrateCalendarEvents": "Migrate Calendar Events",
     "admin_migrateCalendarEventsSubtitle": "Convert legacy date/time strings to timestamps",
-
     "timecalc_baseDateTime": "Base Date/Time",
     "timecalc_addSub": "Add / Subtract",
     "timecalc_history": "History (Tap to restore)",
@@ -222,7 +219,6 @@
     "timecalc_hour": "Hr",
     "timecalc_minute": "Min",
     "timecalc_timeCalc": "Time",
-
     "shoplist_shoppingList": "ShopList",
     "shoplist_addItem": "Add Item",
     "shoplist_recentlyChecked": "Recently Checked",
@@ -266,7 +262,6 @@
     "shoplist_filterItems": "Filter Items",
     "shoplist_renameItem": "Rename Item",
     "shoplist_itemNameLabel": "Item Name",
-
     "notes_notes": "Notes",
     "notes_textNote": "Text Note",
     "notes_checklistNote": "Checklist",
@@ -277,14 +272,12 @@
     "notes_untitledNote": "Untitled",
     "notes_addTitleQuestion": "Add a Title?",
     "notes_addTitleExpl": "Adding a title makes it easier to find this note later. If you don't want one, just press Save.",
-
     "comments_comments": "Comments",
     "comments_addComment": "Add a comment...",
     "comments_reply": "Reply",
     "comments_edit": "Edit",
     "comments_edited": "edited",
     "comments_replying": "Replying...",
-
     "links_links": "Links",
     "links_searchLinks": "Search links...",
     "links_linkTitle": "Title",
@@ -296,7 +289,6 @@
     "links_urlHint": "https://...",
     "links_confirmDeleteLinkTitle": "Delete Link?",
     "links_confirmDeleteLinkMsg": "Are you sure you want to delete this link?",
-
     "cleaning_cleaning": "Cleaning",
     "cleaning_taskTitle": "Task Title",
     "cleaning_everyXDays": "Every X Days",
@@ -308,7 +300,6 @@
     "cleaning_showDisabled": "Show Disabled Tasks",
     "cleaning_activeTasks": "Active Tasks",
     "cleaning_editTask": "Edit Task",
-
     "tracker_trendify": "Trends",
     "tracker_trackers": "Trackers",
     "tracker_noTrackers": "No trackers found",
@@ -344,14 +335,12 @@
     "tracker_allPeople": "All People",
     "tracker_compareMembers": "Compare Members",
     "tracker_selectMembers": "Select Members",
-
     "cleaning_recurrence_everyDay": "Every day",
     "cleaning_recurrence_everyTwoDays": "Every 2 days",
     "cleaning_recurrence_everyXDays": "Every %d days",
     "cleaning_recurrence_uk_1": "every %d day",
     "cleaning_recurrence_uk_2_4": "every %d days",
     "cleaning_recurrence_uk_5": "every %d days",
-
     "settings_displayName": "Display Name",
     "settings_userSettings": "User Settings",
     "settings_syncSubtitle": "Cloud sync for your data",
@@ -488,7 +477,6 @@
     "settings_invitedToJoin": "You were invited to join %s",
     "settings_fromLabel": "From: %s",
     "settings_wantsToJoin": "%s wants to join your group",
-
     "support_hub_title": "Support Hub",
     "support_type_bug": "Bug",
     "support_type_bug_desc": "Report a bug or a technical issue in the app.",
@@ -515,7 +503,6 @@
     "support_enter_details": "Enter details here...",
     "support_sent_success": "Support request sent!",
     "support_id_copied": "ID Copied",
-
     "admin_adminPanel": "Admin Panel",
     "admin_users": "Users",
     "admin_usersSubtitle": "Manage user permissions",
@@ -526,7 +513,6 @@
     "admin_deleteGroup": "Delete Group",
     "admin_makeAdmin": "Make Admin",
     "admin_removeAdmin": "Remove Admin",
-
     "general_hourSymbol": "h",
     "general_minuteSymbol": "m",
     "general_hours": "Hours",
@@ -542,6 +528,8 @@
     "general_searchGroups": "Search Groups",
     "general_cancel": "Cancel",
     "general_save": "Save",
+    "general_share": "Share",
+    "general_deleteOffline": "Remove from cache",
     "general_reset": "Reset",
     "general_select": "Select",
     "general_none": "--:--",
@@ -590,6 +578,9 @@
     "calendar_appLinksVerified": "App Links Verified",
     "general_stranger": "Stranger",
     "general_aboutApp": "About App",
-    "general_landingPageSubtitle": "Learn more about jTools features"
+    "general_landingPageSubtitle": "Learn more about jTools features",
+    "settings_leftHandedMode": "Left-handed Mode",
+    "settings_leftHandedModeDesc": "Left corner buttons",
+    "vaults_allFilesDownloaded": "All files downloaded"
   }
 }

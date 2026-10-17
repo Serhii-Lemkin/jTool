@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.localization.Loc
@@ -108,29 +109,23 @@ fun LogConfigScreen(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
-        topBar = {
-            GenericTitle(
-                title = Loc.Workday.manual,
-                onBack = handleBack,
-                actions = {
-                    val scope = rememberCoroutineScope()
-                    IconButton(onClick = { 
-                        scope.launch {
-                            viewModel.onEvent(LogConfigEvent.Save)
-                            onBack()
-                        }
-                    }) {
-                        Icon(Icons.Default.Save, null)
-                    }
+    BaseScreen(
+        title = Loc.Workday.manual,
+        onBack = handleBack,
+        actions = {
+            val scope = rememberCoroutineScope()
+            IconButton(onClick = { 
+                scope.launch {
+                    viewModel.onEvent(LogConfigEvent.Save)
+                    onBack()
                 }
-            )
+            }) {
+                Icon(Icons.Default.Save, null)
+            }
         }
-    ) { padding ->
+    ) { _ ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
                 .padding(vertical = 16.dp)
                 .verticalScroll(scrollState)

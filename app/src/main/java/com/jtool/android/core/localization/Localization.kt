@@ -83,6 +83,7 @@ object Loc {
     val Settings = SettingsLoc
     val Support = SupportLoc
     val General = GeneralLoc
+    val Vaults = VaultsLoc
     val Crash = CrashLoc
 
     fun getDayOfWeekName(day: DayOfWeek, textStyle: TextStyle = TextStyle.FULL): String {

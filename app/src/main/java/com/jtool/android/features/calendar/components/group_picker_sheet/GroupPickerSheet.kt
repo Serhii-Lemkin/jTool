@@ -45,7 +45,7 @@ fun GroupPickerSheet(
                     ListItem(
                         headlineContent = { Text(group.name) },
                         trailingContent = {
-                            Checkbox(
+                            Switch(
                                 checked = isSelected,
                                 onCheckedChange = { onToggleId(group.id) }
                             )

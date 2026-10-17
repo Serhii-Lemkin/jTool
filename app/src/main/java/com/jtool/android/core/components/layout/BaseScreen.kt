@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,7 +20,10 @@ fun BaseScreen(
     onSearchTriggered: () -> Unit = {},
     searchPlaceholder: String = "",
     actions: @Composable RowScope.() -> Unit = {},
-    floatingActionButton: @Composable () -> Unit = {},
+    hasNotifications: Boolean = false,
+    notificationCount: Int = 0,
+    onNotificationsClick: (() -> Unit)? = null,
+    floatingActionButton: @Composable ColumnScope.() -> Unit = {},
     modifier: Modifier = Modifier,
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -28,7 +32,6 @@ fun BaseScreen(
             GenericTitle(
                 title = title,
                 onBack = onBack,
-                isLoading = false,
                 onRefresh = onRefresh,
                 isSearchVisible = isSearchVisible,
                 searchQuery = searchQuery,
@@ -39,12 +42,26 @@ fun BaseScreen(
                 actions = actions
             )
         },
-        floatingActionButton = floatingActionButton,
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
-            content(paddingValues)
-            AppLoader(isLoading = isLoading)
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = { onRefresh?.invoke() },
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+            ) {
+                content(PaddingValues(0.dp))
+            }
+
+            RedContainer(
+                screenTitle = title,
+                hasNotifications = hasNotifications,
+                notificationCount = notificationCount,
+                onNotificationsClick = onNotificationsClick,
+                content = floatingActionButton
+            )
         }
     }
 }

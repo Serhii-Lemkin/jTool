@@ -34,6 +34,7 @@ class AuthManager(private val context: Context) {
             .requestIdToken(webClientId)
             .requestEmail()
             .requestProfile()
+            .requestScopes(com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.file"))
             .build()
         return GoogleSignIn.getClient(context, gso)
     }

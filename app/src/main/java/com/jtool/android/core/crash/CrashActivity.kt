@@ -39,8 +39,20 @@ class CrashActivity : ComponentActivity() {
         val dataManager = DataManager(this)
         Loc.load(this, settings.getLanguage())
 
+        val isDark = settings.isDarkMode()
+        val lightPrimary = settings.getLightPrimaryColor()
+        val lightBg = settings.getLightBgColor()
+        val darkPrimary = settings.getDarkPrimaryColor()
+        val darkBg = settings.getDarkBgColor()
+
         setContent {
-            JToolTheme {
+            JToolTheme(
+                darkTheme = isDark,
+                lightPrimary = lightPrimary,
+                lightBg = lightBg,
+                darkPrimary = darkPrimary,
+                darkBg = darkBg
+            ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Column(
                         modifier = Modifier
@@ -77,19 +89,14 @@ class CrashActivity : ComponentActivity() {
                             scope.launch {
                                 try {
                                     val authUser = FirebaseAuth.getInstance().currentUser
-                                    if (authUser == null) {
-                                        isSending = false
-                                        errorMessage = "User session expired. Please restart and sign in."
-                                        return@launch
-                                    }
-                                    val userId = authUser.uid
+                                    val userId = authUser?.uid ?: settings.getAppUserId().ifBlank { "anonymous_crash_reporter" }
 
                                     val request = SupportRequest(
                                         type = SupportTypeEnum.CRASH,
                                         status = SupportStatusEnum.OPENED,
                                         text = Loc.Crash.automatedReport,
                                         userId = userId,
-                                        userName = settings.getUserName(),
+                                        userName = settings.getUserName().ifBlank { "App User" },
                                         timestamp = System.currentTimeMillis(),
                                         deviceInfo = DeviceInfoProvider.getDeviceInfo(this@CrashActivity),
                                         crashLog = crashLog

@@ -7,7 +7,8 @@ import com.google.firebase.firestore.IgnoreExtraProperties
 @IgnoreExtraProperties
 data class SupportConfig(
     val max_requests: Long = 2L,
-    val privacy: String = ""
+    val privacy: String = "",
+    val website: String = ""
 ) {
     companion object {
         const val COLLECTION_NAME = "support_requests"

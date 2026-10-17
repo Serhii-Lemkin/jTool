@@ -28,5 +28,8 @@ data class UserData(
     val lightPrimary: String = "0xFF059669",
     val lightBg: String = "0xFFF0FDF4",
     val darkPrimary: String = "0xFF10B981",
-    val darkBg: String = "0xFF09090B"
+    val darkBg: String = "0xFF09090B",
+    val seenVaultsInfo: Boolean = false,
+    val jtoolsFolderId: String = "",
+    val vaultsFolderId: String = ""
 )

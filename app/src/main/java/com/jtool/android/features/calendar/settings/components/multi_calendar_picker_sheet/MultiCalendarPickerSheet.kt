@@ -75,7 +75,7 @@ fun MultiCalendarPickerSheet(
                                 .padding(horizontal = 24.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
+                            Switch(
                                 checked = isSelected,
                                 onCheckedChange = {
                                     val next = currentSelectedIds.toMutableSet()

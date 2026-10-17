@@ -36,11 +36,11 @@
         <DialogSelection />
       </SelectionState>
       <SelectionState runConfigName="androidTest">
-        <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-09-13T14:13:24.498216564Z">
+        <option name="selectionMode" value="DIALOG" />
+        <DropdownSelection timestamp="2026-10-16T18:23:31.462427267Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="Wireless" identifier="serviceName=adb-RF8R50PGKKH-ADQBA3" />
+              <DeviceId pluginId="Default" identifier="serial=192.168.240.112:5555;connection=3109f17f" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -53,7 +53,7 @@
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="Default" identifier="serial=192.168.240.112:5555;connection=48c617d3" />
+                <DeviceId pluginId="Default" identifier="serial=192.168.240.112:5555;connection=3109f17f" />
               </handle>
             </Target>
           </targets>

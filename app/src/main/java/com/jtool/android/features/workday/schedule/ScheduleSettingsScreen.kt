@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.workday.DaySchedule
@@ -211,27 +212,21 @@ fun ScheduleSettingsScreen(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
-        topBar = {
-            GenericTitle(
-                title = Loc.Workday.editWorkHours,
-                onBack = handleBack,
-                isLoading = uiState.isLoading,
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.onEvent(ScheduleEvent.Save) },
-                        enabled = !uiState.isLoading
-                    ) {
-                        Icon(Icons.Default.Save, null)
-                    }
-                }
-            )
+    BaseScreen(
+        title = Loc.Workday.editWorkHours,
+        isLoading = uiState.isLoading,
+        onBack = handleBack,
+        actions = {
+            IconButton(
+                onClick = { viewModel.onEvent(ScheduleEvent.Save) },
+                enabled = !uiState.isLoading
+            ) {
+                Icon(Icons.Default.Save, null)
+            }
         }
-    ) { padding ->
+    ) { _ ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState)

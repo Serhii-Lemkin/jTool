@@ -24,6 +24,7 @@ import com.jtool.android.core.models.feature.cleaning.CleaningTask
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.CompactActionListItem
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
@@ -62,21 +63,16 @@ fun CleaningScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            GenericTitle(
-                title = if (uiState.showDisabledView) Loc.Cleaning.showDisabled else Loc.Cleaning.cleaning,
-                onBack = onBack,
-                isLoading = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
-                actions = {
-                    TitleActionIcon(
-                        icon = if (uiState.showDisabledView) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        onClick = { viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView)) },
-                        tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                    )
-                }
+    BaseScreen(
+        title = if (uiState.showDisabledView) Loc.Cleaning.showDisabled else Loc.Cleaning.cleaning,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
+        actions = {
+            TitleActionIcon(
+                icon = if (uiState.showDisabledView) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                onClick = { viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView)) },
+                tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
             )
         },
         floatingActionButton = {
@@ -85,44 +81,38 @@ fun CleaningScreen(
                 contentDescription = Loc.Cleaning.addTask
             )
         }
-    ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.onEvent(CleaningEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
+    ) { _ ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .imePadding(),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-                    .imePadding(),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    items(uiState.displayTasks, key = { it.id }) { task ->
-                        Box(Modifier.animateItem()) {
-                            CleaningTaskRow(
-                                task = task,
-                                onToggle = { checked ->
-                                    viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
-                                },
-                                onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
-                                onDisable = { isEnabled ->
-                                    viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
-                                },
-                                onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
-                                userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
-                            )
-                        }
+                items(uiState.displayTasks, key = { it.id }) { task ->
+                    Box(Modifier.animateItem()) {
+                        CleaningTaskRow(
+                            task = task,
+                            onToggle = { checked ->
+                                viewModel.onEvent(CleaningEvent.ToggleItem(task, checked))
+                            },
+                            onDelete = { viewModel.onEvent(CleaningEvent.RequestDelete(task)) },
+                            onDisable = { isEnabled ->
+                                viewModel.onEvent(CleaningEvent.UpdateTaskStatus(task, isEnabled))
+                            },
+                            onEdit = { viewModel.onEvent(CleaningEvent.RequestEdit(task)) },
+                            userName = uiState.userNames[task.lastUpdatedBy] ?: task.lastUpdatedBy
+                        )
                     }
-                    
-                    item {
-                        Spacer(Modifier.height(100.dp))
-                    }
+                }
+                
+                item {
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }
@@ -198,10 +188,9 @@ fun CleaningTaskRow(
         leadingContent = {
             if (task.isEnabled) {
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Checkbox(
+                    Switch(
                         checked = task.isChecked,
-                        onCheckedChange = onToggle,
-                        modifier = Modifier.size(32.dp)
+                        onCheckedChange = onToggle
                     )
                 }
             } else {

@@ -27,7 +27,9 @@ fun GenericSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp, start = 24.dp, end = 24.dp),
+                .padding(bottom = 32.dp, start = 24.dp, end = 24.dp)
+                .navigationBarsPadding()
+                .imePadding(),
             horizontalAlignment = horizontalAlignment
         ) {
             if (title != null) {

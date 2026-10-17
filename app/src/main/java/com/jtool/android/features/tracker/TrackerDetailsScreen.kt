@@ -21,6 +21,7 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.tracker.Tracker
 import com.jtool.android.core.models.tracker.TrackerRecord
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.components.layout.UnifiedFAB
@@ -59,20 +60,16 @@ fun TrackerDetailsScreen(
     var recordToEdit by remember { mutableStateOf<TrackerRecord?>(null) }
     var recordToDelete by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = tracker.title,
-                onBack = onBack,
-                isLoading = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(TrackerEvent.Refresh) },
-                actions = {
-                    TitleActionIcon(
-                        icon = Icons.Default.FilterList,
-                        onClick = { showFilterSheet = true },
-                        tint = if (uiState.timeFilter != TrackerTimeFilterEnum.ALL) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                    )
-                }
+    BaseScreen(
+        title = tracker.title,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.onEvent(TrackerEvent.Refresh) },
+        actions = {
+            TitleActionIcon(
+                icon = Icons.Default.FilterList,
+                onClick = { showFilterSheet = true },
+                tint = if (uiState.timeFilter != TrackerTimeFilterEnum.ALL) MaterialTheme.colorScheme.primary else LocalContentColor.current
             )
         },
         floatingActionButton = {
@@ -81,23 +78,17 @@ fun TrackerDetailsScreen(
                 contentDescription = Loc.Tracker.addRecord
             )
         }
-    ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.onEvent(TrackerEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
-        ) {
-            TrackerDetailsContent(
-                tracker = tracker,
-                records = uiState.records,
-                userNames = uiState.userNames,
-                currentUserId = authManager.getCurrentUser()?.uid ?: "",
-                timeFilter = uiState.timeFilter,
-                onEditRecord = { recordToEdit = it },
-                onDeleteRecord = { recordToDelete = it },
-                onEvent = { viewModel.onEvent(it) }
-            )
-        }
+    ) { _ ->
+        TrackerDetailsContent(
+            tracker = tracker,
+            records = uiState.records,
+            userNames = uiState.userNames,
+            currentUserId = authManager.getCurrentUser()?.uid ?: "",
+            timeFilter = uiState.timeFilter,
+            onEditRecord = { recordToEdit = it },
+            onDeleteRecord = { recordToDelete = it },
+            onEvent = { viewModel.onEvent(it) }
+        )
     }
 
     if (showFilterSheet) {

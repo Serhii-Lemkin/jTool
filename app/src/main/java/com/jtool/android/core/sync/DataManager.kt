@@ -14,12 +14,15 @@ import com.jtool.android.core.sync.helpers.UserAdminHelper
 import com.jtool.android.core.sync.helpers.SystemDatabaseHelper
 import com.jtool.android.core.sync.helpers.WorkdayDatabaseHelper
 import com.jtool.android.core.sync.helpers.TrackerDatabaseHelper
+import com.jtool.android.core.sync.helpers.VaultsDatabaseHelper
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.core.sync.helpers.CalendarExtensionDatabaseHelper
 import com.jtool.android.core.models.calendar.CalendarEventExtension
 import com.jtool.android.core.models.user.PublicProfile
+import kotlinx.coroutines.tasks.await
+import com.jtool.android.core.models.user.UserData
 import com.jtool.android.core.models.common.Comment
 import com.jtool.android.core.models.common.UserNotification
 import com.jtool.android.core.models.group.Invite
@@ -65,6 +68,7 @@ class DataManager(val context: Context) {
     private val workdayHelper: WorkdayDatabaseHelper = WorkdayDatabaseHelper(firestore)
     private val trackerHelper: TrackerDatabaseHelper = TrackerDatabaseHelper(firestore)
     private val calendarExtensionHelper: CalendarExtensionDatabaseHelper = CalendarExtensionDatabaseHelper(firestore)
+    private val vaultsHelper: VaultsDatabaseHelper = VaultsDatabaseHelper(firestore)
 
     fun getSupportColl() = firestore.collection("support_requests")
     suspend fun getAppOptions() = supportHelper.getAppOptions()
@@ -101,6 +105,20 @@ class DataManager(val context: Context) {
     fun allUsersFlow(): Flow<List<User>> = userAdminHelper.allUsersFlow()
     suspend fun setUserAdminStatus(uid: String, isAdmin: Boolean) = userAdminHelper.setUserAdminStatus(uid, isAdmin)
     suspend fun setUserReviewerStatus(uid: String, isReviewer: Boolean) = userAdminHelper.setUserReviewerStatus(uid, isReviewer)
+    suspend fun setSeenVaultsInfo(uid: String, seen: Boolean) {
+        settings.setSeenVaultsInfo(seen)
+        userAdminHelper.updateSeenVaultsInfo(uid, seen)
+    }
+    suspend fun setJtoolsFolderId(uid: String, folderId: String) {
+        settings.setJtoolsFolderId(folderId)
+        userAdminHelper.getUserDataColl().document(uid).set(mapOf(UserData::jtoolsFolderId.name to folderId), com.google.firebase.firestore.SetOptions.merge()).await()
+    }
+    suspend fun setVaultsFolderId(uid: String, folderId: String) {
+        settings.setVaultsFolderId(folderId)
+        userAdminHelper.getUserDataColl().document(uid).set(mapOf(UserData::vaultsFolderId.name to folderId), com.google.firebase.firestore.SetOptions.merge()).await()
+    }
+    fun getJtoolsFolderId(): String = settings.getJtoolsFolderId()
+    fun getVaultsFolderId(): String = settings.getVaultsFolderId()
     suspend fun clearWorkdayOptions(uid: String) = userAdminHelper.clearWorkdayData(uid)
     suspend fun cleanupLegacyWorkHours() = userAdminHelper.cleanupLegacyWorkHours()
     fun allGroupsFlow(): Flow<List<GroupInfo>> = userAdminHelper.allGroupsFlow()
@@ -143,4 +161,15 @@ class DataManager(val context: Context) {
     suspend fun deleteCalendarExtension(googleEventId: String) = calendarExtensionHelper.deleteExtension(googleEventId)
     fun calendarCommentsFlow(googleEventId: String) = calendarExtensionHelper.getCommentsCollection(googleEventId)
     suspend fun addCalendarComment(googleEventId: String, comment: Comment) = calendarExtensionHelper.addComment(googleEventId, comment)
+
+    fun getVaultsFlow(groupId: String): Flow<List<com.jtool.android.core.models.vaults.Vault>> = vaultsHelper.getVaultsFlow(groupId)
+    fun getVaultDocsFlow(groupId: String, vaultId: String): Flow<List<com.jtool.android.core.models.vaults.VaultDocument>> = vaultsHelper.getVaultDocsFlow(groupId, vaultId)
+    suspend fun getVaultsDirect(groupId: String): List<com.jtool.android.core.models.vaults.Vault> = vaultsHelper.getVaultsDirect(groupId)
+    suspend fun getVaultDocsDirect(groupId: String, vaultId: String): List<com.jtool.android.core.models.vaults.VaultDocument> = vaultsHelper.getVaultDocsDirect(groupId, vaultId)
+    suspend fun addVault(groupId: String, vault: com.jtool.android.core.models.vaults.Vault): String = vaultsHelper.addVault(groupId, vault)
+    suspend fun updateVault(groupId: String, vault: com.jtool.android.core.models.vaults.Vault) = vaultsHelper.updateVault(groupId, vault)
+    suspend fun deleteVault(groupId: String, vaultId: String) = vaultsHelper.deleteVault(groupId, vaultId)
+    suspend fun addVaultDoc(groupId: String, vaultId: String, doc: com.jtool.android.core.models.vaults.VaultDocument): String = vaultsHelper.addVaultDoc(groupId, vaultId, doc)
+    suspend fun updateVaultDoc(groupId: String, vaultId: String, doc: com.jtool.android.core.models.vaults.VaultDocument) = vaultsHelper.updateVaultDoc(groupId, vaultId, doc)
+    suspend fun deleteVaultDoc(groupId: String, vaultId: String, docId: String) = vaultsHelper.deleteVaultDoc(groupId, vaultId, docId)
 }

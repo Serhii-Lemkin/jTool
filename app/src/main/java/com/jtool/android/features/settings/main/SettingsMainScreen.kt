@@ -101,17 +101,29 @@ fun SettingsMainScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
             item {
+                val scope = rememberCoroutineScope()
                 SettingsMenuItem(
                     title = Loc.General.aboutApp,
                     subtitle = Loc.General.landingPageSubtitle,
                     icon = Icons.Default.Info,
                     onClick = {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(Config.DEEP_LINK_BASE_URL))
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            infoMessage = "Could not open landing page"
+                        val dataManager = DataManager(context)
+                        scope.launch {
+                            try {
+                                val options = dataManager.getAppOptions()
+                                val rawUrl = options?.website
+                                val url = if (rawUrl.isNullOrBlank()) Config.DEEP_LINK_BASE_URL else rawUrl
+                                
+                                val lang = settingsManager.getLanguage()
+                                val uri = Uri.parse(url).buildUpon()
+                                    .appendQueryParameter("lang", lang)
+                                    .build()
+                                val intent = Intent(Intent.ACTION_VIEW, uri)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                infoMessage = "Could not open landing page"
+                            }
                         }
                     }
                 )
@@ -129,9 +141,17 @@ fun SettingsMainScreen(
                             val options = dataManager.getAppOptions()
                             val url = options?.privacy
                             if (!url.isNullOrBlank()) {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                context.startActivity(intent)
+                                try {
+                                    val lang = settingsManager.getLanguage()
+                                    val uri = Uri.parse(url).buildUpon()
+                                        .appendQueryParameter("lang", lang)
+                                        .build()
+                                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    infoMessage = "Could not open Privacy Policy"
+                                }
                             } else {
                                 android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase")
                                 infoMessage = "Privacy Policy URL not found"

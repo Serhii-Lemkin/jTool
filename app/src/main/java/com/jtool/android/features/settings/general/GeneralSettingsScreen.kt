@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.localization.domains.SettingsLoc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.general.components.language_selection_sheet.LanguageSelectionSheet

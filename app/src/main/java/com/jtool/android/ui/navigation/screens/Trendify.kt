@@ -30,7 +30,6 @@ object Trendify : AppProperties(
         )
 
         TrackerListScreen(
-            dataManager = deps.dataManager,
             currentGroupId = deps.currentGroupId,
             onBack = deps.onBack,
             onNavigate = deps.setScreen,

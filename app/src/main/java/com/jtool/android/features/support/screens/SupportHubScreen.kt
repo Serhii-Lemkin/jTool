@@ -30,6 +30,7 @@ import com.jtool.android.features.support.components.*
 import com.jtool.android.features.support.components.support_filter_sheet.SupportFilterSheet
 import com.jtool.android.features.support.components.reviewer_info_sheet.ReviewerInfoSheet
 import com.jtool.android.features.support.logic.*
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleDropdownMenu
 import com.jtool.android.core.components.layout.TitleActionIcon
@@ -147,51 +148,46 @@ fun SupportHubScreen(
         viewModel.onEvent(SupportEvent.Refresh)
     }
 
-    Scaffold(
-        topBar = {
-            var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
-            
-            LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
+    var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
+    LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
-            GenericTitle(
-                title = when (uiState.currentSubScreen) {
-                    SupportScreenTypeEnum.HUB -> Loc.Support.hub_title
-                    SupportScreenTypeEnum.DETAIL -> Loc.Support.request_number.format(uiState.selectedRequest?.number ?: 0)
-                    SupportScreenTypeEnum.NEW_FORM -> Loc.Support.new_request
-                },
-                onBack = {
-                    if (uiState.currentSubScreen != SupportScreenTypeEnum.HUB) {
-                        viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.HUB))
-                    } else {
-                        onBack()
-                    }
-                },
-                isLoading = uiState.isLoading,
-                onRefresh = { viewModel.onEvent(SupportEvent.Refresh) },
-                isSearchVisible = uiState.isSearchVisible && uiState.currentSubScreen == SupportScreenTypeEnum.HUB,
-                searchQuery = draftSearchQuery,
-                onSearchQueryChange = { draftSearchQuery = it },
-                onSearchClose = { 
-                    viewModel.onEvent(SupportEvent.UpdateSearchQuery(""))
-                    viewModel.onEvent(SupportEvent.ToggleSearch) 
-                },
-                onSearchTriggered = {
-                    viewModel.onEvent(SupportEvent.UpdateSearchQuery(draftSearchQuery))
-                },
-                actions = {
-                    if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
-                        if (uiState.isReviewer) {
-                            TitleActionIcon(
-                                icon = Icons.Default.RateReview,
-                                tint = MaterialTheme.colorScheme.primary,
-                                onClick = { showReviewerInfoSheet = true }
-                            )
-                        }
-                        TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
-                        TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSheet = true })
-                    }
+    BaseScreen(
+        title = when (uiState.currentSubScreen) {
+            SupportScreenTypeEnum.HUB -> Loc.Support.hub_title
+            SupportScreenTypeEnum.DETAIL -> Loc.Support.request_number.format(uiState.selectedRequest?.number ?: 0)
+            SupportScreenTypeEnum.NEW_FORM -> Loc.Support.new_request
+        },
+        isLoading = uiState.isLoading,
+        onBack = {
+            if (uiState.currentSubScreen != SupportScreenTypeEnum.HUB) {
+                viewModel.onEvent(SupportEvent.Navigate(SupportScreenTypeEnum.HUB))
+            } else {
+                onBack()
+            }
+        },
+        onRefresh = { viewModel.onEvent(SupportEvent.Refresh) },
+        isSearchVisible = uiState.isSearchVisible && uiState.currentSubScreen == SupportScreenTypeEnum.HUB,
+        searchQuery = draftSearchQuery,
+        onSearchQueryChange = { draftSearchQuery = it },
+        onSearchClose = { 
+            viewModel.onEvent(SupportEvent.UpdateSearchQuery(""))
+            viewModel.onEvent(SupportEvent.ToggleSearch) 
+        },
+        onSearchTriggered = {
+            viewModel.onEvent(SupportEvent.UpdateSearchQuery(draftSearchQuery))
+        },
+        actions = {
+            if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
+                if (uiState.isReviewer) {
+                    TitleActionIcon(
+                        icon = Icons.Default.RateReview,
+                        tint = MaterialTheme.colorScheme.primary,
+                        onClick = { showReviewerInfoSheet = true }
+                    )
                 }
-            )
+                TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
+                TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSheet = true })
+            }
         },
         floatingActionButton = {
             if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
@@ -200,18 +196,12 @@ fun SupportHubScreen(
                     contentDescription = Loc.General.add
                 )
             }
-        },
-        modifier = Modifier.fillMaxSize().navigationBarsPadding()
-    ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.onEvent(SupportEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (uiState.currentSubScreen) {
-                    SupportScreenTypeEnum.HUB -> {
-                        if (filteredRequests.isEmpty()) {
+        }
+    ) { _ ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (uiState.currentSubScreen) {
+                SupportScreenTypeEnum.HUB -> {
+                    if (filteredRequests.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -299,4 +289,3 @@ fun SupportHubScreen(
             }
         }
     }
-}

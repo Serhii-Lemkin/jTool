@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.components.layout.ActionListItem
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.common.enums.AppScreenEnum
@@ -78,18 +79,12 @@ fun WorkdaySettingsMainScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = Loc.Launcher.settings,
-                onBack = onBack
-            )
-        }
-    ) { padding ->
+    BaseScreen(
+        title = Loc.Launcher.settings,
+        onBack = onBack
+    ) { _ ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             ActionListItem(
                 headline = Loc.Workday.weeklyStartDay,

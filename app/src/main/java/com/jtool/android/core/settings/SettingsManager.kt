@@ -100,6 +100,30 @@ class SettingsManager(context: Context) {
     fun getLanguage(): String {
         return prefs.getString("language", "en") ?: "en"
     }
+    
+    fun getSeenVaultsInfo(): Boolean {
+        return prefs.getBoolean("seen_vaults_info", false)
+    }
+
+    fun setSeenVaultsInfo(seen: Boolean) {
+        prefs.edit().putBoolean("seen_vaults_info", seen).apply()
+    }
+
+    fun getJtoolsFolderId(): String {
+        return prefs.getString("jtools_folder_id", "") ?: ""
+    }
+
+    fun setJtoolsFolderId(id: String) {
+        prefs.edit().putString("jtools_folder_id", id).apply()
+    }
+
+    fun getVaultsFolderId(): String {
+        return prefs.getString("vaults_folder_id", "") ?: ""
+    }
+
+    fun setVaultsFolderId(id: String) {
+        prefs.edit().putString("vaults_folder_id", id).apply()
+    }
 
     fun hasLanguageBeenSet(): Boolean {
         return prefs.contains("language")
@@ -341,6 +365,21 @@ class SettingsManager(context: Context) {
 
     fun getDarkBgColor(): String = prefs.getString("dark_bg", "0xFF09090B") ?: "0xFF09090B"
     fun setDarkBgColor(hex: String) = prefs.edit().putString("dark_bg", hex).apply()
+
+    fun getFloatingContainerSide(): String = prefs.getString("floating_container_side", "RIGHT") ?: "RIGHT"
+    fun setFloatingContainerSide(side: String) = prefs.edit().putString("floating_container_side", side).apply()
+
+    fun isFloatingContainerCollapsed(): Boolean = prefs.getBoolean("floating_container_collapsed", false)
+    fun setFloatingContainerCollapsed(collapsed: Boolean) = prefs.edit().putBoolean("floating_container_collapsed", collapsed).apply()
+
+    fun isLargeFileWarningEnabled(): Boolean = prefs.getBoolean("vault_enable_large_file_warning", true)
+    fun setLargeFileWarningEnabled(enabled: Boolean) = prefs.edit().putBoolean("vault_enable_large_file_warning", enabled).apply()
+
+    fun getMaxFileSizeWithoutWarningMb(): Int = prefs.getInt("vault_max_file_size_mb", 100)
+    fun setMaxFileSizeWithoutWarningMb(mb: Int) = prefs.edit().putInt("vault_max_file_size_mb", mb).apply()
+
+    fun isShowDriveButtonsEnabled(): Boolean = prefs.getBoolean("vault_show_drive_buttons", false)
+    fun setShowDriveButtonsEnabled(enabled: Boolean) = prefs.edit().putBoolean("vault_show_drive_buttons", enabled).apply()
 
     private val contextRef = context
 

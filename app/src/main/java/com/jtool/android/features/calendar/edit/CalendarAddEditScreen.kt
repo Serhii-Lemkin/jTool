@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.components.layout.ActionListItem
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.calendar.CalendarEvent
@@ -156,62 +157,56 @@ fun CalendarAddEditScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = if (event == null) Loc.Calendar.addEvent else Loc.Calendar.editEvent,
-                onBack = onBack,
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (title.trim().isEmpty()) {
-                                showRequiredFieldsSheet = true
-                                return@IconButton
-                            }
-
-                            val (dtStart, dtEnd) = if (allDay) {
-                                val startUtc = currentDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
-                                val endUtc = currentDate.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
-                                startUtc to endUtc
-                            } else {
-                                val effectiveStart = if (startTime.isBlank()) "09:00" else startTime
-                                val startLdt = currentDate.atTime(LocalTime.parse(effectiveStart))
-                                val endLdt = if (endTime.isNotEmpty()) currentDate.atTime(LocalTime.parse(endTime)) else startLdt.plusHours(1)
-                                val startMs = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                                val endMs = endLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                                startMs to endMs
-                            }
-
-                            val finalEvent = CalendarEvent(
-                                id = event?.id ?: "",
-                                title = title.trim(),
-                                allDay = allDay,
-                                note = note,
-                                dtStart = dtStart,
-                                dtEnd = dtEnd,
-                                colorKey = colorKey,
-                                googleCalendarId = event?.googleCalendarId ?: settingsManager.getGoogleCalendarId()
-                            )
-                            
-                            val finalExt = CalendarEventExtension(
-                                googleEventId = event?.id ?: "",
-                                sharedGroupIds = selectedGroupIds.toList(),
-                                dateTimestamp = dtStart
-                            )
-
-                            onConfirm(finalEvent, finalExt)
-                        },
-                        enabled = true
-                    ) {
-                        Icon(Icons.Default.Save, null, tint = themeColor)
+    BaseScreen(
+        title = if (event == null) Loc.Calendar.addEvent else Loc.Calendar.editEvent,
+        onBack = onBack,
+        actions = {
+            IconButton(
+                onClick = {
+                    if (title.trim().isEmpty()) {
+                        showRequiredFieldsSheet = true
+                        return@IconButton
                     }
+
+                    val (dtStart, dtEnd) = if (allDay) {
+                        val startUtc = currentDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                        val endUtc = currentDate.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                        startUtc to endUtc
+                    } else {
+                        val effectiveStart = if (startTime.isBlank()) "09:00" else startTime
+                        val startLdt = currentDate.atTime(LocalTime.parse(effectiveStart))
+                        val endLdt = if (endTime.isNotEmpty()) currentDate.atTime(LocalTime.parse(endTime)) else startLdt.plusHours(1)
+                        val startMs = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val endMs = endLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        startMs to endMs
+                    }
+
+                    val finalEvent = CalendarEvent(
+                        id = event?.id ?: "",
+                        title = title.trim(),
+                        allDay = allDay,
+                        note = note,
+                        dtStart = dtStart,
+                        dtEnd = dtEnd,
+                        colorKey = colorKey,
+                        googleCalendarId = event?.googleCalendarId ?: settingsManager.getGoogleCalendarId()
+                    )
+                    
+                    val finalExt = CalendarEventExtension(
+                        googleEventId = event?.id ?: "",
+                        sharedGroupIds = selectedGroupIds.toList(),
+                        dateTimestamp = dtStart
+                    )
+
+                    onConfirm(finalEvent, finalExt)
                 }
-            )
+            ) {
+                Icon(Icons.Default.Check, contentDescription = Loc.General.save)
+            }
         }
-    ) { padding ->
+    ) { _ ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
                 .imePadding()
                 .verticalScroll(rememberScrollState())

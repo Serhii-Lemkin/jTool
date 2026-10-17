@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.selection.SelectionContainer
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.features.notes.components.title_suggestion_sheet.TitleSuggestionSheet
 import com.jtool.android.core.components.comments.CommentSection
@@ -51,60 +52,32 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
 
     val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = "",
-                onBack = { viewModel.onEvent(NotesEvent.NavigateBack) },
-                isLoading = uiState.isLoading,
-                customTitle = {
-                    if (uiState.isEditMode) {
-                        OutlinedTextField(
-                            value = uiState.draftTitle,
-                            onValueChange = { viewModel.onEvent(NotesEvent.UpdateDraftTitle(it)) },
-                            placeholder = { Text(Loc.Notes.noteTitlePlaceholder) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            ),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.fillMaxWidth().padding(end = 8.dp)
-                        )
+    BaseScreen(
+        title = "",
+        isLoading = uiState.isLoading,
+        onBack = { viewModel.onEvent(NotesEvent.NavigateBack) },
+        actions = {
+            if (uiState.isEditMode) {
+                IconButton(onClick = { 
+                    if (uiState.draftTitle.isBlank()) {
+                        showTitleSheet = true
                     } else {
-                        Text(
-                            text = if (uiState.draftTitle.isBlank()) Loc.Notes.untitledNote else uiState.draftTitle,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        viewModel.onEvent(NotesEvent.SaveNote)
                     }
-                },
-                actions = {
-                    if (uiState.isEditMode) {
-                        IconButton(onClick = { 
-                            if (uiState.draftTitle.isBlank()) {
-                                showTitleSheet = true
-                            } else {
-                                viewModel.onEvent(NotesEvent.SaveNote)
-                            }
-                        }) {
-                            Icon(Icons.Default.Save, null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    } else {
-                        IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleEditMode) }) {
-                            Icon(Icons.Default.Edit, null)
-                        }
-                    }
+                }) {
+                    Icon(Icons.Default.Save, null, tint = MaterialTheme.colorScheme.primary)
                 }
-            )
-        },
-        modifier = Modifier.fillMaxSize().imePadding()
-    ) { padding ->
+            } else {
+                IconButton(onClick = { viewModel.onEvent(NotesEvent.ToggleEditMode) }) {
+                    Icon(Icons.Default.Edit, null)
+                }
+            }
+        }
+    ) { _ ->
         SelectionContainer {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.Top
             ) {
@@ -169,10 +142,9 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                                Checkbox(
+                                Switch(
                                     checked = item.isChecked,
-                                    onCheckedChange = { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) },
-                                    modifier = Modifier.size(32.dp)
+                                    onCheckedChange = { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) }
                                 )
                             }
                             Text(

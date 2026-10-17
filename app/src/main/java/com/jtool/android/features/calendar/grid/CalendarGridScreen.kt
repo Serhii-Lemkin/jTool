@@ -34,7 +34,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.calendar.CalendarEvent
@@ -86,32 +88,31 @@ fun CalendarGridScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = Loc.Calendar.calendar,
-                onBack = onBack,
-                actions = {
-                    TitleActionIcon(
-                        icon = Icons.Default.Refresh,
-                        onClick = { viewModel.refresh() }
-                    )
-                    TitleActionIcon(
-                        icon = Icons.Default.MoreVert,
-                        onClick = { showActionSheet = true }
-                    )
-                }
+    BaseScreen(
+        title = Loc.Calendar.calendar,
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.refresh() },
+        actions = {
+            TitleActionIcon(
+                icon = Icons.Default.Refresh,
+                onClick = { viewModel.refresh() }
+            )
+            TitleActionIcon(
+                icon = Icons.Default.MoreVert,
+                onClick = { showActionSheet = true }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.toggleAddEditDialog(true) }) {
-                Icon(Icons.Default.Add, null)
-            }
+            UnifiedFAB(
+                onClick = { viewModel.toggleAddEditDialog(true) },
+                contentDescription = Loc.Calendar.addEvent
+            )
         }
-    ) { padding ->
+    ) { _ ->
         val calendarId = viewModel.settingsManager.getGoogleCalendarId()
         if (calendarId.isEmpty()) {
-            Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
                     Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(16.dp))
@@ -122,13 +123,13 @@ fun CalendarGridScreen(
                     }
                 }
             }
-            return@Scaffold
+            return@BaseScreen
         }
 
         PullToRefreshBox(
             isRefreshing = uiState.isLoading,
             onRefresh = { viewModel.refresh() },
-            modifier = Modifier.padding(padding).fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {

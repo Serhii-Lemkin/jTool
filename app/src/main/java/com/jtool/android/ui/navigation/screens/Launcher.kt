@@ -17,6 +17,7 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             onCleaningClick = { deps.setScreen(AppScreenEnum.CLEANING) },
             onTrendifyClick = { deps.setScreen(AppScreenEnum.TRENDIFY) },
             onCalendarClick = { deps.setScreen(AppScreenEnum.CALENDAR) },
+            onVaultsClick = { deps.setScreen(AppScreenEnum.VAULTS) },
             onSettingsClick = { deps.setScreen(AppScreenEnum.SETTINGS) },
             onSupportClick = { deps.setScreen(AppScreenEnum.SUPPORT_HUB) },
             onAccountClick = { deps.setScreen(AppScreenEnum.SETTINGS_ACCOUNT) },

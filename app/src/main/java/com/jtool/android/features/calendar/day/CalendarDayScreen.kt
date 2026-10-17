@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.AppLoader
 import com.jtool.android.core.components.layout.UnifiedFAB
@@ -106,29 +107,27 @@ fun CalendarDayScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            GenericTitle(
-                title = uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd MMMM", Locale(Loc.lang))),
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { viewModel.toggleViewMode() }) {
-                        Icon(
-                            imageVector = if (uiState.viewMode == CalendarDayViewMode.TIMELINE) Icons.AutoMirrored.Filled.ViewList else Icons.Default.ViewTimeline,
-                            contentDescription = null
-                        )
-                    }
-                    IconButton(onClick = { showDayActionSheet = true }) {
-                        Icon(Icons.Default.MoreVert, null)
-                    }
-                    IconButton(onClick = { viewModel.navigateDay(-1) }) {
-                        Icon(Icons.Default.ChevronLeft, null)
-                    }
-                    IconButton(onClick = { viewModel.navigateDay(1) }) {
-                        Icon(Icons.Default.ChevronRight, null)
-                    }
-                }
-            )
+    BaseScreen(
+        title = uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd MMMM", Locale(Loc.lang))),
+        isLoading = uiState.isLoading,
+        onBack = onBack,
+        onRefresh = { viewModel.refresh() },
+        actions = {
+            IconButton(onClick = { viewModel.toggleViewMode() }) {
+                Icon(
+                    imageVector = if (uiState.viewMode == CalendarDayViewMode.TIMELINE) Icons.AutoMirrored.Filled.ViewList else Icons.Default.ViewTimeline,
+                    contentDescription = null
+                )
+            }
+            IconButton(onClick = { showDayActionSheet = true }) {
+                Icon(Icons.Default.MoreVert, null)
+            }
+            IconButton(onClick = { viewModel.navigateDay(-1) }) {
+                Icon(Icons.Default.ChevronLeft, null)
+            }
+            IconButton(onClick = { viewModel.navigateDay(1) }) {
+                Icon(Icons.Default.ChevronRight, null)
+            }
         },
         floatingActionButton = {
             UnifiedFAB(
@@ -136,8 +135,8 @@ fun CalendarDayScreen(
                 onClick = { viewModel.toggleAddEditDialog(true) }
             )
         }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+    ) { _ ->
+        Column(modifier = Modifier.fillMaxSize()) {
             if (uiState.viewMode == CalendarDayViewMode.TIMELINE) {
                 TimelineView(
                     uiState = uiState,

@@ -16,6 +16,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class UserAdminHelper(
     private val firestore: FirebaseFirestore,
@@ -26,7 +28,7 @@ class UserAdminHelper(
     private fun getUsersColl() = firestore.collection("users")
     private fun getGroupsColl() = firestore.collection("groups")
     private fun getPublicProfilesColl() = firestore.collection("public_profiles")
-    private fun getUserDataColl() = firestore.collection("user_data")
+    fun getUserDataColl() = firestore.collection("user_data")
 
     suspend fun pushUserSettings(): Boolean {
         val uid = auth.currentUser?.uid ?: return false
@@ -58,7 +60,10 @@ class UserAdminHelper(
                 "lightPrimary" to settings.getLightPrimaryColor(),
                 "lightBg" to settings.getLightBgColor(),
                 "darkPrimary" to settings.getDarkPrimaryColor(),
-                "darkBg" to settings.getDarkBgColor()
+                "darkBg" to settings.getDarkBgColor(),
+                "seenVaultsInfo" to settings.getSeenVaultsInfo(),
+                "jtoolsFolderId" to settings.getJtoolsFolderId(),
+                "vaultsFolderId" to settings.getVaultsFolderId()
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
@@ -89,6 +94,15 @@ class UserAdminHelper(
         }
     }
 
+    suspend fun updateSeenVaultsInfo(uid: String, seen: Boolean) = withContext(Dispatchers.IO) {
+        try {
+            val data = mapOf(UserData::seenVaultsInfo.name to seen)
+            getUserDataColl().document(uid).set(data, SetOptions.merge()).await()
+        } catch (e: Exception) {
+            Log.e("UserAdminHelper", "Failed to update seenVaultsInfo", e)
+        }
+    }
+
     suspend fun fetchUserSettings(force: Boolean = false): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
@@ -112,6 +126,9 @@ class UserAdminHelper(
 
             val statsSnap = getUserDataColl().document(uid).get().await()
             val stats = statsSnap.toObject(UserData::class.java) ?: UserData()
+            settings.setSeenVaultsInfo(stats.seenVaultsInfo)
+            settings.setJtoolsFolderId(stats.jtoolsFolderId)
+            settings.setVaultsFolderId(stats.vaultsFolderId)
             
             val groupIds = user.groupIds.toMutableList()
             val finalGroupsMap = mutableMapOf<String, GroupInfo>()

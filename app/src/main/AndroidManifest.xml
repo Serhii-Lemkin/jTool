@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="replace" />
 
     <application
         android:allowBackup="true"
@@ -64,6 +66,21 @@
             android:exported="false"
             android:label="Crash Report"
             android:theme="@style/Theme.JTool" />
+
+        <service
+            android:name=".core.services.FileUploadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <service
+            android:name=".core.services.FileDownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <service
+            android:name=".core.services.FileExportService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
     </application>
 
 </manifest>

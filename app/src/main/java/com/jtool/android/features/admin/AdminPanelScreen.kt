@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.features.admin.components.delete_user_confirm_sheet.DeleteUserConfirmSheet
@@ -67,59 +68,54 @@ fun AdminPanelScreen(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
-        topBar = {
-            GenericTitle(
-                title = when(uiState.currentSubScreen) {
-                    AdminSubScreenEnum.USERS -> Loc.Admin.users
-                    AdminSubScreenEnum.GROUPS -> Loc.Settings.groups
-                    AdminSubScreenEnum.NOTIFICATIONS -> Loc.General.notifications
-                    else -> Loc.Admin.adminPanel
-                },
-                onBack = { 
-                    if (isSearchVisible) {
-                        isSearchVisible = false
-                    } else {
-                        if (uiState.currentSubScreen == AdminSubScreenEnum.MAIN) onBack() else viewModel.onEvent(AdminEvent.Navigate(AdminSubScreenEnum.MAIN))
-                    }
-                },
-                isLoading = uiState.isLoading,
-                isSearchVisible = isSearchVisible,
-                searchQuery = draftSearchQuery,
-                onSearchQueryChange = { draftSearchQuery = it },
-                onSearchClose = {
-                    isSearchVisible = false
-                    if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) {
-                        viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(""))
-                        viewModel.onEvent(AdminEvent.ApplyUserSearch)
-                    } else if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
-                        viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(""))
-                        viewModel.onEvent(AdminEvent.ApplyGroupSearch)
-                    }
-                },
-                onSearchTriggered = {
-                    if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) {
-                        viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(draftSearchQuery))
-                        viewModel.onEvent(AdminEvent.ApplyUserSearch)
-                    } else if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
-                        viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(draftSearchQuery))
-                        viewModel.onEvent(AdminEvent.ApplyGroupSearch)
-                    }
-                },
-                onRefresh = if (uiState.currentSubScreen == AdminSubScreenEnum.USERS || uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
-                    { viewModel.onEvent(AdminEvent.Refresh) }
-                } else null,
-                searchPlaceholder = if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) Loc.Admin.searchUsers else Loc.General.searchGroups,
-                actions = {
-                    if (uiState.currentSubScreen == AdminSubScreenEnum.USERS || uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
-                        TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
-                    }
-                }
-            )
+    BaseScreen(
+        title = when(uiState.currentSubScreen) {
+            AdminSubScreenEnum.USERS -> Loc.Admin.users
+            AdminSubScreenEnum.GROUPS -> Loc.Settings.groups
+            AdminSubScreenEnum.NOTIFICATIONS -> Loc.General.notifications
+            else -> Loc.Admin.adminPanel
+        },
+        isLoading = uiState.isLoading,
+        onBack = { 
+            if (isSearchVisible) {
+                isSearchVisible = false
+            } else {
+                if (uiState.currentSubScreen == AdminSubScreenEnum.MAIN) onBack() else viewModel.onEvent(AdminEvent.Navigate(AdminSubScreenEnum.MAIN))
+            }
+        },
+        onRefresh = if (uiState.currentSubScreen == AdminSubScreenEnum.USERS || uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
+            { viewModel.onEvent(AdminEvent.Refresh) }
+        } else null,
+        isSearchVisible = isSearchVisible,
+        searchQuery = draftSearchQuery,
+        onSearchQueryChange = { draftSearchQuery = it },
+        onSearchClose = {
+            isSearchVisible = false
+            if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) {
+                viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(""))
+                viewModel.onEvent(AdminEvent.ApplyUserSearch)
+            } else if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
+                viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(""))
+                viewModel.onEvent(AdminEvent.ApplyGroupSearch)
+            }
+        },
+        onSearchTriggered = {
+            if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) {
+                viewModel.onEvent(AdminEvent.UpdateUserSearchQuery(draftSearchQuery))
+                viewModel.onEvent(AdminEvent.ApplyUserSearch)
+            } else if (uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
+                viewModel.onEvent(AdminEvent.UpdateGroupSearchQuery(draftSearchQuery))
+                viewModel.onEvent(AdminEvent.ApplyGroupSearch)
+            }
+        },
+        searchPlaceholder = if (uiState.currentSubScreen == AdminSubScreenEnum.USERS) Loc.Admin.searchUsers else Loc.General.searchGroups,
+        actions = {
+            if (uiState.currentSubScreen == AdminSubScreenEnum.USERS || uiState.currentSubScreen == AdminSubScreenEnum.GROUPS) {
+                TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
+            }
         }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+    ) { _ ->
+        Box(modifier = Modifier.fillMaxSize()) {
             when (uiState.currentSubScreen) {
                 AdminSubScreenEnum.MAIN -> AdminMainScreen(
                     onNavigate = { viewModel.onEvent(AdminEvent.Navigate(it)) }

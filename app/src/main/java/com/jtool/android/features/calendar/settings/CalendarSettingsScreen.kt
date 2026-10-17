@@ -9,15 +9,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import android.content.Context
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.jtool.android.core.components.layout.ActionListItem
-import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.features.calendar.settings.components.calendar_picker_sheet.CalendarPickerSheet
@@ -25,14 +21,11 @@ import com.jtool.android.features.calendar.settings.components.calendar_permissi
 import com.jtool.android.features.calendar.settings.components.reset_calendar_confirm_sheet.ResetCalendarConfirmSheet
 import com.jtool.android.ui.components.common.MessageSheet
 import com.jtool.android.ui.components.common.MessageType
-
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.jtool.android.core.models.calendar.CalendarConfig
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.calendar.common.GoogleCalendarSyncHelper
-import com.jtool.android.core.utils.DeepLinkUtils
-import com.jtool.android.core.config.Config
 import com.jtool.android.core.localization.domains.CalendarLoc
 import com.jtool.android.core.models.calendar.enums.GridEventStyleEnum
 import com.jtool.android.features.calendar.settings.components.grid_style_picker_sheet.GridStylePickerSheet
@@ -156,18 +149,12 @@ fun CalendarSettingsScreen(
         )
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().imePadding(),
-        topBar = {
-            GenericTitle(
-                title = Loc.Launcher.settings,
-                onBack = onBack
-            )
-        }
-    ) { padding ->
+    BaseScreen(
+        title = Loc.Launcher.settings,
+        onBack = onBack
+    ) { _ ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)

@@ -32,6 +32,12 @@ import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.ui.navigation.AppProperties
 import com.jtool.android.core.models.common.enums.AppScreenEnum
+import com.jtool.android.core.services.FileDownloadQueueManager
+import com.jtool.android.core.services.FileExportQueueManager
+import com.jtool.android.core.services.FileUploadQueueManager
+import com.jtool.android.features.vaults.components.download_progress_sheet.DownloadProgressSheet
+import com.jtool.android.features.vaults.components.export_progress_sheet.ExportProgressSheet
+import com.jtool.android.features.vaults.components.upload_progress_sheet.UploadProgressSheet
 import com.jtool.android.features.settings.groups.components.group_selection_sheet.GroupSelectionSheet
 
 @Composable
@@ -44,6 +50,7 @@ fun LauncherScreen(
     onCleaningClick: () -> Unit,
     onTrendifyClick: () -> Unit,
     onCalendarClick: () -> Unit,
+    onVaultsClick: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onSupportClick: () -> Unit,
     settingsManager: SettingsManager,
@@ -81,7 +88,8 @@ fun LauncherScreen(
         AppScreenEnum.LINKS to onLinksClick,
         AppScreenEnum.CLEANING to onCleaningClick,
         AppScreenEnum.TRENDIFY to onTrendifyClick,
-        AppScreenEnum.CALENDAR to onCalendarClick
+        AppScreenEnum.CALENDAR to onCalendarClick,
+        AppScreenEnum.VAULTS to onVaultsClick
     )
 
     if (showGroupSheet) {
@@ -132,18 +140,83 @@ fun LauncherScreen(
                 }
             }
 
-            val hasNotifications = notificationCount > 0
-            IconButton(
-                onClick = onNotificationsClick,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (hasNotifications) MaterialTheme.colorScheme.error.copy(alpha = 0.2f) else Color.Transparent)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = Loc.General.notifications,
-                    tint = if (hasNotifications) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            val uploadState by FileUploadQueueManager.uploadState.collectAsState()
+            val downloadState by FileDownloadQueueManager.downloadState.collectAsState()
+            val exportState by FileExportQueueManager.exportState.collectAsState()
+
+            var showUploadSheet by remember { mutableStateOf(false) }
+            var showDownloadSheet by remember { mutableStateOf(false) }
+            var showExportSheet by remember { mutableStateOf(false) }
+
+            if (showUploadSheet) {
+                UploadProgressSheet(onDismiss = { showUploadSheet = false })
+            }
+            if (showDownloadSheet) {
+                DownloadProgressSheet(onDismiss = { showDownloadSheet = false })
+            }
+            if (showExportSheet) {
+                ExportProgressSheet(onDismiss = { showExportSheet = false })
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (uploadState.isUploading || uploadState.tasks.any { it.isFailed }) {
+                    IconButton(
+                        onClick = { showUploadSheet = true },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = "Uploads",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (downloadState.isDownloading || downloadState.tasks.any { it.isFailed }) {
+                    IconButton(
+                        onClick = { showDownloadSheet = true },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = "Downloads",
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
+
+                if (exportState.isExporting || exportState.tasks.any { it.isFailed }) {
+                    IconButton(
+                        onClick = { showExportSheet = true },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color(0xFFEA580C).copy(alpha = 0.2f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = "Exports",
+                            tint = Color(0xFFEA580C)
+                        )
+                    }
+                }
+
+                val hasNotifications = notificationCount > 0
+                IconButton(
+                    onClick = onNotificationsClick,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (hasNotifications) MaterialTheme.colorScheme.error.copy(alpha = 0.2f) else Color.Transparent)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = Loc.General.notifications,
+                        tint = if (hasNotifications) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         

@@ -146,4 +146,6 @@ object SettingsLoc {
     val notSignedIn get() = Loc.s("settings_notSignedIn", "You are not signed in.")
     val noneSelected get() = Loc.s("settings_noneSelected", "None selected")
     val noGroupsMsg get() = Loc.s("settings_noGroupsMsg", "You are not a member in any group, please create one yourself or ask a friend to invite you in.")
+    val leftHandedMode get() = Loc.s("settings_leftHandedMode", "Left-handed Mode")
+    val leftHandedModeDesc get() = Loc.s("settings_leftHandedModeDesc", "Left corner buttons")
 }

@@ -109,6 +109,12 @@ class MainActivity : ComponentActivity() {
         connectivityObserver = ConnectivityObserver(this, settingsManager, dataManager, lifecycleScope)
         signInHandler = SignInHandler(this, authManager, dataManager, lifecycleScope)
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
+
         AppUtils.logAppSignature(this)
         AppUtils.requestNotificationPermission(this)
         connectivityObserver.start()
@@ -151,12 +157,23 @@ class MainActivity : ComponentActivity() {
             var currentGroupId by remember { mutableStateOf(settingsManager.getCurrentGroupId()) }
             var groups by remember { mutableStateOf(settingsManager.getGroups()) }
             var initialLoadDone by remember { mutableStateOf(false) }
+            var openUploadProgressSheet by remember { mutableStateOf(false) }
+
+            fun checkIntentUploadProgress(it: Intent?) {
+                if (it?.getBooleanExtra("OPEN_UPLOAD_PROGRESS", false) == true) {
+                    openUploadProgressSheet = true
+                    it.removeExtra("OPEN_UPLOAD_PROGRESS")
+                }
+            }
+
+            LaunchedEffect(intent) {
+                checkIntentUploadProgress(intent)
+            }
             var isAuthLoading by remember { mutableStateOf(false) }
             var authError by remember { mutableStateOf<String?>(null) }
             
             var allNotifications by remember { mutableStateOf<List<UserNotification>>(emptyList()) }
             var showNotificationsSheet by remember { mutableStateOf(false) }
-            var showNotificationPopup by remember { mutableStateOf(false) }
             var showPrivateGroupSheet by remember { mutableStateOf(false) }
             var showNameSetupSheet by remember { mutableStateOf(false) }
 
@@ -258,14 +275,10 @@ class MainActivity : ComponentActivity() {
                 allNotifications = list.sortedByDescending { it.timestamp }
             }
 
-            var lastNotifCount by remember { mutableStateOf(0) }
-            LaunchedEffect(allNotifications.size) {
-                if (allNotifications.size > lastNotifCount) {
-                    showNotificationPopup = true
-                    kotlinx.coroutines.delay(3000)
-                    showNotificationPopup = false
+            LaunchedEffect(allNotifications) {
+                com.jtool.android.core.services.NotificationQueueManager.updateNotifications(allNotifications.size) {
+                    showNotificationsSheet = true
                 }
-                lastNotifCount = allNotifications.size
             }
 
             JToolTheme(
@@ -339,40 +352,6 @@ class MainActivity : ComponentActivity() {
                                     type = MessageType.ERROR,
                                     onDismiss = { authError = null }
                                 )
-                            }
-
-                            AnimatedVisibility(
-                                visible = showNotificationPopup,
-                                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = 48.dp)
-                                    .systemBarsPadding()
-                            ) {
-                                Surface(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .clickable {
-                                            showNotificationsSheet = true
-                                            showNotificationPopup = false
-                                        },
-                                    color = MaterialTheme.colorScheme.error,
-                                    tonalElevation = 8.dp,
-                                    shadowElevation = 8.dp
-                                ) {
-                                    Box(
-                                        modifier = Modifier.padding(12.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Notifications,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
                             }
 
                             if (showPrivateGroupSheet) {
