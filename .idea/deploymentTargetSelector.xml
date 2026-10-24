@@ -36,11 +36,11 @@
         <DialogSelection />
       </SelectionState>
       <SelectionState runConfigName="androidTest">
-        <option name="selectionMode" value="DIALOG" />
-        <DropdownSelection timestamp="2026-10-16T18:23:31.462427267Z">
+        <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2026-10-24T01:46:57.124564241Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="Default" identifier="serial=192.168.240.112:5555;connection=3109f17f" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=R5CY305GFHN" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -48,12 +48,12 @@
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=RF8R50PGKKH" />
+                <DeviceId pluginId="Default" identifier="serial=192.168.240.112:5555;connection=a72fc8be" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="Default" identifier="serial=192.168.240.112:5555;connection=3109f17f" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=RF8R50PGKKH" />
               </handle>
             </Target>
           </targets>

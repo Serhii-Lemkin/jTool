@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="hub_title">Personal Hub - JTools Guide</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+                    
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-11">
+                <div class="custom-card p-4 p-md-5">
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">description</span><span data-i18n="hub_title">Personal Hub</span></h1>
+                    <p class="lead text-secondary mb-5 fs-6" data-i18n="hub_tag">A collection of essential tools for daily productivity.</p>
+
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="hub_sys">What's inside?</h2>
+                    <p class="text-secondary mb-4" data-i18n="hub_desc">The Personal Hub brings together key tools that simplify your day-to-day productivity:</p>
+
+                    <ul class="feature-list fl-personal mb-5">
+                        <li data-i18n="hub_l1"><strong class="strong-text">Unified Notes & Checklists:</strong> Create both interactive checklists and text notes. Perfect for everything from "To-do lists" to "Brainstorming ideas".</li>
+                        <li data-i18n="hub_l2"><strong class="strong-text">Saved Web Links:</strong> Save important web links and access them from any of your devices. Categorize your research, inspiration, or frequently used sites with real-time group sync.</li>
+                    </ul>
+
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="hub_why">Cloud Security & Backup</h2>
+                    <p class="text-secondary mb-4" data-i18n="hub_why_desc">All data in your Personal Hub is backed up to your private Firebase vault. Your notes and links are tied to your Google Account, ensuring you never lose a single piece of information, even if you switch phones.</p>
+
+                    <!-- Visualization 1: Notes & Checklists Screen -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">description</span>
+                                <span>App Screen Visualization: Notes & Checklists Screen</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Search Bar -->
+                            <div class="p-2 mb-3 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center gap-2 text-secondary small">
+                                    <span class="material-icons fs-5 text-info">search</span>
+                                    <span>Search Notes & Checklists...</span>
+                                </div>
+                            </div>
+
+                            <!-- Note Card 1 (Checklist) -->
+                            <div class="p-3 mb-2 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <strong class="strong-text fs-6">Weekend Camping Prep</strong>
+                                    <span class="badge bg-primary text-dark rounded-pill" style="font-size: 10px;">Checklist</span>
+                                </div>
+                                <div class="d-flex flex-column gap-1 text-secondary small">
+                                    <div class="d-flex align-items-center gap-2"><input type="checkbox" checked class="form-check-input my-0" aria-label="Checklist Item" disabled><span class="text-decoration-line-through">Tents & Sleeping Bags</span></div>
+                                    <div class="d-flex align-items-center gap-2"><input type="checkbox" class="form-check-input my-0" aria-label="Checklist Item" disabled><span>Portable Stove & Fuel</span></div>
+                                </div>
+                            </div>
+
+                            <!-- Note Card 2 (Text Note) -->
+                            <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <strong class="strong-text fs-6">App Architecture Ideas</strong>
+                                    <span class="badge bg-secondary text-light rounded-pill" style="font-size: 10px;">Note</span>
+                                </div>
+                                <p class="text-secondary small mb-0 text-truncate">Modularized skills in core/ai with centralized instruction index...</p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Visualization 2: Saved Web Links Screen -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">link</span>
+                                <span>App Screen Visualization: Saved Web Links Screen</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Search Bar -->
+                            <div class="p-2 mb-3 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center gap-2 text-secondary small">
+                                    <span class="material-icons fs-5 text-info">search</span>
+                                    <span>Search Saved Links...</span>
+                                </div>
+                            </div>
+
+                            <!-- Link Item 1 -->
+                            <div class="p-3 mb-2 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="material-icons text-info fs-5">link</span>
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">JTools Group System Guide</strong>
+                                        <span class="text-info small d-block text-truncate" style="max-width: 260px;">https://jtool.app/groups</span>
+                                        <span class="text-secondary" style="font-size: 11px;">by Serhii</span>
+                                    </div>
+                                </div>
+                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;">more_vert</span>
+                            </div>
+
+                            <!-- Link Item 2 -->
+                            <div class="p-3 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="material-icons text-info fs-5">link</span>
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">Shared Household Budget Sheet</strong>
+                                        <span class="text-info small d-block text-truncate" style="max-width: 260px;">https://drive.google.com/sheets/...</span>
+                                        <span class="text-secondary" style="font-size: 11px;">by Anna</span>
+                                    </div>
+                                </div>
+                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;">more_vert</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Module Settings Explanation Section -->
+                    <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">settings</span> Personal Hub Settings Options</h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: var(--surface); border: 1px solid var(--border);">
+                        <ul class="feature-list mb-0">
+                            <li class="mb-3"><strong class="strong-text">Checklist Auto-Sort:</strong> Choose whether completed checklist items automatically move to the bottom of notes.</li>
+                            <li class="mb-0"><strong class="strong-text">Private vs Group Storage:</strong> Switch between active shared group notes and your Private Group vault.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Pro Tips -->
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_pro"><span class="material-icons align-middle text-warning me-2 fs-5">lightbulb</span> Pro Tips</h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
+                        <ul class="mb-0 text-secondary" style="padding-left: 20px;">
+                            <li class="mb-2" data-i18n="hub_pro_1"><strong class="strong-text">Checklist Check-Off:</strong> Convert any note to a checklist to check off items interactively.</li>
+                            <li data-i18n="hub_pro_2"><strong class="strong-text">Link Previewing:</strong> Tap any saved link in the Link Manager to launch it directly in your browser.</li>
+                        </ul>
+                    </div>
+
+                    <!-- FAQ -->
+                    <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">help_outline</span><span data-i18n="hub_faq_title">Frequently Asked Questions</span></h2>
+                    <div class="d-flex flex-column gap-3 mb-5">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1" data-i18n="hub_faq_q1">Are my personal notes shared with my group?</strong>
+                            <p class="text-secondary small mb-0" data-i18n="hub_faq_a1">If you create a note while connected to an active group, it is shared with your group members so everyone can view it and leave comments. For strictly private personal data, simply switch to your automatically generated Private Group in Group Settings where only you have access.</p>
+                        </div>
+                    </div>
+
+                    <!-- Red Container Link Banner -->
+                    <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
+                        <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title">🔴 Red Container: Primary Actions & Background Hub</h3>
+                        <p class="text-secondary small mb-3" data-i18n="hub_rc_banner_desc">Primary Action: Houses the Plus FAB to quickly draft checklists, text notes, or save web links. Secondary: Tracks unread notification badges and background cloud sync status.</p>
+                        <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Disclaimer Modal -->
+        <div class="modal fade" id="vizDisclaimerModal" tabindex="-1" aria-labelledby="vizDisclaimerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="vizDisclaimerModalLabel">
+                            <span class="material-icons text-info">help_outline</span>
+                            <span data-i18n="viz_disclaimer_title">Visualization Disclaimer</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start py-3">
+                        <p class="text-secondary mb-0 fs-6" data-i18n="viz_disclaimer_body">
+                            Note: This visualization provides a feel and understanding of the app's layout rather than representing a 100% pixel-perfect snapshot of every screen state.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-info rounded-pill px-4" data-bs-dismiss="modal" data-i18n="viz_disclaimer_close">Got it</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary fs-6">
+            <div class="mb-2">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+</body>
+</html>

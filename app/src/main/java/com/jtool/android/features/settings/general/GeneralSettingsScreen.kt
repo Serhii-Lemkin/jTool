@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
@@ -18,13 +20,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.localization.domains.SettingsLoc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.general.components.language_selection_sheet.LanguageSelectionSheet
 import com.jtool.android.features.settings.general.components.theme_customization_sheet.ThemeCustomizationSheet
+import java.time.DayOfWeek
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneralSettingsScreen(
     settingsManager: SettingsManager,
@@ -42,9 +47,11 @@ fun GeneralSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showLangSheet by remember { mutableStateOf(false) }
     var showColorSheet by remember { mutableStateOf(false) }
+    var showDayPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val languages = remember(context) { Loc.getAvailableLanguages(context) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     if (showLangSheet) {
         LanguageSelectionSheet(
@@ -69,6 +76,40 @@ fun GeneralSettingsScreen(
             },
             onDismiss = { showColorSheet = false }
         )
+    }
+
+    if (showDayPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showDayPicker = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Text(
+                    text = Loc.Workday.weeklyStartDay, 
+                    style = MaterialTheme.typography.titleLarge, 
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                DayOfWeek.entries.forEach { day ->
+                    val isSelected = uiState.weeklyStartDay == day
+                    ActionListItem(
+                        headline = Loc.getDayOfWeekName(day),
+                        trailingContent = if (isSelected) {
+                            { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                        } else null,
+                        onClick = { 
+                            viewModel.onEvent(GeneralSettingsEvent.SetWeeklyStartDay(day))
+                            showDayPicker = false
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+        }
     }
 
     Column(
@@ -161,6 +202,34 @@ fun GeneralSettingsScreen(
                 text = "Configure",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showDayPicker = true }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(Loc.Workday.weeklyStartDay, style = MaterialTheme.typography.bodyLarge)
+            }
+            Text(
+                text = Loc.getDayOfWeekName(uiState.weeklyStartDay),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
         }
     }

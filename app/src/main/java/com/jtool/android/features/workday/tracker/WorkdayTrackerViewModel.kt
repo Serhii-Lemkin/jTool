@@ -55,7 +55,9 @@ class WorkdayTrackerViewModel(
                     mainEvents
                 }
 
-                val extensions = dataManager.getAllCalendarExtensions()
+                val userId = settingsManager.getUserId()
+                val groupIds = settingsManager.getGroups().keys.toList()
+                val extensions = dataManager.getAllCalendarExtensions(userId, groupIds)
 
                 val processedEvents = allEvents.map { event ->
                     val ext = extensions[event.id] ?: extensions[event.iCalUID] ?: extensions.values.find { it.googleEventId == event.id || it.googleEventId == event.iCalUID }
@@ -108,13 +110,31 @@ class WorkdayTrackerViewModel(
 
                 if (allTodayEvents.isNotEmpty() && validSelectedId == null) {
                     val now = System.currentTimeMillis()
-                    val closest = allTodayEvents.minByOrNull { event ->
+                    val currentEvent = allTodayEvents.find { event ->
+                        val start = event.dtStart ?: 0L
+                        val end = event.dtEnd ?: Long.MAX_VALUE
+                        start <= now && end >= now
+                    }
+                    val nextEvent = allTodayEvents.filter { (it.dtStart ?: 0L) > now }.minByOrNull { it.dtStart ?: 0L }
+                    val fallbackEvent = allTodayEvents.minByOrNull { event ->
                         val start = event.dtStart ?: 0L
                         Math.abs(start - now)
                     }
-                    _uiState.update { it.copy(todayEvents = allTodayEvents, selectedEventId = closest?.id) }
+
+                    val chosenEvent = currentEvent ?: nextEvent ?: fallbackEvent
+                    val isCalendarMode = _uiState.value.mode == WorkModeEnum.CALENDAR_EVENT
+                    _uiState.update { it.copy(
+                        todayEvents = allTodayEvents,
+                        selectedEventId = chosenEvent?.id,
+                        isSessionActive = if (isCalendarMode) chosenEvent != null else _uiState.value.isSessionActive
+                    ) }
                 } else {
-                    _uiState.update { it.copy(todayEvents = allTodayEvents, selectedEventId = validSelectedId) }
+                    val isCalendarMode = _uiState.value.mode == WorkModeEnum.CALENDAR_EVENT
+                    _uiState.update { it.copy(
+                        todayEvents = allTodayEvents,
+                        selectedEventId = validSelectedId,
+                        isSessionActive = if (isCalendarMode) validSelectedId != null else _uiState.value.isSessionActive
+                    ) }
                 }
             }
         }
@@ -123,13 +143,27 @@ class WorkdayTrackerViewModel(
     private fun loadData() {
         val options = settingsManager.getWorktimeOptions()
         val now = LocalDateTime.now()
+        val today = LocalDate.now().dayOfWeek
+        val dayLogHours = options.logSchedule[today.name]
+        val hours: Int
+        val minutes: Int
+        if (dayLogHours != null) {
+            hours = dayLogHours.hours
+            minutes = dayLogHours.minutes
+        } else {
+            val allHours = settingsManager.getAllWeeklyHours()
+            val doubleHours = allHours[today] ?: 8.5
+            hours = doubleHours.toInt()
+            minutes = ((doubleHours - hours) * 60).toInt()
+        }
+
         _uiState.update { it.copy(
             trackingPreference = options.trackingPreference,
             logSchedule = options.logSchedule.mapKeys { DayOfWeek.valueOf(it.key) },
             freehandStart = now,
-            freehandEnd = now.plusHours(8),
-            freehandDurationHours = 8,
-            freehandDurationMinutes = 30
+            freehandEnd = now.plusHours(hours.toLong()).plusMinutes(minutes.toLong()),
+            freehandDurationHours = hours,
+            freehandDurationMinutes = minutes
         ) }
     }
 
@@ -145,35 +179,32 @@ class WorkdayTrackerViewModel(
 
     private fun calculateRealTimeData() {
         val state = _uiState.value
-        if (!state.isSessionActive) return
-
         val now = System.currentTimeMillis()
         
         if (state.mode == WorkModeEnum.QUICK_START) {
-            val start = state.quickStartStartMs
-            val end = state.quickStartEndMs
-            if (start > 0L && end > 0L) {
-                val isFinished = now > end
-                val isNotStarted = now < start
-                
-                val elapsed = (now - start).coerceAtLeast(0)
-                val duration = (end - start).coerceAtLeast(1)
-                
-                _uiState.update { it.copy(
-                    quickStartTimer = TimerState(
-                        timeLeftMillis = if (isNotStarted) (start - now) else (end - now).coerceAtLeast(0),
-                        overtimeMillis = if (isFinished) (now - end) else 0L,
-                        progress = (elapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
-                        isFinished = isFinished,
-                        isNotStarted = isNotStarted,
-                        label = when {
-                            isFinished -> Loc.Workday.overtime
-                            isNotStarted -> Loc.Workday.untilStart
-                            else -> Loc.Workday.finishAt
-                        }
-                    )
-                ) }
-            }
+            val start = if (state.quickStartStartMs > 0L) state.quickStartStartMs else (state.freehandStart?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: now)
+            val end = if (state.quickStartEndMs > 0L) state.quickStartEndMs else (start + (state.freehandDurationHours * 3600L + state.freehandDurationMinutes * 60L) * 1000L)
+            
+            val isFinished = now > end
+            val isNotStarted = now < start
+            
+            val elapsed = (now - start).coerceAtLeast(0)
+            val duration = (end - start).coerceAtLeast(1)
+            
+            _uiState.update { it.copy(
+                quickStartTimer = TimerState(
+                    timeLeftMillis = if (isNotStarted) (start - now) else (end - now).coerceAtLeast(0),
+                    overtimeMillis = if (isFinished) (now - end) else 0L,
+                    progress = (elapsed.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                    isFinished = isFinished,
+                    isNotStarted = isNotStarted,
+                    label = when {
+                        isFinished -> Loc.Workday.eventEnded
+                        isNotStarted -> Loc.Workday.untilStart
+                        else -> Loc.Workday.finishAt
+                    }
+                )
+            ) }
         } else {
             val selectedEvent = _googleEvents.value.find { it.id == state.selectedEventId }
             if (selectedEvent != null) {
@@ -194,7 +225,7 @@ class WorkdayTrackerViewModel(
                         isFinished = isFinished,
                         isNotStarted = isNotStarted,
                         label = when {
-                            isFinished -> Loc.Workday.overtime
+                            isFinished -> Loc.Workday.eventEnded
                             isNotStarted -> Loc.Workday.untilStart
                             else -> Loc.Workday.finishAt
                         }
@@ -207,7 +238,10 @@ class WorkdayTrackerViewModel(
     fun onEvent(event: WorkdayTrackerEvent) {
         when (event) {
             is WorkdayTrackerEvent.ChangeMode -> {
-                _uiState.update { it.copy(mode = event.mode) }
+                _uiState.update { it.copy(
+                    mode = event.mode,
+                    isSessionActive = if (event.mode == WorkModeEnum.QUICK_START) false else (_uiState.value.selectedEventId != null)
+                ) }
             }
             is WorkdayTrackerEvent.SelectEvent -> {
                 _uiState.update { it.copy(selectedEventId = event.eventId, isSessionActive = event.eventId != null) }
@@ -279,14 +313,30 @@ class WorkdayTrackerViewModel(
             val state = _uiState.value
             val startMs = state.freehandStart?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: System.currentTimeMillis()
             
+            val options = settingsManager.getWorktimeOptions()
+            val today = LocalDate.now().dayOfWeek
+            val dayLogHours = options.logSchedule[today.name]
+            val defaultHours: Int
+            val defaultMinutes: Int
+            if (dayLogHours != null) {
+                defaultHours = dayLogHours.hours
+                defaultMinutes = dayLogHours.minutes
+            } else {
+                val allHours = settingsManager.getAllWeeklyHours()
+                val doubleHours = allHours[today] ?: 8.5
+                defaultHours = doubleHours.toInt()
+                defaultMinutes = ((doubleHours - defaultHours) * 60).toInt()
+            }
+            val defaultDurationMs = (defaultHours * 3600L + defaultMinutes * 60L) * 1000L
+
             val durationMs = if (state.isUsingDuration) {
                 (state.freehandDurationHours * 3600L + state.freehandDurationMinutes * 60L) * 1000L
             } else {
-                val endMsVal = state.freehandEnd?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: (startMs + 8 * 3600000L)
+                val endMsVal = state.freehandEnd?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: (startMs + defaultDurationMs)
                 (endMsVal - startMs).coerceAtLeast(0L)
             }
 
-            val finalDurationMs = if (durationMs <= 0L) (8.5 * 3600000).toLong() else durationMs
+            val finalDurationMs = if (durationMs <= 0L) defaultDurationMs else durationMs
             val plannedEndMs = startMs + finalDurationMs
 
             _uiState.update { it.copy(

@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.models.group.MemberInfo
@@ -63,7 +64,8 @@ class UserAdminHelper(
                 "darkBg" to settings.getDarkBgColor(),
                 "seenVaultsInfo" to settings.getSeenVaultsInfo(),
                 "jtoolsFolderId" to settings.getJtoolsFolderId(),
-                "vaultsFolderId" to settings.getVaultsFolderId()
+                "vaultsFolderId" to settings.getVaultsFolderId(),
+                "launcherConfig" to settings.getLauncherConfig()
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
@@ -201,6 +203,7 @@ class UserAdminHelper(
             pSnap.getString(PublicProfile::calendarEmail.name)?.let { settings.setGoogleCalendarEmail(it) }
             
             if (stats.appUserId.isNotEmpty()) settings.saveAppUserId(stats.appUserId)
+            settings.saveLauncherConfig(stats.launcherConfig)
             settings.setDarkMode(stats.isDarkMode)
             settings.setLanguage(stats.language)
             settings.saveWorktimeOptions(stats.worktimeOptions)
@@ -218,21 +221,45 @@ class UserAdminHelper(
     }
 
     fun isAdminFlow(): Flow<Boolean> = callbackFlow {
-        val uid = auth.currentUser?.uid ?: run { trySend(false); close(); return@callbackFlow }
-        val listener = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
-            val user = snapshot?.toObject(User::class.java)
-            trySend(user?.isAdmin ?: false)
+        var listenerRegistration: ListenerRegistration? = null
+        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val uid = firebaseAuth.currentUser?.uid
+            listenerRegistration?.remove()
+            if (uid != null) {
+                listenerRegistration = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
+                    val user = snapshot?.toObject(User::class.java)
+                    trySend(user?.isAdmin ?: false)
+                }
+            } else {
+                trySend(false)
+            }
         }
-        awaitClose { listener.remove() }
+        auth.addAuthStateListener(authListener)
+        awaitClose {
+            auth.removeAuthStateListener(authListener)
+            listenerRegistration?.remove()
+        }
     }
 
     fun isReviewerFlow(): Flow<Boolean> = callbackFlow {
-        val uid = auth.currentUser?.uid ?: run { trySend(false); close(); return@callbackFlow }
-        val listener = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
-            val user = snapshot?.toObject(User::class.java)
-            trySend(user?.isReviewer ?: false)
+        var listenerRegistration: ListenerRegistration? = null
+        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val uid = firebaseAuth.currentUser?.uid
+            listenerRegistration?.remove()
+            if (uid != null) {
+                listenerRegistration = getUsersColl().document(uid).addSnapshotListener { snapshot, _ ->
+                    val user = snapshot?.toObject(User::class.java)
+                    trySend(user?.isReviewer ?: false)
+                }
+            } else {
+                trySend(false)
+            }
         }
-        awaitClose { listener.remove() }
+        auth.addAuthStateListener(authListener)
+        awaitClose {
+            auth.removeAuthStateListener(authListener)
+            listenerRegistration?.remove()
+        }
     }
 
     fun allUsersFlow(): Flow<List<User>> = callbackFlow {
@@ -279,7 +306,18 @@ class UserAdminHelper(
             val snapshots = getUserDataColl().get().await()
             firestore.runBatch { batch ->
                 snapshots.documents.forEach { doc ->
-                    batch.update(doc.reference, "hours", FieldValue.delete())
+                    val updates = mutableMapOf<String, Any>(
+                        "hours" to FieldValue.delete(),
+                        "privateCalendarEvents" to FieldValue.delete(),
+                        "notifications" to FieldValue.delete(),
+                        "appOrder" to FieldValue.delete(),
+                        "hiddenApps" to FieldValue.delete(),
+                        "gridColumnCount" to FieldValue.delete()
+                    )
+                    doc.data?.keys?.filter { it.startsWith("visible_") }?.forEach { key ->
+                        updates[key] = FieldValue.delete()
+                    }
+                    batch.update(doc.reference, updates)
                 }
             }.await()
         } catch (e: Exception) {

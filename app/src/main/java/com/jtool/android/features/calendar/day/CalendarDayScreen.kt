@@ -275,6 +275,9 @@ private fun ListView(
             items(uiState.privateEvents.sortedBy { if (it.allDay) 0 else 1 }.sortedBy { it.startTime }, key = { it.id }) { event ->
                 val isDeclined = event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
                 val extension = uiState.extensions[event.id]
+                    ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
+                    ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
+                    ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
                 val themeColor = getEventColor(event.colorKey)
                 val isWork = (event.colorKey != null && event.colorKey == workShiftColorKey) ||
                         (event.colorKey == null && workShiftColorKey == "1")

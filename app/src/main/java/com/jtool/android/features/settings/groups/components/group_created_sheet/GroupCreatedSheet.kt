@@ -19,6 +19,7 @@ import com.jtool.android.ui.components.common.GenericSheet
 @Composable
 fun GroupCreatedSheet(
     groupId: String,
+    isInviteOnly: Boolean = false,
     onDismiss: () -> Unit,
     onCopy: (String) -> Unit
 ) {
@@ -42,41 +43,50 @@ fun GroupCreatedSheet(
         
         Spacer(Modifier.height(32.dp))
         
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+        if (!isInviteOnly) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                val fontSize = if (groupId.length > 25) 12.sp else if (groupId.length > 20) 16.sp else 20.sp
-                Text(
-                    text = Loc.Settings.groupIdHeader,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = groupId,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontSize = fontSize),
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp,
-                    maxLines = 1,
-                    softWrap = false
-                )
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val fontSize = if (groupId.length > 25) 12.sp else if (groupId.length > 20) 16.sp else 20.sp
+                    Text(
+                        text = Loc.Settings.groupIdHeader,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = groupId,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = fontSize),
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
-        }
-        
-        Spacer(Modifier.height(24.dp))
-        
-        Button(
-            onClick = { onCopy(groupId) },
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-        ) {
-            Icon(Icons.Default.ContentCopy, null)
-            Spacer(Modifier.width(8.dp))
-            Text(Loc.Settings.copyId)
+            
+            Spacer(Modifier.height(24.dp))
+            
+            Button(
+                onClick = { onCopy(groupId) },
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Icon(Icons.Default.ContentCopy, null)
+                Spacer(Modifier.width(8.dp))
+                Text(Loc.Settings.copyId)
+            }
+        } else {
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Text(Loc.General.close)
+            }
         }
     }
 }

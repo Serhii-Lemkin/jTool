@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.utils.rememberCustomDatePickerState
 import com.jtool.android.core.localization.domains.VaultsLoc
 import com.jtool.android.core.models.vaults.Vault
 import com.jtool.android.core.models.vaults.VaultDocument
@@ -177,7 +178,7 @@ fun EditDocSheet(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = docDateMs)
+        val datePickerState = rememberCustomDatePickerState(initialSelectedDateMillis = docDateMs)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {

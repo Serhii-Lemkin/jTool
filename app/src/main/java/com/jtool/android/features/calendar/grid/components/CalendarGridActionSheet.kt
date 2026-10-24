@@ -18,6 +18,7 @@ fun CalendarGridActionSheet(
     showDeclinedEvents: Boolean = false,
     onToggleShowDeclined: () -> Unit = {},
     onSettings: () -> Unit,
+    onLearnMore: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -29,13 +30,6 @@ fun CalendarGridActionSheet(
                 .fillMaxWidth()
                 .padding(24.dp)
         ) {
-            Text(
-                text = Loc.General.details,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(16.dp))
-
             ActionListItem(
                 headline = if (showDeclinedEvents) "Hide declined events" else "See declined events",
                 leadingContent = { Icon(Icons.Default.Visibility, null, tint = MaterialTheme.colorScheme.primary) },
@@ -55,6 +49,19 @@ fun CalendarGridActionSheet(
                     onDismiss()
                 }
             )
+
+            if (onLearnMore != null) {
+                Spacer(Modifier.height(8.dp))
+
+                ActionListItem(
+                    headline = com.jtool.android.core.localization.domains.GeneralLoc.learnMore,
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = {
+                        onLearnMore()
+                        onDismiss()
+                    }
+                )
+            }
             
             Spacer(Modifier.height(24.dp))
         }

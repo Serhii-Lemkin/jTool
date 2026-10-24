@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="groups_page_title">Group System & Collaboration Guide - JTools Guide</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/groups" data-i18n="nav_groups">Groups Guide</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/app-features" data-i18n="nav_app_features">App Features</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-11">
+
+                <!-- Hero: Group Architecture & Core Mechanics -->
+                <div class="custom-card card-highlight p-4 p-md-5 mb-5 text-center shadow-lg">
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">groups</span><span data-i18n="groups_page_title">Group Architecture & Core Mechanics</span></h1>
+                    <p class="lead text-secondary mb-0 fs-6" data-i18n="groups_page_tag">
+                        Groups are the core foundation binding all JTools applications together. Whether managing shared family lists, partner calendars, or roommate chores—or working privately in your personal Private Group—everything syncs seamlessly through your active Group context.
+                    </p>
+                </div>
+
+                <!-- Merged Core Mechanics & Group Management Pillars -->
+                <div class="row row-cols-1 row-cols-md-3 g-4 mb-5">
+                    <!-- Pillar 1: Shared Collaboration & Private Isolation -->
+                    <div class="col">
+                        <div class="custom-card p-4 h-100 shadow-sm border-start border-4 border-info">
+                            <h2 class="h6 text-info fw-bold mb-2 d-flex align-items-center gap-2">
+                                <span class="material-icons text-info">lock</span> 1. Shared & Private Group Management
+                            </h2>
+                            <p class="text-secondary small mb-0">
+                                Create or join collaborative groups effortlessly using dedicated Group IDs and invite codes. Every user also gets an automatic, 100% isolated <strong>Private Group</strong> for personal notes, documents, and private schedules.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 2: Instant Live Cloud Sync -->
+                    <div class="col">
+                        <div class="custom-card p-4 h-100 shadow-sm border-start border-4 border-primary">
+                            <h2 class="h6 text-info fw-bold mb-2 d-flex align-items-center gap-2">
+                                <span class="material-icons text-primary">sync</span> 2. Instant Real-Time Cloud Sync
+                            </h2>
+                            <p class="text-secondary small mb-0">
+                                Powered by Google Firebase, changes sync live across all members' devices without manual refreshes. When one person checks off an item or updates a schedule, everyone sees it right away.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 3: Professional-Grade Accuracy -->
+                    <div class="col">
+                        <div class="custom-card p-4 h-100 shadow-sm border-start border-4 border-success">
+                            <h2 class="h6 text-info fw-bold mb-2 d-flex align-items-center gap-2">
+                                <span class="material-icons text-success">verified</span> 3. Professional-Grade Accuracy
+                            </h2>
+                            <p class="text-secondary small mb-0">
+                                From synchronized event invitations to aisle-sorted shopping lists, Google Drive document vaults, and work shift overtime tracking, JTools brings unified professional organization to your daily routine.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization: Switching Active Groups -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">swap_horiz</span>
+                            <span>App Screen Visualization: How to Switch Between Groups</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <strong class="strong-text fs-6">Groups</strong>
+                                <span class="material-icons text-secondary fs-5">search</span>
+                            </div>
+                            <!-- Active Group Choice 1 (Shared) - Clean row without outlines -->
+                            <div class="p-2.5 mb-2 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03);">
+                                <strong class="strong-text fs-6">Sunset Household</strong>
+                                <span class="material-icons text-info fs-5">check</span>
+                            </div>
+                            <!-- Private Group Choice 2 (Private) - Clean row without outlines -->
+                            <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03);">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="material-icons text-info fs-5">lock</span>
+                                    <strong class="strong-text fs-6">Private</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">To switch your active group context, simply tap the Group Header in the Launcher or open Group Settings. Tapping any group instantly reloads all your notes, lists, vaults, and chores for that group.</p>
+                </div>
+
+                <!-- Visualization 1: Creating a Group -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">group_add</span>
+                            <span>App Screen Visualization: Creating a Group</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+                        <!-- Create New Group Sheet -->
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text fs-6 d-block mb-3">Create New Group</strong>
+
+                            <div class="mb-3 p-2 rounded-3" style="border: 1px solid var(--primary); background: rgba(56, 189, 248, 0.05);">
+                                <span class="text-info small d-block" style="font-size: 11px;">Group Name</span>
+                                <span class="strong-text fs-6">Sunset Household</span>
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded-3" style="background: rgba(255, 255, 255, 0.03);">
+                                <div>
+                                    <strong class="strong-text small d-block">Invite Only</strong>
+                                    <span class="text-secondary" style="font-size: 11px;">Disallow users from requesting to join this group</span>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" aria-label="Invite Only Mode" checked disabled>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary w-100 py-2 fw-semibold" style="border-radius: 8px;">Save</button>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Open the Create New Group sheet, enter your group name, and toggle Invite Only mode to require admin approval for new members before saving.</p>
+                </div>
+
+                <!-- Visualization 2: Copy Group ID -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">content_copy</span>
+                            <span>App Screen Visualization: Copying Group ID</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                        <!-- Settings Menu Action Item Replica -->
+                        <div class="p-3 mb-3 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="material-icons text-info fs-5">content_copy</span>
+                                <div>
+                                    <strong class="strong-text small d-block">Copy ID</strong>
+                                    <span class="text-secondary font-monospace" style="font-size: 12px;">grp_8942_sunset</span>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary text-dark rounded-pill px-2.5 py-1">Tap to Copy</span>
+                        </div>
+
+                        <!-- Group Created Sheet Copy ID Replica -->
+                        <div class="p-3 rounded-3 text-center" style="background: var(--surface); border: 1px solid var(--border);">
+                            <span class="material-icons text-success fs-1 mb-1">check_circle</span>
+                            <strong class="strong-text fs-6 d-block">Congratulations!</strong>
+                            <p class="text-secondary small mb-3">Your new group has been created successfully.</p>
+
+                            <div class="p-2.5 mb-3 rounded-3" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border);">
+                                <span class="text-info d-block fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">GROUP ID</span>
+                                <strong class="strong-text font-monospace fs-6">grp_8942_sunset</strong>
+                            </div>
+
+                            <button class="btn btn-outline-info w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2" style="border-radius: 8px;">
+                                <span class="material-icons fs-5">content_copy</span> Copy ID
+                            </button>
+                        </div>
+
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Tap "Copy ID" in Group Settings or from the creation success dialog to copy your unique Group ID to your clipboard and share it with members.</p>
+                </div>
+
+                <!-- Visualization 3: Inviting Members by Email -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">person_add</span>
+                            <span>App Screen Visualization: Inviting Members by Email</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                        <!-- Invite Sheet Replica -->
+                        <div class="p-3 rounded-3 text-center" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text fs-6 d-block mb-1">Invite to Group</strong>
+                            <p class="text-secondary small mb-3">Enter the email address of the user you want to invite:</p>
+
+                            <div class="p-2 mb-3 rounded-3 text-start" style="border: 1px solid var(--primary); background: rgba(56, 189, 248, 0.05);">
+                                <span class="text-info small d-block" style="font-size: 11px;">Email Address</span>
+                                <span class="strong-text fs-6">alex.household@example.com</span>
+                            </div>
+
+                            <button class="btn btn-primary w-100 py-2 fw-semibold" style="border-radius: 8px;">Submit</button>
+                        </div>
+
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Enter the email address of a user in the "Invite to Group" sheet to send them an in-app invitation to join your shared group.</p>
+                </div>
+
+                <!-- Visualization 4: Joining a Group by ID -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">login</span>
+                            <span>App Screen Visualization: Joining an Existing Group by ID</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text fs-6 d-block mb-2">Join Group by ID</strong>
+                            <p class="text-secondary small mb-3">At least one member of the group must approve your request before you can join.</p>
+                            <div class="p-2 mb-3 rounded-3" style="border: 1px solid var(--primary); background: rgba(56, 189, 248, 0.05);">
+                                <span class="text-info small d-block" style="font-size: 11px;">Group ID to Join</span>
+                                <span class="strong-text font-monospace fs-6">grp_8942_sunset</span>
+                            </div>
+                            <button class="btn btn-primary w-100 py-2 fw-semibold" style="border-radius: 8px;">Send Request</button>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Enter a shared Group ID in the "Join Group by ID" sheet to send a join request to the group's active members for approval.</p>
+                </div>
+
+                <!-- Visualization 5: Group Notifications & Sync Flow -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">notifications_active</span>
+                            <span>App Screen Visualization: Group Notifications & Sync Flow</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text fs-6 d-block mb-3">Notifications</strong>
+
+                            <!-- Notification Item 1: Group Invitation -->
+                            <div class="p-2.5 mb-2 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--border);">
+                                <div class="d-flex align-items-start gap-2.5">
+                                    <span class="material-icons text-info fs-5 mt-1">group</span>
+                                    <div>
+                                        <strong class="strong-text small d-block">Group Invitation</strong>
+                                        <span class="text-secondary d-block" style="font-size: 12px;">You were invited to join Sunset Household</span>
+                                        <span class="text-secondary d-block" style="font-size: 11px;">From: alex@example.com</span>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button class="btn btn-sm btn-link text-danger p-1" aria-label="Decline"><span class="material-icons fs-5">close</span></button>
+                                    <button class="btn btn-sm btn-link text-info p-1" aria-label="Accept"><span class="material-icons fs-5">check</span></button>
+                                </div>
+                            </div>
+
+                            <!-- Notification Item 2: Join Request -->
+                            <div class="p-2.5 mb-2 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--border);">
+                                <div class="d-flex align-items-start gap-2.5">
+                                    <span class="material-icons text-info fs-5 mt-1">person_add</span>
+                                    <div>
+                                        <strong class="strong-text small d-block">Join Requests</strong>
+                                        <span class="text-secondary d-block" style="font-size: 12px;">Anna wants to join your group</span>
+                                        <span class="text-secondary d-block" style="font-size: 11px;">anna@example.com</span>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button class="btn btn-sm btn-link text-danger p-1" aria-label="Decline"><span class="material-icons fs-5">close</span></button>
+                                    <button class="btn btn-sm btn-link text-info p-1" aria-label="Accept"><span class="material-icons fs-5">check</span></button>
+                                </div>
+                            </div>
+
+                            <!-- Notification Item 3: Join Request Approved -->
+                            <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03);">
+                                <div class="d-flex align-items-start gap-2.5">
+                                    <span class="material-icons text-info fs-5 mt-1">check_circle</span>
+                                    <div>
+                                        <strong class="strong-text small d-block">Join Request Approved</strong>
+                                        <span class="text-secondary d-block" style="font-size: 12px;">Your request to join Sunset Household was approved</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-link text-info p-1" aria-label="Dismiss"><span class="material-icons fs-5">check</span></button>
+                            </div>
+
+                        </div>
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Accept or decline group invitations and member join requests directly from the Notifications sheet to approve access or manage invites.</p>
+                </div>
+
+                <!-- Visualization 6: Leaving & Deleting Groups -->
+                <div class="my-5">
+                    <h2 class="h5 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">exit_to_app</span>
+                            <span>App Screen Visualization: Leaving or Deleting Groups</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h2>
+                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                        <!-- Settings Menu Action Item -->
+                        <div class="p-3 rounded-3 mb-3 d-flex align-items-center gap-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <span class="material-icons text-danger fs-5">exit_to_app</span>
+                            <div>
+                                <strong class="text-danger small d-block">Leave</strong>
+                                <span class="text-secondary" style="font-size: 11px;">Remove this group from your account</span>
+                            </div>
+                        </div>
+
+                        <!-- Leave Group Confirmation Sheet -->
+                        <div class="p-3 rounded-3 text-center" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text fs-6 d-block mb-2">Leave Group?</strong>
+                            <span class="material-icons text-danger fs-1 mb-2">warning</span>
+                            <p class="text-secondary small mb-3">Are you sure you want to leave this group?</p>
+                            <button class="btn btn-danger w-100 py-2 fw-bold" style="border-radius: 8px;">Leave</button>
+                        </div>
+
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Tap "Leave" in Group Settings to unlink your account from a group. Confirming the leave sheet removes the group from your list.</p>
+                </div>
+
+                <!-- Data Lifecycle & Leaving Group Explanation Box -->
+                <div class="p-4 rounded-3 mb-5" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
+                    <h3 class="h6 text-danger fw-bold mb-3 d-flex align-items-center gap-2">
+                        <span class="material-icons text-danger">info</span> What Happens When You Leave a Group?
+                    </h3>
+                    <ul class="feature-list mb-0 small">
+                        <li class="mb-2"><strong class="strong-text">Account Unlinking:</strong> Your user account is unlinked from the group. The group will immediately disappear from your active group selection sheet and menu.</li>
+                        <li class="mb-2"><strong class="strong-text">Shared Group Content:</strong> Items you created while connected to that group (such as shopping list entries, event comments, or shared checklists) remain inside the group for other members to view.</li>
+                        <li class="mb-2"><strong class="strong-text">Google Drive Documents Ownership:</strong> Physical files attached to Vaults remain safely stored in your personal Google Drive account under your full ownership—leaving a group never deletes your Google Drive files.</li>
+                        <li class="mb-0"><strong class="strong-text">Last Member Data Purge:</strong> Because group cloud data relies on active membership, if you are the last member to leave a group, the group structure and its synced database records are permanently deleted upon leaving.</li>
+                    </ul>
+                </div>
+
+                <!-- Module Settings Explanation Section -->
+                <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">settings</span> Group Settings & Administration Options</h2>
+                <div class="p-4 rounded-3 mb-5" style="background: var(--surface); border: 1px solid var(--border);">
+                    <ul class="feature-list mb-0">
+                        <li class="mb-3"><strong class="strong-text">Active Group Switcher:</strong> Tap the active group header in Launcher or Group Settings to switch active group context instantly across all JTools modules.</li>
+                        <li class="mb-3"><strong class="strong-text">Invite-Only Security Mode:</strong> Toggle "Invite Only" mode to disallow open join requests. When enabled, new members can only join via direct email invitations.</li>
+                        <li class="mb-3"><strong class="strong-text">Group ID Sharing:</strong> Copy your unique Group ID with one tap to share with family, partners, or team members.</li>
+                        <li class="mb-3"><strong class="strong-text">Group Member Management:</strong> View all active group members, owner designations, and email identifiers.</li>
+                        <li class="mb-0"><strong class="strong-text">Unlink & Leave Group:</strong> Remove a group from your active account list. If you are the last remaining member, group data is permanently purged on leave.</li>
+                    </ul>
+                </div>
+
+                <!-- Pro Tips -->
+                <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_pro"><span class="material-icons align-middle text-warning me-2 fs-5">lightbulb</span> Pro Tips</h2>
+                <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
+                    <ul class="mb-0 text-secondary" style="padding-left: 20px;">
+                        <li class="mb-2"><strong class="strong-text">Private Group Isolation:</strong> Switch back to your automatically created "Private" group anytime to save confidential personal notes, private document vaults, or personal schedules.</li>
+                        <li class="mb-2"><strong class="strong-text">Quick Group Header Switch:</strong> You don't need to open Settings to change groups—simply tap the Active Group pill in the Launcher top app bar to switch context instantly.</li>
+                        <li data-i18n="groups_protip_3"><strong class="strong-text">Invite-Only Protection:</strong> Keep household groups set to Invite Only to ensure only verified family members can join.</li>
+                    </ul>
+                </div>
+
+                <!-- FAQ -->
+                <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">help_outline</span> Frequently Asked Questions</h2>
+                <div class="d-flex flex-column gap-3 mb-5">
+                    <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                        <strong class="strong-text d-block mb-1">How do I switch between my Private group and Shared groups?</strong>
+                        <p class="text-secondary small mb-0">Tap the Active Group header in the Launcher top bar or navigate to Settings → Groups → Active Group to open the Group Selection sheet. Selecting any group reloads all your tools for that active group context.</p>
+                    </div>
+                    <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                        <strong class="strong-text d-block mb-1">Can members of my shared group see my Private group notes or vaults?</strong>
+                        <p class="text-secondary small mb-0">No! Private Groups are 100% isolated to your account. No other group member can access or view data created while connected to your Private Group.</p>
+                    </div>
+                    <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                        <strong class="strong-text d-block mb-1">What happens if I leave a group?</strong>
+                        <p class="text-secondary small mb-0">Your membership is removed and the group disappears from your account list. If you are the last remaining member, the group's cloud data is permanently deleted upon leaving.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary fs-6">
+            <div class="mb-2">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+</body>
+</html>

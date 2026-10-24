@@ -34,6 +34,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
     var showNewNoteSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
@@ -77,6 +78,17 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
             
             IconButton(onClick = { showFilterSheet = true }) {
                 Icon(Icons.Default.FilterList, null)
+            }
+
+            com.jtool.android.core.components.layout.TitleDropdownMenu {
+                DropdownMenuItem(
+                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
+                    onClick = {
+                        val settingsManager = com.jtool.android.core.settings.SettingsManager(context)
+                        com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "personal-hub")
+                    },
+                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                )
             }
         },
         floatingActionButton = {

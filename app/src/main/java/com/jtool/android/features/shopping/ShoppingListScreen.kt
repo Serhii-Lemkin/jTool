@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -145,6 +146,13 @@ fun ShoppingListScreen(
             }
             IconButton(onClick = { showFilterSheet = true }) {
                 Icon(filterIcon, contentDescription = "Filter")
+            }
+            com.jtool.android.core.components.layout.TitleDropdownMenu {
+                DropdownMenuItem(
+                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
+                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "shopping-list") },
+                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                )
             }
         }
     ) { _ ->
@@ -446,9 +454,10 @@ fun ShoppingItemRow(
         leadingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Switch(
+                    Checkbox(
                         checked = item.isChecked,
-                        onCheckedChange = { onToggle(it) }
+                        onCheckedChange = { onToggle(it) },
+                        modifier = Modifier.scale(0.85f).offset(x = (-4).dp)
                     )
                 }
                 Icon(

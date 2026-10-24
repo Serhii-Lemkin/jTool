@@ -178,15 +178,24 @@ fun SupportHubScreen(
         },
         actions = {
             if (uiState.currentSubScreen == SupportScreenTypeEnum.HUB) {
-                if (uiState.isReviewer) {
-                    TitleActionIcon(
-                        icon = Icons.Default.RateReview,
-                        tint = MaterialTheme.colorScheme.primary,
-                        onClick = { showReviewerInfoSheet = true }
-                    )
-                }
                 TitleActionIcon(icon = Icons.Default.Search, onClick = { viewModel.onEvent(SupportEvent.ToggleSearch) })
                 TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSheet = true })
+                TitleDropdownMenu {
+                    if (uiState.isReviewer) {
+                        DropdownMenuItem(
+                            text = { Text("Reviewer Status") },
+                            onClick = {
+                                showReviewerInfoSheet = true
+                            },
+                            leadingIcon = { Icon(Icons.Default.RateReview, null) }
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(Loc.General.learnMore) },
+                        onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "support-hub") },
+                        leadingIcon = { Icon(Icons.Default.Language, null) }
+                    )
+                }
             }
         },
         floatingActionButton = {
@@ -258,7 +267,7 @@ fun SupportHubScreen(
                             
                             SupportDetailCard(
                                 request = request.copy(comments = comments),
-                                isAdmin = uiState.isAdmin,
+                                canManage = uiState.canManageRequests,
                                 currentUserId = appUserId,
                                 onStatusUpdate = { viewModel.onEvent(SupportEvent.UpdateStatus(request.id, it)) },
                                 onTypeUpdate = { viewModel.onEvent(SupportEvent.UpdateType(request.id, it)) },

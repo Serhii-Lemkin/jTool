@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="cal_title">Pro Calendar - JTools Guide</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+                    
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-11">
+                <div class="custom-card p-4 p-md-5">
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">calendar_month</span><span data-i18n="cal_title">Pro Calendar</span></h1>
+                    <p class="lead text-secondary mb-5 fs-6" data-i18n="cal_tag">Advanced synchronization for your professional and personal life.</p>
+
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_how">How it works</h2>
+                    <p class="text-secondary mb-4" data-i18n="cal_desc">JTools's calendar isn't just a viewer. It's a synchronization engine that maps your Google Calendar events to functional tools inside the app using color-coded event types. The month grid view displays these cleanly, giving you an instant overview of your month.</p>
+
+                    <ul class="feature-list mb-5">
+                        <li data-i18n="cal_l1"><strong class="strong-text">Color-Coded Event Types:</strong> Select designated colors to represent work and activity types, enabling seamless calendar management and direct Work Page integration.</li>
+                        <li data-i18n="cal_l2"><strong class="strong-text">Dynamic Day Views:</strong> Seamlessly switch between a high-level Month Grid and a precision Timeline view for your day.</li>
+                        <li data-i18n="cal_l3"><strong class="strong-text">Collaborative Invitations:</strong> Accept or decline invites directly within JTools. See real-time status updates from other group members.</li>
+                        <li data-i18n="cal_l4"><strong class="strong-text">Deep Linking:</strong> Every shared event generated by JTools contains a secure link that opens the exact event details on your partner's phone.</li>
+                    </ul>
+
+                    <!-- App Screen Visualization: Pro Calendar Screen -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">smartphone</span>
+                                <span>App Screen Visualization: Pro Calendar Screen</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Month Grid Header -->
+                            <div class="d-flex align-items-center justify-content-between mb-3 px-2">
+                                <strong class="strong-text fs-5">August 2026</strong>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-info rounded-circle p-1" style="width: 32px; height: 32px;"><span class="material-icons fs-6">chevron_left</span></button>
+                                    <button class="btn btn-sm btn-outline-info rounded-circle p-1" style="width: 32px; height: 32px;"><span class="material-icons fs-6">chevron_right</span></button>
+                                </div>
+                            </div>
+
+                            <!-- Simplified Month Days Grid -->
+                            <div class="d-grid text-center mb-3" style="grid-template-columns: repeat(7, 1fr); gap: 4px; font-size: 11px;">
+                                <div class="text-secondary fw-bold">M</div><div class="text-secondary fw-bold">T</div><div class="text-secondary fw-bold">W</div><div class="text-secondary fw-bold">T</div><div class="text-secondary fw-bold">F</div><div class="text-secondary fw-bold">S</div><div class="text-secondary fw-bold">S</div>
+                                <div class="p-2 rounded text-secondary">10</div><div class="p-2 rounded text-secondary">11</div><div class="p-2 rounded text-secondary">12</div><div class="p-2 rounded text-secondary">13</div><div class="p-2 rounded text-secondary">14</div><div class="p-2 rounded text-secondary">15</div><div class="p-2 rounded text-secondary">16</div>
+                                <div class="p-2 rounded text-secondary">17</div><div class="p-2 rounded text-secondary">18</div><div class="p-2 rounded bg-primary text-dark fw-bold">19</div><div class="p-2 rounded text-secondary">20</div><div class="p-2 rounded text-secondary">21</div><div class="p-2 rounded text-secondary">22</div><div class="p-2 rounded text-secondary">23</div>
+                            </div>
+
+                            <!-- Selected Day Events List -->
+                            <div class="border-top pt-3" style="border-color: var(--border) !important;">
+                                <span class="text-secondary small fw-bold d-block mb-2">Wednesday, Aug 19 Agenda</span>
+
+                                <div class="p-3 mb-2 rounded-3 d-flex align-items-center gap-3" style="background: var(--surface); border: 1px solid var(--border); border-left: 4px solid #2563EB !important;">
+                                    <div class="rounded-circle p-2 text-white d-flex align-items-center justify-content-center" style="background: #2563EB; width: 36px; height: 36px;">
+                                        <span class="material-icons fs-5">work</span>
+                                    </div>
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">Software Engineering Shift</strong>
+                                        <span class="text-secondary small">09:00 - 17:00</span>
+                                    </div>
+                                </div>
+
+                                <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background: var(--surface); border: 1px solid var(--border); border-left: 4px solid #16A34A !important;">
+                                    <div class="rounded-circle p-2 text-white d-flex align-items-center justify-content-center" style="background: #16A34A; width: 36px; height: 36px;">
+                                        <span class="material-icons fs-5">event</span>
+                                    </div>
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">Household Dinner & Planning</strong>
+                                        <span class="text-secondary small">19:00 - 20:30</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Module Settings Explanation Section -->
+                    <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">settings</span> Pro Calendar Settings Options</h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: var(--surface); border: 1px solid var(--border);">
+                        <ul class="feature-list mb-0">
+                            <li class="mb-3"><strong class="strong-text">Shared Events Destination Calendar:</strong> Choose a secondary Google Calendar as the target for group events to keep your primary personal calendar uncluttered.</li>
+                            <li class="mb-3"><strong class="strong-text">Work Shift Color Key:</strong> Select the color key used to auto-identify work shift events from Google Calendar.</li>
+                            <li class="mb-0"><strong class="strong-text">Default Event Duration & Reminders:</strong> Set default event durations (e.g. 60 mins) and notification lead times (15 mins prior).</li>
+                        </ul>
+                    </div>
+
+                    <!-- Pro Tips -->
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_pro"><span class="material-icons align-middle text-warning me-2 fs-5">lightbulb</span> Pro Tips</h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
+                        <ul class="mb-0 text-secondary" style="padding-left: 20px;">
+                            <li class="mb-2" data-i18n="cal_pro_1"><strong class="strong-text">Secondary Shared Calendar:</strong> Use the "Shared Events Destination" setting to pick a dedicated Google Calendar for group events, keeping your primary personal calendar uncluttered.</li>
+                            <li data-i18n="cal_pro_2"><strong class="strong-text">Event Comments:</strong> Leave real-time comment threads directly on any calendar event to coordinate arrival times, items to bring, or meeting notes.</li>
+                        </ul>
+                    </div>
+
+                    <!-- FAQ -->
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="cal_faq_title">❓ Frequently Asked Questions</h2>
+                    <div class="d-flex flex-column gap-3 mb-5">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1" data-i18n="cal_faq_q1">Does Pro Calendar replace my Google Calendar app?</strong>
+                            <p class="text-secondary small mb-0" data-i18n="cal_faq_a1">No! It syncs directly with Google Calendar in real time. Any event added or updated in JTools appears instantly in Google Calendar and vice versa.</p>
+                        </div>
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1" data-i18n="cal_faq_q2">How do group event invitations work?</strong>
+                            <p class="text-secondary small mb-0" data-i18n="cal_faq_a2">When creating a shared event, JTools sends in-app notifications and calendar invites to members. Responses (Accept/Decline) update live across the group.</p>
+                        </div>
+                    </div>
+
+                    <!-- Red Container Link Banner -->
+                    <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
+                        <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title">🔴 Red Container: Primary Actions & Background Hub</h3>
+                        <p class="text-secondary small mb-3" data-i18n="cal_rc_banner_desc">Primary Action: Houses the Plus FAB to quickly schedule new events and send group invitations. Secondary: Manages notification badges for shared invite updates, event comments, and background transfers.</p>
+                        <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Disclaimer Modal -->
+        <div class="modal fade" id="vizDisclaimerModal" tabindex="-1" aria-labelledby="vizDisclaimerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="vizDisclaimerModalLabel">
+                            <span class="material-icons text-info">help_outline</span>
+                            <span data-i18n="viz_disclaimer_title">Visualization Disclaimer</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start py-3">
+                        <p class="text-secondary mb-0 fs-6" data-i18n="viz_disclaimer_body">
+                            Note: This visualization provides a feel and understanding of the app's layout rather than representing a 100% pixel-perfect snapshot of every screen state.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-info rounded-pill px-4" data-bs-dismiss="modal" data-i18n="viz_disclaimer_close">Got it</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary fs-6">
+            <div class="mb-2">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+</body>
+</html>

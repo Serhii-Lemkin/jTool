@@ -11,7 +11,7 @@ object CleaningLoc {
     val oneTime get() = Loc.s("cleaning_oneTime", "One-time")
     val disable get() = Loc.s("cleaning_disable", "Disable")
     val restoreTask get() = Loc.s("cleaning_restoreTask", "Restore")
-    val showDisabled get() = Loc.s("cleaning_showDisabled", "Show Disabled Tasks")
+    val showDisabled get() = Loc.s("cleaning_showDisabled", "Disabled Tasks")
     val activeTasks get() = Loc.s("cleaning_activeTasks", "Active Tasks")
     val editTask get() = Loc.s("cleaning_editTask", "Edit Task")
     val lastDone get() = Loc.s("cleaning_lastDone", "Last done")

@@ -1,6 +1,7 @@
 package com.jtool.android.core.sync.helpers
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.jtool.android.core.models.calendar.CalendarEventExtension
 import com.jtool.android.core.models.common.Comment
@@ -61,11 +62,19 @@ class CalendarExtensionDatabaseHelper(
 
     fun getCommentsCollection(googleEventId: String) = getCommentsColl(googleEventId)
 
-    suspend fun getAllExtensions(): Map<String, CalendarEventExtension> {
-        return try {
-            val snapshot = getExtensionsColl().get().await()
-            val map = mutableMapOf<String, CalendarEventExtension>()
-            snapshot.documents.forEach { doc ->
+    suspend fun getExtensionsForUser(userId: String, groupIds: List<String>, startMs: Long? = null, endMs: Long? = null): Map<String, CalendarEventExtension> {
+        val map = mutableMapOf<String, CalendarEventExtension>()
+        try {
+            var ownerQuery: Query = getExtensionsColl()
+            if (userId.isNotEmpty()) {
+                ownerQuery = ownerQuery.whereEqualTo("ownerUid", userId)
+            }
+            if (startMs != null && endMs != null) {
+                ownerQuery = ownerQuery.whereGreaterThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, startMs)
+                    .whereLessThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, endMs)
+            }
+            val ownerSnapshot = ownerQuery.get().await()
+            ownerSnapshot.documents.forEach { doc ->
                 val ext = doc.toObject(CalendarEventExtension::class.java)
                 if (ext != null) {
                     val id = ext.googleEventId.ifEmpty { doc.id }
@@ -73,26 +82,36 @@ class CalendarExtensionDatabaseHelper(
                     if (ext.googleEventId.isNotEmpty()) map[ext.googleEventId] = ext
                 }
             }
-            map
-        } catch (e: Exception) {
-            emptyMap()
-        }
-    }
 
-    suspend fun getExtensionsForRange(startMs: Long, endMs: Long): Map<String, CalendarEventExtension> {
-        return try {
-            val snapshot = getExtensionsColl()
-                .whereGreaterThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, startMs)
-                .whereLessThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, endMs)
-                .get()
-                .await()
-            
-            snapshot.documents.associate { doc ->
-                val ext = doc.toObject(CalendarEventExtension::class.java)!!
-                ext.googleEventId to ext
+            if (groupIds.isNotEmpty()) {
+                groupIds.chunked(10).forEach { chunk ->
+                    var groupQuery: Query = getExtensionsColl().whereArrayContainsAny("sharedGroupIds", chunk)
+                    if (startMs != null && endMs != null) {
+                        groupQuery = groupQuery.whereGreaterThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, startMs)
+                            .whereLessThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, endMs)
+                    }
+                    val groupSnapshot = groupQuery.get().await()
+                    groupSnapshot.documents.forEach { doc ->
+                        val ext = doc.toObject(CalendarEventExtension::class.java)
+                        if (ext != null) {
+                            val id = ext.googleEventId.ifEmpty { doc.id }
+                            map[id] = ext
+                            if (ext.googleEventId.isNotEmpty()) map[ext.googleEventId] = ext
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
-            emptyMap()
+            // fallback
         }
+        return map
+    }
+
+    suspend fun getAllExtensions(userId: String = "", groupIds: List<String> = emptyList()): Map<String, CalendarEventExtension> {
+        return getExtensionsForUser(userId, groupIds)
+    }
+
+    suspend fun getExtensionsForRange(userId: String = "", groupIds: List<String> = emptyList(), startMs: Long, endMs: Long): Map<String, CalendarEventExtension> {
+        return getExtensionsForUser(userId, groupIds, startMs, endMs)
     }
 }

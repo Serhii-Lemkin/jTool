@@ -84,6 +84,7 @@ fun CalendarGridScreen(
             showDeclinedEvents = uiState.showDeclinedEvents,
             onToggleShowDeclined = { viewModel.toggleShowDeclinedEvents() },
             onSettings = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) },
+            onLearnMore = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "calendar") },
             onDismiss = { showActionSheet = false }
         )
     }
@@ -238,6 +239,9 @@ fun CalendarGridScreen(
                     } else {
                         items(selectedDateEvents, key = { it.id }) { event ->
                             val extension = uiState.extensions[event.id]
+                                ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
+                                ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
+                                ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
                             EventItem(
                                 event = event,
                                 extension = extension,
@@ -367,7 +371,15 @@ private fun MonthHeader(
 @Composable
 private fun DaysOfWeekHeader() {
     Row(modifier = Modifier.fillMaxWidth()) {
-        val days = listOf(DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)
+        val context = LocalContext.current
+        val settingsManager = remember { SettingsManager(context) }
+        val startDay = remember {
+            try { DayOfWeek.valueOf(settingsManager.getWorktimeOptions().weeklyStartDay) } catch (_: Exception) { DayOfWeek.MONDAY }
+        }
+        val allDays = DayOfWeek.entries
+        val startIndex = allDays.indexOf(startDay)
+        val days = allDays.subList(startIndex, allDays.size) + allDays.subList(0, startIndex)
+
         days.forEach { day ->
             Text(
                 text = Loc.getDayOfWeekName(day, TimeTextStyle.SHORT),
@@ -388,8 +400,14 @@ private fun CalendarGrid(
     gridStyle: GridEventStyleEnum,
     onDateSelected: (LocalDate) -> Unit
 ) {
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
+    val startDay = remember {
+        try { DayOfWeek.valueOf(settingsManager.getWorktimeOptions().weeklyStartDay) } catch (_: Exception) { DayOfWeek.MONDAY }
+    }
+
     val firstDayOfMonth = selectedMonth.atDay(1)
-    val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
+    val firstDayOfWeek = (firstDayOfMonth.dayOfWeek.value - startDay.value + 7) % 7
     val daysInMonth = selectedMonth.lengthOfMonth()
 
     val totalCells = daysInMonth + firstDayOfWeek

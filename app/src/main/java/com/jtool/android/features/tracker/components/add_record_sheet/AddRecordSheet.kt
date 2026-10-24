@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.utils.rememberCustomDatePickerState
 import com.jtool.android.core.models.tracker.Tracker
 import com.jtool.android.core.models.tracker.TrackerRecord
 import com.jtool.android.ui.components.common.GenericSheet
@@ -38,7 +39,7 @@ fun AddRecordSheet(
     var selectedTimestamp by remember { mutableLongStateOf(editingRecord?.timestamp ?: System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
     
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedTimestamp)
+    val datePickerState = rememberCustomDatePickerState(initialSelectedDateMillis = selectedTimestamp)
 
     if (showDatePicker) {
         DatePickerDialog(

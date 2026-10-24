@@ -94,13 +94,14 @@ class GroupOperationsHelper(
         awaitClose { listener.remove() }
     }
 
-    suspend fun createGroup(groupName: String, isPrivate: Boolean = false): String? {
+    suspend fun createGroup(groupName: String, isPrivate: Boolean = false, isInviteOnly: Boolean = false): String? {
         val uid = auth.currentUser?.uid ?: return null
         val newGroup = GroupInfo(
             name = groupName, 
             ownerUid = uid, 
             createdAt = System.currentTimeMillis(),
-            isPrivate = isPrivate
+            isPrivate = isPrivate,
+            isInviteOnly = isInviteOnly
         )
         return try {
             val groupDoc = getGroupsColl().add(newGroup).await()
@@ -180,6 +181,19 @@ class GroupOperationsHelper(
         } catch (e: Exception) { false }
     }
 
+    suspend fun updateGroupInviteOnly(groupId: String, isInviteOnly: Boolean): Boolean {
+        return try {
+            val groupRef = getGroupsColl().document(groupId)
+            groupRef.update(GroupInfo::isInviteOnly.name, isInviteOnly).await()
+            val groups = settings.getGroups().toMutableMap()
+            groups[groupId]?.let { 
+                groups[groupId] = it.copy(isInviteOnly = isInviteOnly)
+                settings.saveGroups(groups) 
+            }
+            true
+        } catch (e: Exception) { false }
+    }
+
     suspend fun joinGroup(groupId: String, isInviteAcceptance: Boolean = false): Pair<JoinGroupResultEnum, GroupInfo?> {
         val uid = auth.currentUser?.uid ?: return JoinGroupResultEnum.FAILED to null
         val trimmedGroupId = groupId.trim()
@@ -191,9 +205,12 @@ class GroupOperationsHelper(
         
         if (!hasInvite) {
             val groupData = getGroupsColl().document(trimmedGroupId).get().await().toObject(GroupInfo::class.java)
-            if (groupData?.isPrivate == true) return JoinGroupResultEnum.FAILED to null
+            if (groupData == null || groupData.isPrivate || groupData.isInviteOnly) return JoinGroupResultEnum.FAILED to null
             val existingReq = getGroupsColl().document(trimmedGroupId).collection("join_requests").document(uid).get().await()
             if (existingReq.exists()) return JoinGroupResultEnum.ALREADY_REQUESTED to null
+            val groupMembershipHelper = GroupMembershipHelper(firestore, auth, settings, notificationHelper)
+            val sent = groupMembershipHelper.sendJoinRequest(trimmedGroupId)
+            if (sent) return JoinGroupResultEnum.REQUEST_SENT to null
             return JoinGroupResultEnum.FAILED to null 
         }
         

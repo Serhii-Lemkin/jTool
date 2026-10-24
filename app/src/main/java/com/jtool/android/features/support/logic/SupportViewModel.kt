@@ -91,15 +91,15 @@ class SupportViewModel(
     }
 
     private fun observeRequests() {
-        uiState.map { it.isAdmin }
+        uiState.map { it.canSeeAll }
             .distinctUntilChanged()
-            .onEach { isAdmin ->
+            .onEach { canSeeAll ->
                 clearListeners()
                 _isLoading.update { true }
                 val userId = settings.getUserId()
                 val coll = dataManager.getSupportColl()
 
-                val query = if (isAdmin) {
+                val query = if (canSeeAll) {
                     coll.orderBy("timestamp", Query.Direction.DESCENDING)
                 } else {
                     coll.whereEqualTo("userId", userId)
@@ -122,12 +122,30 @@ class SupportViewModel(
                                 }
                             }.sortedByDescending { it.timestamp }
 
+                            val pendingSelectedId = settings.getSelectedSupportRequestId()
+
+                            _uiState.update { state ->
+                                val targetId = pendingSelectedId ?: state.selectedRequest?.id
+                                val selected = list.find { it.id == targetId } ?: state.selectedRequest
+
+                                val currentSubScreen = if (pendingSelectedId != null && selected != null) {
+                                    settings.setSelectedSupportRequestId(null)
+                                    commentController.observe(dataManager.getSupportColl().document(selected.id).collection("comments"))
+                                    SupportScreenTypeEnum.DETAIL
+                                } else {
+                                    state.currentSubScreen
+                                }
+
+                                state.copy(requests = list, selectedRequest = selected, currentSubScreen = currentSubScreen, isLoading = false)
+                            }
+                            _isLoading.update { false }
+
                             val listWithCounts = list.map { req ->
                                 viewModelScope.async {
                                     try {
                                         val countSnap = dataManager.getSupportColl().document(req.id).collection("comments").count()
                                             .get(AggregateSource.SERVER).await()
-                                        req.apply { commentCount = countSnap.count.toInt() }
+                                        req.copy(commentCount = countSnap.count.toInt())
                                     } catch (_: Exception) {
                                         req
                                     }
@@ -135,10 +153,10 @@ class SupportViewModel(
                             }.awaitAll()
 
                             _uiState.update { state ->
-                                val selected = listWithCounts.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
-                                state.copy(requests = listWithCounts, selectedRequest = selected, isLoading = false)
+                                val targetId = state.selectedRequest?.id
+                                val selected = listWithCounts.find { it.id == targetId } ?: state.selectedRequest
+                                state.copy(requests = listWithCounts, selectedRequest = selected)
                             }
-                            _isLoading.update { false }
                         }
                         addJob(job)
                     } else {
@@ -151,12 +169,14 @@ class SupportViewModel(
     }
 
     private suspend fun fetchSupportRequestsInternal(fromServer: Boolean) {
-        val isAdmin = _uiState.value.isAdmin
+        val isAdmin = try { dataManager.isAdminFlow().first() } catch (_: Exception) { false }
+        val isReviewer = try { dataManager.isReviewerFlow().first() } catch (_: Exception) { false }
+        val canSeeAll = isAdmin || isReviewer || _uiState.value.canSeeAll
         val userId = settings.getUserId()
         val coll = dataManager.getSupportColl()
 
         val documents = try {
-            if (isAdmin) {
+            if (canSeeAll) {
                 val q = coll.orderBy("timestamp", Query.Direction.DESCENDING)
                 if (fromServer) q.get(Source.SERVER).await().documents
                 else q.get().await().documents
@@ -184,12 +204,29 @@ class SupportViewModel(
             }
         }.sortedByDescending { it.timestamp }
 
+        val pendingSelectedId = settings.getSelectedSupportRequestId()
+
+        _uiState.update { state ->
+            val targetId = pendingSelectedId ?: state.selectedRequest?.id
+            val selected = list.find { it.id == targetId } ?: state.selectedRequest
+
+            val currentSubScreen = if (pendingSelectedId != null && selected != null) {
+                settings.setSelectedSupportRequestId(null)
+                commentController.observe(dataManager.getSupportColl().document(selected.id).collection("comments"))
+                SupportScreenTypeEnum.DETAIL
+            } else {
+                state.currentSubScreen
+            }
+
+            state.copy(requests = list, selectedRequest = selected, currentSubScreen = currentSubScreen, isLoading = false)
+        }
+
         val listWithCounts = list.map { req ->
             viewModelScope.async {
                 try {
                     val countSnap = dataManager.getSupportColl().document(req.id).collection("comments").count()
                         .get(AggregateSource.SERVER).await()
-                    req.apply { commentCount = countSnap.count.toInt() }
+                    req.copy(commentCount = countSnap.count.toInt())
                 } catch (_: Exception) {
                     req
                 }
@@ -197,8 +234,9 @@ class SupportViewModel(
         }.awaitAll()
 
         _uiState.update { state ->
-            val selected = listWithCounts.find { it.id == state.selectedRequest?.id } ?: state.selectedRequest
-            state.copy(requests = listWithCounts, selectedRequest = selected, isLoading = false)
+            val targetId = state.selectedRequest?.id
+            val selected = listWithCounts.find { it.id == targetId } ?: state.selectedRequest
+            state.copy(requests = listWithCounts, selectedRequest = selected)
         }
     }
 
@@ -237,7 +275,22 @@ class SupportViewModel(
             is SupportEvent.OpenRequest -> openRequest(event.request)
             is SupportEvent.UpdateStatus -> updateStatus(event.requestId, event.status)
             is SupportEvent.UpdateType -> updateType(event.requestId, event.type)
-            is SupportEvent.AddComment -> commentController.addComment(event.text, event.parentId)
+            is SupportEvent.AddComment -> {
+                commentController.addComment(event.text, event.parentId)
+                val selected = _uiState.value.selectedRequest
+                val currentActorUid = settings.getUserId()
+                val currentActorName = settings.getUserName()
+                if (selected != null && selected.userId.isNotEmpty() && selected.userId != currentActorUid) {
+                    viewModelScope.launch {
+                        dataManager.sendSupportCommentNotification(
+                            targetUid = selected.userId,
+                            requestId = selected.id,
+                            requestNumber = selected.number,
+                            commenterName = currentActorName
+                        )
+                    }
+                }
+            }
             is SupportEvent.EditComment -> commentController.editComment(event.commentId, event.newContent)
             is SupportEvent.DeleteComment -> commentController.deleteComment(event.commentId)
             is SupportEvent.DeleteRequest -> viewModelScope.launch { 
@@ -277,6 +330,9 @@ class SupportViewModel(
     }
 
     private fun updateStatus(requestId: String, status: SupportStatusEnum) {
+        val request = _uiState.value.requests.find { it.id == requestId } ?: _uiState.value.selectedRequest
+        val currentActorUid = settings.getUserId()
+
         _uiState.update { state ->
             val updatedRequests = state.requests.map { 
                 if (it.id == requestId) it.copy(pendingStatus = status) else it
@@ -290,6 +346,14 @@ class SupportViewModel(
         viewModelScope.launch {
             try {
                 dataManager.updateSupportStatus(requestId, status)
+                if (request != null && request.userId.isNotEmpty() && request.userId != currentActorUid) {
+                    dataManager.sendSupportStatusNotification(
+                        targetUid = request.userId,
+                        requestId = request.id,
+                        requestNumber = request.number,
+                        newStatus = status
+                    )
+                }
             } catch (e: Exception) {
                 _uiState.update { state ->
                     val updatedRequests = state.requests.map { 

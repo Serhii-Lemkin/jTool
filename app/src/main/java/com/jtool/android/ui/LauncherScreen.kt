@@ -1,49 +1,45 @@
 package com.jtool.android.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseUser
 import com.jtool.android.core.localization.Loc
-import com.jtool.android.core.models.group.GroupInfo
-import com.jtool.android.core.settings.SettingsManager
-import com.jtool.android.ui.navigation.AppProperties
 import com.jtool.android.core.models.common.enums.AppScreenEnum
-import com.jtool.android.core.services.FileDownloadQueueManager
-import com.jtool.android.core.services.FileExportQueueManager
-import com.jtool.android.core.services.FileUploadQueueManager
-import com.jtool.android.features.vaults.components.download_progress_sheet.DownloadProgressSheet
-import com.jtool.android.features.vaults.components.export_progress_sheet.ExportProgressSheet
-import com.jtool.android.features.vaults.components.upload_progress_sheet.UploadProgressSheet
+import com.jtool.android.core.models.group.GroupInfo
+import com.jtool.android.core.models.user.enums.LauncherGestureEnum
+import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.groups.components.group_selection_sheet.GroupSelectionSheet
+import com.jtool.android.ui.components.launcher.*
+import com.jtool.android.ui.navigation.AppProperties
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 @Composable
 fun LauncherScreen(
-    onWorkTimeClick: () -> Unit, 
-    onTimeCalcClick: () -> Unit, 
+    onWorkTimeClick: () -> Unit,
+    onTimeCalcClick: () -> Unit,
     onShopListClick: () -> Unit,
     onNotesClick: () -> Unit,
     onLinksClick: () -> Unit,
@@ -54,6 +50,7 @@ fun LauncherScreen(
     onSettingsClick: () -> Unit,
     onSupportClick: () -> Unit,
     settingsManager: SettingsManager,
+    dataManager: DataManager? = null,
     currentGroupId: String?,
     groups: Map<String, GroupInfo>,
     onJoinGroupClick: () -> Unit,
@@ -65,12 +62,144 @@ fun LauncherScreen(
     notificationCount: Int = 0,
     onNotificationsClick: () -> Unit = {}
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     var showGroupSheet by remember { mutableStateOf(false) }
+    var isEditMode by remember { mutableStateOf(false) }
+    var showHiddenSection by remember { mutableStateOf(false) }
+    var showGesturesSection by remember { mutableStateOf(false) }
 
-    val isGridLayout = remember(settingsManager) { settingsManager.isGridLayout() }
+    var gridColumnCount by remember { mutableIntStateOf(settingsManager.getGridColumnCount()) }
+    var appOrderState by remember { mutableStateOf(settingsManager.getAppOrder()) }
+    var hiddenAppsState by remember { mutableStateOf(settingsManager.getHiddenApps()) }
+    var gesturesState by remember { mutableStateOf(settingsManager.getLauncherGestures()) }
+
+    var originalColumnCount by remember { mutableIntStateOf(gridColumnCount) }
+    var originalAppOrder by remember { mutableStateOf(appOrderState) }
+    var originalHiddenApps by remember { mutableStateOf(hiddenAppsState) }
+    var originalGestures by remember { mutableStateOf(gesturesState) }
+
     val userName = remember(settingsManager) { settingsManager.getUserName() }
-    val visibleApps = remember(settingsManager) {
-        AppProperties.allApps.filter { settingsManager.isAppVisible(it.id) }
+    val orderedApps = remember(appOrderState) { getOrderedApps(appOrderState) }
+
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var focusOnSearch by remember { mutableStateOf(false) }
+
+    val searchFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val gridState = rememberLazyGridState()
+
+    var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
+
+    val clickHandlers = remember {
+        mapOf(
+            AppScreenEnum.WORK_TIME to onWorkTimeClick,
+            AppScreenEnum.TIME_CALC to onTimeCalcClick,
+            AppScreenEnum.SHOP_LIST to onShopListClick,
+            AppScreenEnum.NOTES to onNotesClick,
+            AppScreenEnum.LINKS to onLinksClick,
+            AppScreenEnum.CLEANING to onCleaningClick,
+            AppScreenEnum.TRENDIFY to onTrendifyClick,
+            AppScreenEnum.CALENDAR to onCalendarClick,
+            AppScreenEnum.VAULTS to onVaultsClick
+        )
+    }
+
+    fun triggerGestureAction(actionId: String) {
+        if (actionId.isEmpty()) return
+        when (actionId) {
+            AppScreenEnum.SETTINGS.id -> onSettingsClick()
+            AppScreenEnum.SUPPORT_HUB.id -> onSupportClick()
+            AppScreenEnum.ADMIN_PANEL.id -> onAdminClick()
+            else -> {
+                val app = AppProperties.allApps.find { it.id.id == actionId }
+                if (app != null) {
+                    clickHandlers[app.id]?.invoke()
+                }
+            }
+        }
+    }
+
+    fun enterEditMode() {
+        if (!isSearchVisible) {
+            originalColumnCount = gridColumnCount
+            originalAppOrder = appOrderState
+            originalHiddenApps = hiddenAppsState
+            originalGestures = gesturesState
+            isEditMode = true
+        }
+    }
+
+    fun saveEditChanges() {
+        val config = com.jtool.android.core.models.user.LauncherConfig(
+            appOrder = appOrderState,
+            hiddenApps = hiddenAppsState,
+            gridColumnCount = gridColumnCount,
+            gestures = gesturesState
+        )
+        settingsManager.saveLauncherConfig(config)
+        scope.launch { dataManager?.pushUserSettings() }
+        isEditMode = false
+    }
+
+    fun discardEditChanges() {
+        gridColumnCount = originalColumnCount
+        appOrderState = originalAppOrder
+        hiddenAppsState = originalHiddenApps
+        gesturesState = originalGestures
+        isEditMode = false
+    }
+
+    fun assignGesture(gestureId: String, actionId: String) {
+        val updated = gesturesState.toMutableMap()
+        if (actionId.isEmpty()) {
+            updated.remove(gestureId)
+        } else {
+            updated[gestureId] = actionId
+        }
+        gesturesState = updated
+    }
+
+    LaunchedEffect(isSearchVisible) {
+        if (isSearchVisible) {
+            if (focusOnSearch) searchFocusRequester.requestFocus()
+        } else {
+            focusManager.clearFocus()
+            focusOnSearch = false
+        }
+    }
+
+    val nestedScrollConnection = remember(isSearchVisible, isEditMode, searchQuery) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                if (dy > 5f && isSearchVisible && searchQuery.isEmpty()) {
+                    isSearchVisible = false
+                    focusOnSearch = false
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                if (dy < -5f && !isSearchVisible && !isEditMode) {
+                    focusOnSearch = false
+                    isSearchVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    val visibleApps = remember(orderedApps, hiddenAppsState, searchQuery) {
+        val apps = orderedApps.filter { !hiddenAppsState.contains(it.id.id) }
+        if (searchQuery.isBlank()) apps
+        else apps.filter { it.getName().contains(searchQuery, ignoreCase = true) }
+    }
+
+    val hiddenAppsList = remember(orderedApps, hiddenAppsState) {
+        orderedApps.filter { hiddenAppsState.contains(it.id.id) }
     }
 
     val groupName = remember(currentGroupId, groups) {
@@ -80,17 +209,14 @@ fun LauncherScreen(
         }
     }
 
-    val clickHandlers = mapOf(
-        AppScreenEnum.WORK_TIME to onWorkTimeClick,
-        AppScreenEnum.TIME_CALC to onTimeCalcClick,
-        AppScreenEnum.SHOP_LIST to onShopListClick,
-        AppScreenEnum.NOTES to onNotesClick,
-        AppScreenEnum.LINKS to onLinksClick,
-        AppScreenEnum.CLEANING to onCleaningClick,
-        AppScreenEnum.TRENDIFY to onTrendifyClick,
-        AppScreenEnum.CALENDAR to onCalendarClick,
-        AppScreenEnum.VAULTS to onVaultsClick
-    )
+    if (isSearchVisible) {
+        BackHandler {
+            isSearchVisible = false
+            searchQuery = ""
+        }
+    } else if (isEditMode) {
+        BackHandler { discardEditChanges() }
+    }
 
     if (showGroupSheet) {
         GroupSelectionSheet(
@@ -101,319 +227,185 @@ fun LauncherScreen(
         )
     }
 
+    fun toggleAppVisibility(appId: String) {
+        val updated = hiddenAppsState.toMutableList()
+        if (updated.contains(appId)) {
+            updated.remove(appId)
+        } else {
+            updated.add(appId)
+        }
+        hiddenAppsState = updated
+    }
+
+    fun swapApps(fromIndex: Int, toIndex: Int) {
+        if (fromIndex in visibleApps.indices && toIndex in visibleApps.indices && fromIndex != toIndex) {
+            val list = orderedApps.map { it.id.id }.toMutableList()
+            val idFrom = visibleApps[fromIndex].id.id
+            val idTo = visibleApps[toIndex].id.id
+            val idx1 = list.indexOf(idFrom)
+            val idx2 = list.indexOf(idTo)
+            if (idx1 != -1 && idx2 != -1) {
+                val item = list.removeAt(idx1)
+                list.add(idx2, item)
+                appOrderState = list
+            }
+        }
+    }
+
+    val gestureModifier = if (!isEditMode && !isSearchVisible) {
+        Modifier.pointerInput(gesturesState) {
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    if (abs(horizontalDragOffset) > 80f) {
+                        val gesture = if (horizontalDragOffset > 0) LauncherGestureEnum.SWIPE_RIGHT else LauncherGestureEnum.SWIPE_LEFT
+                        val actionId = gesturesState[gesture.id]
+                        if (!actionId.isNullOrEmpty()) {
+                            triggerGestureAction(actionId)
+                        }
+                    }
+                    horizontalDragOffset = 0f
+                },
+                onHorizontalDrag = { change, dragAmount ->
+                    change.consume()
+                    horizontalDragOffset += dragAmount
+                }
+            )
+        }
+    } else Modifier
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .then(gestureModifier),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Custom Top Bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onSupportClick) {
-                    Icon(
-                        imageVector = Icons.Default.SupportAgent,
-                        contentDescription = Loc.Launcher.supportHub,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        if (isEditMode) {
+            LauncherEditHeader(
+                gridColumnCount = gridColumnCount,
+                onColumnSelected = { cols ->
+                    gridColumnCount = cols
+                },
+                onSave = { saveEditChanges() },
+                onHelpClick = {
+                    com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "app-features")
                 }
-                IconButton(onClick = onSettingsClick) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = Loc.Launcher.settings,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (currentUser != null && isAdmin) {
-                    IconButton(onClick = onAdminClick) {
-                        Icon(
-                            imageVector = Icons.Default.AdminPanelSettings,
-                            contentDescription = Loc.Launcher.adminPanel,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            val uploadState by FileUploadQueueManager.uploadState.collectAsState()
-            val downloadState by FileDownloadQueueManager.downloadState.collectAsState()
-            val exportState by FileExportQueueManager.exportState.collectAsState()
-
-            var showUploadSheet by remember { mutableStateOf(false) }
-            var showDownloadSheet by remember { mutableStateOf(false) }
-            var showExportSheet by remember { mutableStateOf(false) }
-
-            if (showUploadSheet) {
-                UploadProgressSheet(onDismiss = { showUploadSheet = false })
-            }
-            if (showDownloadSheet) {
-                DownloadProgressSheet(onDismiss = { showDownloadSheet = false })
-            }
-            if (showExportSheet) {
-                ExportProgressSheet(onDismiss = { showExportSheet = false })
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (uploadState.isUploading || uploadState.tasks.any { it.isFailed }) {
-                    IconButton(
-                        onClick = { showUploadSheet = true },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudUpload,
-                            contentDescription = "Uploads",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                if (downloadState.isDownloading || downloadState.tasks.any { it.isFailed }) {
-                    IconButton(
-                        onClick = { showDownloadSheet = true },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = "Downloads",
-                            tint = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                }
-
-                if (exportState.isExporting || exportState.tasks.any { it.isFailed }) {
-                    IconButton(
-                        onClick = { showExportSheet = true },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(Color(0xFFEA580C).copy(alpha = 0.2f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = "Exports",
-                            tint = Color(0xFFEA580C)
-                        )
-                    }
-                }
-
-                val hasNotifications = notificationCount > 0
-                IconButton(
-                    onClick = onNotificationsClick,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(if (hasNotifications) MaterialTheme.colorScheme.error.copy(alpha = 0.2f) else Color.Transparent)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = Loc.General.notifications,
-                        tint = if (hasNotifications) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Greeting & Group Info
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (currentUser != null) {
-                Text(
-                    text = "${Loc.Launcher.hello}, $userName!",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Surface(
-                    onClick = { if (groups.isNotEmpty()) showGroupSheet = true else onJoinGroupClick() },
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                    modifier = Modifier.clip(RoundedCornerShape(24.dp))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Groups, 
-                            null, 
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = groupName ?: Loc.Settings.noGroupsMsg,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        if (groups.size > 1) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(16.dp))
-                        }
-                    }
-                }
-            } else {
-                Text(
-                    text = "${Loc.Launcher.hello}!",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    onClick = onAccountClick,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(Loc.Settings.notSignedIn, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            text = Loc.Settings.pleaseSignInLink,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            textDecoration = TextDecoration.Underline
-                        )
-                    }
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        // App Grid/List
-        if (isGridLayout) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                visibleApps.forEach { app ->
-                    item {
-                        AppIcon(
-                            name = app.getName(),
-                            icon = app.icon!!,
-                            onClick = clickHandlers[app.id] ?: {}
-                        )
-                    }
-                }
-            }
+            )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
+            LauncherTopBar(
+                onSupportClick = onSupportClick,
+                onSettingsClick = onSettingsClick,
+                isAdmin = isAdmin,
+                currentUser = currentUser,
+                onAdminClick = onAdminClick,
+                notificationCount = notificationCount,
+                onNotificationsClick = onNotificationsClick
+            )
+
+            AnimatedVisibility(
+                visible = !isSearchVisible,
+                enter = expandVertically(),
+                exit = shrinkVertically()
             ) {
-                visibleApps.forEach { app ->
-                    item {
-                        AppListRow(
-                            name = app.getName(),
-                            icon = app.icon!!,
-                            onClick = clickHandlers[app.id] ?: {}
-                        )
-                    }
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LauncherGreetingHeader(
+                        currentUser = currentUser,
+                        userName = userName,
+                        groupName = groupName,
+                        groups = groups,
+                        onGroupClick = { if (groups.isNotEmpty()) showGroupSheet = true else onJoinGroupClick() },
+                        onAccountClick = onAccountClick,
+                        onSearchClick = {
+                            focusOnSearch = true
+                            isSearchVisible = true
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
-        }
-    }
-}
 
-@Composable
-fun AppListRow(name: String, icon: ImageVector, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                modifier = Modifier.size(48.dp)
+            AnimatedVisibility(
+                visible = isSearchVisible,
+                enter = expandVertically(),
+                exit = shrinkVertically()
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon, 
-                        contentDescription = null, 
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp)
+                ) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(searchFocusRequester),
+                        placeholder = { Text(Loc.Launcher.searchApps) },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = null)
+                                }
+                            } else {
+                                IconButton(onClick = {
+                                    isSearchVisible = false
+                                    searchQuery = ""
+                                }) {
+                                    Icon(Icons.Default.Close, contentDescription = null)
+                                }
+                            }
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
+                        )
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-            Icon(
-                imageVector = Icons.Default.ChevronRight, 
-                contentDescription = null, 
-                modifier = Modifier.scale(if (isRtl) -1f else 1f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
         }
-    }
-}
 
-@Composable
-fun AppIcon(name: String, icon: ImageVector, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Card(
-            onClick = onClick,
-            modifier = Modifier.aspectRatio(1f),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = name,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+        Box(modifier = Modifier.weight(1f).nestedScroll(nestedScrollConnection)) {
+            LauncherAppGrid(
+                visibleApps = visibleApps,
+                hiddenAppsState = hiddenAppsState,
+                gridColumnCount = gridColumnCount,
+                isEditMode = isEditMode && !isSearchVisible,
+                clickHandlers = clickHandlers,
+                onToggleVisibility = { toggleAppVisibility(it) },
+                onEnableEditMode = { enterEditMode() },
+                onSwapApps = { from, to -> swapApps(from, to) },
+                state = gridState
+            )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = name,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+
+        if (isEditMode) {
+            LauncherHiddenAppsSection(
+                hiddenAppsList = hiddenAppsList,
+                gridColumnCount = gridColumnCount,
+                showHiddenSection = showHiddenSection,
+                onToggleShowSection = { showHiddenSection = !showHiddenSection },
+                onUnhideApp = { toggleAppVisibility(it) }
+            )
+
+            LauncherGesturesSection(
+                gesturesMap = gesturesState,
+                showGesturesSection = showGesturesSection,
+                onToggleShowSection = { showGesturesSection = !showGesturesSection },
+                onAssignGesture = { gestureId, actionId -> assignGesture(gestureId, actionId) }
+            )
+        }
     }
 }

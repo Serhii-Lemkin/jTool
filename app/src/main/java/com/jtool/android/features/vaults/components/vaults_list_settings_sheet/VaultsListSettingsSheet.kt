@@ -7,6 +7,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Language
+import com.jtool.android.core.localization.domains.GeneralLoc
 import com.jtool.android.core.localization.domains.VaultsLoc
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,6 +22,7 @@ import com.jtool.android.ui.components.common.GenericSheet
 fun VaultsListSettingsSheet(
     onVaultSettings: () -> Unit,
     onVaultsInfo: () -> Unit,
+    onLearnMore: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     GenericSheet(
@@ -96,6 +99,41 @@ fun VaultsListSettingsSheet(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            if (onLearnMore != null) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onLearnMore()
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = GeneralLoc.learnMore,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Open web page for Vaults features",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 

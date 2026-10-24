@@ -90,9 +90,7 @@ fun AppNotificationItem(
             if (notification.link != null) {
                 onLinkClick(notification.link)
             }
-            if (notification.link?.contains("/event/") != true) {
-                onDismissNotification(notification)
-            }
+            onDismissNotification(notification)
         },
         headline = notification.typeTitle,
         supportingText = notification.displayTitle,

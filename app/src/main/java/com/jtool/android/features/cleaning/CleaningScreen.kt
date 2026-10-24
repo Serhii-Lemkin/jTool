@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -12,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -74,6 +76,13 @@ fun CleaningScreen(
                 onClick = { viewModel.onEvent(CleaningEvent.ToggleDisabledView(!uiState.showDisabledView)) },
                 tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
             )
+            com.jtool.android.core.components.layout.TitleDropdownMenu {
+                DropdownMenuItem(
+                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
+                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "cleaning") },
+                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                )
+            }
         },
         floatingActionButton = {
             UnifiedFAB(
@@ -188,9 +197,10 @@ fun CleaningTaskRow(
         leadingContent = {
             if (task.isEnabled) {
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Switch(
+                    Checkbox(
                         checked = task.isChecked,
-                        onCheckedChange = onToggle
+                        onCheckedChange = onToggle,
+                        modifier = Modifier.scale(0.85f).offset(x = (-4).dp)
                     )
                 }
             } else {

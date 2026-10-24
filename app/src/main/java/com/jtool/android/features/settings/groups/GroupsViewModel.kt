@@ -53,11 +53,12 @@ class GroupsViewModel(
     fun onEvent(event: GroupsEvent) {
         when (event) {
             is GroupsEvent.SwitchGroup -> switchGroup(event.groupId)
-            is GroupsEvent.CreateGroup -> createGroup(event.name)
+            is GroupsEvent.CreateGroup -> createGroup(event.name, event.isInviteOnly)
             is GroupsEvent.JoinGroup -> joinGroup(event.id)
             is GroupsEvent.LeaveGroup -> leaveGroup(event.id)
             is GroupsEvent.DeleteGroup -> deleteGroup(event.id)
             is GroupsEvent.UpdateGroupName -> updateGroupName(event.id, event.newName)
+            is GroupsEvent.UpdateGroupInviteOnly -> updateGroupInviteOnly(event.id, event.isInviteOnly)
             is GroupsEvent.SendInvite -> sendInvite(event.email, event.groupId)
             GroupsEvent.DismissCreatedDialog -> _uiState.update { it.copy(lastCreatedGroupId = null) }
             GroupsEvent.DismissMessage -> _uiState.update { it.copy(message = null) }
@@ -83,10 +84,10 @@ class GroupsViewModel(
         }
     }
 
-    private fun createGroup(name: String) {
+    private fun createGroup(name: String, isInviteOnly: Boolean = false) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = dataManager.createGroup(name)
+            val result = dataManager.createGroup(groupName = name, isPrivate = false, isInviteOnly = isInviteOnly)
             if (result != null) {
                 _uiState.update { it.copy(
                     currentGroupId = result,
@@ -140,6 +141,12 @@ class GroupsViewModel(
     private fun updateGroupName(id: String, newName: String) {
         viewModelScope.launch {
             dataManager.updateGroupName(id, newName)
+        }
+    }
+
+    private fun updateGroupInviteOnly(id: String, isInviteOnly: Boolean) {
+        viewModelScope.launch {
+            dataManager.updateGroupInviteOnly(id, isInviteOnly)
         }
     }
 

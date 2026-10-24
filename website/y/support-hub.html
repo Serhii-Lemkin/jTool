@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="support_title">Support Hub - JTools Guide</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-11">
+                <div class="custom-card p-4 p-md-5">
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">support_agent</span><span data-i18n="support_title">Support Hub</span></h1>
+                    <p class="lead text-secondary mb-5 fs-6" data-i18n="support_tag">Direct communication with the developer for bugs and feature requests.</p>
+
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="support_sys">The System</h2>
+                    <p class="text-secondary mb-4" data-i18n="support_desc">The Support Hub allows users to easily report bugs, request features, or ask questions directly to the JTools development team.</p>
+
+                    <ul class="feature-list mb-5">
+                        <li data-i18n="support_l1"><strong class="strong-text">Bug Reports:</strong> Easily submit bugs with steps to reproduce so they can be fixed quickly.</li>
+                        <li data-i18n="support_l2"><strong class="strong-text">Feature Requests:</strong> Suggest new ideas or features that would improve your JTools experience.</li>
+                        <li data-i18n="support_l3"><strong class="strong-text">Real-Time Status Tracking:</strong> Track the status of your tickets (e.g., Open, In Progress, Resolved) and get updates directly in the app.</li>
+                        <li data-i18n="support_l4"><strong class="strong-text">Two-Way Communication:</strong> Chat directly with the developer via comments on your specific support tickets.</li>
+                    </ul>
+
+                    <!-- App Screen Visualization: Support Hub Screen -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">smartphone</span>
+                                <span>App Screen Visualization: Support Hub Screen</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Support Ticket Row 1 -->
+                            <div class="p-3 mb-2 rounded-3 d-flex align-items-start justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex flex-column gap-1">
+                                    <strong class="strong-text d-block fs-6">Dark mode toggle bug</strong>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 10px;">Bug Report</span>
+                                        <span class="badge bg-info text-dark rounded-pill px-2 py-1" style="font-size: 10px;">In Progress</span>
+                                    </div>
+                                    <span class="text-secondary mt-1" style="font-size: 11px;">Updated: Today, 14:30</span>
+                                </div>
+                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;">chevron_right</span>
+                            </div>
+
+                            <!-- Support Ticket Row 2 -->
+                            <div class="p-3 rounded-3 d-flex align-items-start justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex flex-column gap-1">
+                                    <strong class="strong-text d-block fs-6">Add recurring event options</strong>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-primary text-dark rounded-pill px-2 py-1" style="font-size: 10px;">Feature Request</span>
+                                        <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">Open</span>
+                                    </div>
+                                    <span class="text-secondary mt-1" style="font-size: 11px;">Updated: Aug 18, 09:15</span>
+                                </div>
+                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;">chevron_right</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- App Screen Visualization: Ticket Details -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">forum</span>
+                                <span>App Screen Visualization: Ticket Details & Comments</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Ticket Header -->
+                            <div class="p-3 mb-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                <strong class="strong-text d-block fs-5 mb-2">Dark mode toggle bug</strong>
+                                <span class="text-secondary small d-block mb-3">When switching to dark mode, the bottom navigation bar stays light until I restart the app.</span>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 10px;">Bug Report</span>
+                                    <span class="badge bg-info text-dark rounded-pill px-2 py-1" style="font-size: 10px;">In Progress</span>
+                                </div>
+                            </div>
+
+                            <!-- Comment Thread -->
+                            <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                <span class="text-info small fw-bold d-block mb-3">Comments</span>
+
+                                <!-- Dev Comment -->
+                                <div class="p-2.5 mb-2 rounded-3" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <strong class="strong-text small text-info">Serhii (Dev)</strong>
+                                        <span class="text-secondary" style="font-size: 10px;">Today, 14:35</span>
+                                    </div>
+                                    <span class="text-secondary small d-block">Thanks for reporting this! We've identified the issue and it will be fixed in the next beta release v2.8.1.</span>
+                                </div>
+
+                                <!-- User Comment -->
+                                <div class="p-2.5 rounded-3" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border);">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <strong class="strong-text small">You</strong>
+                                        <span class="text-secondary" style="font-size: 10px;">Today, 15:00</span>
+                                    </div>
+                                    <span class="text-secondary small d-block">Awesome, looking forward to the update!</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pro Tips -->
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_pro"><span class="material-icons align-middle text-warning me-2 fs-5">lightbulb</span> Pro Tips</h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
+                        <ul class="mb-0 text-secondary" style="padding-left: 20px;">
+                            <li data-i18n="support_pro_1"><strong class="strong-text">Be Descriptive:</strong> When reporting a bug, include the steps you took before the issue occurred. This helps the developer reproduce and fix it much faster.</li>
+                        </ul>
+                    </div>
+
+                    <!-- FAQ -->
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="support_faq_title"><span class="material-icons align-middle text-info me-2 fs-5">help_outline</span> Frequently Asked Questions</h2>
+                    <div class="d-flex flex-column gap-3 mb-5">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1" data-i18n="support_faq_q1">Who can see my support tickets?</strong>
+                            <p class="text-secondary small mb-0" data-i18n="support_faq_a1">Support tickets are strictly private between you and the JTools development team. Your group members cannot see your bugs or feature requests.</p>
+                        </div>
+                    </div>
+
+                    <!-- Red Container Link Banner -->
+                    <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
+                        <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title"><span class="material-icons align-middle text-danger me-2 fs-5">layers</span> Red Container: Primary Actions & Background Hub</h3>
+                        <p class="text-secondary small mb-3" data-i18n="support_rc_banner_desc">Primary Action: Houses the Plus FAB to instantly create new support requests. Secondary: Delivers notifications when the developer responds and manages side gestures.</p>
+                        <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Disclaimer Modal -->
+        <div class="modal fade" id="vizDisclaimerModal" tabindex="-1" aria-labelledby="vizDisclaimerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="vizDisclaimerModalLabel">
+                            <span class="material-icons text-info">help_outline</span>
+                            <span data-i18n="viz_disclaimer_title">Visualization Disclaimer</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start py-3">
+                        <p class="text-secondary mb-0 fs-6" data-i18n="viz_disclaimer_body">
+                            Note: This visualization provides a feel and understanding of the app's layout rather than representing a 100% pixel-perfect snapshot of every screen state.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-info rounded-pill px-4" data-bs-dismiss="modal" data-i18n="viz_disclaimer_close">Got it</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary fs-6">
+            <div class="mb-2">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+</body>
+</html>

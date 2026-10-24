@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="trend_title">Trendify Metrics - JTools Guide</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+                    
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-11">
+                <div class="custom-card p-4 p-md-5">
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">show_chart</span><span data-i18n="trend_title">Trendify Metrics</span></h1>
+                    <p class="lead text-secondary mb-5 fs-6" data-i18n="trend_tag">Visualize your progress and identify patterns with personal and group trackers.</p>
+
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="trend_sys">Insightful Tracking</h2>
+                    <p class="text-secondary mb-4" data-i18n="trend_desc">Trendify is JTools's data analysis engine. It allows you to track any numeric value over time and see the results on intuitive graphs.</p>
+
+                    <ul class="feature-list fl-trendify mb-5">
+                        <li data-i18n="trend_l1"><strong class="strong-text">Custom Trackers:</strong> Create trackers for anything—weight, workout reps, daily expenses, or project hours.</li>
+                        <li data-i18n="trend_l2"><strong class="strong-text">Tendency Analysis:</strong> JTools calculates whether your metrics are "Increasing", "Decreasing", or "Stable" based on recent data.</li>
+                        <li data-i18n="trend_l3"><strong class="strong-text">Group Comparison:</strong> Compare your metrics with other group members. Perfect for health challenges or team performance tracking.</li>
+                        <li data-i18n="trend_l4"><strong class="strong-text">Interactive Graphs:</strong> Filter your data by Day, Month, or Year to see the big picture.</li>
+                    </ul>
+
+                    <!-- Visualization 1: Trackers List View -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">show_chart</span>
+                                <span>App Screen Visualization: Trackers List View</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Tracker List Item 1 -->
+                            <div class="p-3 mb-2 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="material-icons text-info fs-4">show_chart</span>
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">Daily Pushups & Workout</strong>
+                                        <span class="text-secondary small">Pushups (reps) • Weight (kg)</span>
+                                    </div>
+                                </div>
+                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;">more_vert</span>
+                            </div>
+
+                            <!-- Tracker List Item 2 -->
+                            <div class="p-3 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="material-icons text-info fs-4">show_chart</span>
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">Household Savings Tracker</strong>
+                                        <span class="text-secondary small">Savings ($) • Expenses ($)</span>
+                                    </div>
+                                </div>
+                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;">more_vert</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Visualization 2: Tracker Details & Chart View -->
+                    <div class="my-5">
+                        <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                            <span class="d-flex align-items-center gap-2">
+                                <span class="material-icons">smartphone</span>
+                                <span>App Screen Visualization: Tracker Details & Chart View</span>
+                            </span>
+                            <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                <span class="material-icons fs-5">help_outline</span>
+                            </button>
+                        </h3>
+                        <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                            <!-- Time Filter Bar -->
+                            <div class="p-1 mb-3 rounded-4 d-flex" style="background: var(--surface); border: 1px solid var(--border);">
+                                <button class="btn btn-sm btn-outline-secondary flex-fill fw-semibold text-secondary rounded-3 py-1 fs-6 border-0">Day</button>
+                                <button class="btn btn-sm btn-primary flex-fill fw-bold rounded-3 py-1 fs-6">Month</button>
+                                <button class="btn btn-sm btn-outline-secondary flex-fill fw-semibold text-secondary rounded-3 py-1 fs-6 border-0">Year</button>
+                                <button class="btn btn-sm btn-outline-secondary flex-fill fw-semibold text-secondary rounded-3 py-1 fs-6 border-0">All</button>
+                            </div>
+
+                            <!-- Metric & Line Graph Card -->
+                            <div class="p-3 mb-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="material-icons text-info fs-5">show_chart</span>
+                                        <strong class="strong-text fs-6">Pushups (reps)</strong>
+                                    </div>
+                                    <span class="badge bg-success text-dark rounded-pill px-2 py-1" style="font-size: 10px;">Increasing ▲</span>
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2 my-2">
+                                    <span class="display-6 fw-bold text-info">65</span>
+                                    <span class="text-secondary small">reps avg • Last entry: Today</span>
+                                </div>
+                                <!-- Line Graph SVG -->
+                                <div class="p-2 rounded-3" style="background: rgba(56, 189, 248, 0.05);">
+                                    <svg viewBox="0 0 100 25" style="width: 100%; height: 40px;">
+                                        <path d="M0,20 Q20,15 40,18 T80,8 T100,4" fill="none" stroke="var(--primary)" stroke-width="2.5" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Logged Records List -->
+                            <div class="border-top pt-3" style="border-color: var(--border) !important;">
+                                <span class="text-secondary small fw-bold d-block mb-2">Logged Metric Records</span>
+                                <div class="p-2.5 mb-2 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">65 reps</strong>
+                                        <span class="text-secondary small">Today, 14:30 by Serhii</span>
+                                    </div>
+                                    <span class="material-icons text-secondary fs-5" style="cursor: pointer;">more_vert</span>
+                                </div>
+                                <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: var(--surface); border: 1px solid var(--border);">
+                                    <div>
+                                        <strong class="strong-text d-block fs-6">60 reps</strong>
+                                        <span class="text-secondary small">Yesterday, 18:00 by Serhii</span>
+                                    </div>
+                                    <span class="material-icons text-secondary fs-5" style="cursor: pointer;">more_vert</span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Pro Tips -->
+                    <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_pro"><span class="material-icons align-middle text-warning me-2 fs-5">lightbulb</span> Pro Tips</h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
+                        <ul class="mb-0 text-secondary" style="padding-left: 20px;">
+                            <li class="mb-2" data-i18n="trend_pro_1"><strong class="strong-text">Multiple Metrics per Tracker:</strong> Track multiple values simultaneously inside a single tracker (e.g., Weight & Body Fat %).</li>
+                            <li data-i18n="trend_pro_2"><strong class="strong-text">Privacy Controls:</strong> Keep private trackers set to Personal so only you can view your private graphs.</li>
+                        </ul>
+                    </div>
+
+                    <!-- FAQ -->
+                    <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">help_outline</span> Frequently Asked Questions</h2>
+                    <div class="d-flex flex-column gap-3 mb-5">
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1">How does Trendify calculate tendency direction?</strong>
+                            <p class="text-secondary small mb-0">Trendify analyzes recent metric entries over time against your target trend direction to evaluate whether your overall progress is "Increasing", "Decreasing", or "Stable".</p>
+                        </div>
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1">Can I compare my metric progress with other group members?</strong>
+                            <p class="text-secondary small mb-0">Yes! In shared group trackers, you can overlay member metrics on multi-person trend graphs to compare workout, savings, or project goals side by side.</p>
+                        </div>
+                    </div>
+
+                    <!-- Red Container Link Banner -->
+                    <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
+                        <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title">🔴 Red Container: Primary Actions & Background Hub</h3>
+                        <p class="text-secondary small mb-3" data-i18n="trend_rc_banner_desc">Primary Action: Houses the Plus FAB to create new numeric trackers or add metric entries. Secondary: Delivers group trend updates, notification badges, and background queue tracking.</p>
+                        <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Disclaimer Modal -->
+        <div class="modal fade" id="vizDisclaimerModal" tabindex="-1" aria-labelledby="vizDisclaimerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="vizDisclaimerModalLabel">
+                            <span class="material-icons text-info">help_outline</span>
+                            <span data-i18n="viz_disclaimer_title">Visualization Disclaimer</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start py-3">
+                        <p class="text-secondary mb-0 fs-6" data-i18n="viz_disclaimer_body">
+                            Note: This visualization provides a feel and understanding of the app's layout rather than representing a 100% pixel-perfect snapshot of every screen state.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-info rounded-pill px-4" data-bs-dismiss="modal" data-i18n="viz_disclaimer_close">Got it</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary fs-6">
+            <div class="mb-2">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+</body>
+</html>

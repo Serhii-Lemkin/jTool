@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="app_features_title">App Features & Launcher - JTools Guide</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/app-features" data-i18n="nav_app_features">App Features</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-md-11">
+                <!-- Main Header -->
+                <div class="custom-card card-highlight p-4 p-md-5 mb-5 text-center shadow-lg">
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">widgets</span><span data-i18n="af_page_title">App Features & Launcher System</span></h1>
+                    <p class="lead text-secondary mb-0 fs-6" data-i18n="af_page_tag">
+                        The unified, all-in-one productivity environment designed to eliminate home screen clutter and simplify group collaboration under one roof.
+                    </p>
+                </div>
+
+                <!-- Why JTools Uses an Internal Launcher -->
+                <div class="custom-card p-4 p-md-5 mb-5 shadow-sm">
+                    <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">grid_view</span><span data-i18n="af_why_launcher_title">Why jTool Uses an Internal Launcher?</span></h2>
+                    <p class="text-secondary mb-0" data-i18n="af_why_launcher_desc">
+                        Traditional multi-tool setups force users to install 10 separate apps or clutter their phone home screens with endless single-purpose icons. JTools unifies all essential household and group tools—Vaults, Pro Calendar, Workday Tracker, Smart Shopping, Personal Notes, Links, Cleaning Manager, and Trendify Metrics—under a single, customizable Launcher screen. You get a clean, uncluttered phone with instant access to every tool.
+                    </p>
+                </div>
+
+                <!-- Interactive App Visualization: Launcher Customization & Hiding -->
+                <div class="my-5">
+                    <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="material-icons">smartphone</span>
+                            <span>App Interface Visualization: Try Hiding & Editing Layout Below!</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                            <span class="material-icons fs-5">help_outline</span>
+                        </button>
+                    </h3>
+                    <div id="launcherPreviewBox" class="p-3 p-md-4 rounded-4 shadow-sm" style="background: var(--surface); border: 1.5px solid var(--primary);">
+
+                        <!-- Replica Top Controls Bar -->
+                        <div class="p-3 mb-3 rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: var(--background); border: 1px solid var(--border);">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="material-icons text-info fs-5">widgets</span>
+                                <strong class="text-info fs-6">JTools Launcher</strong>
+                                <span id="replicaModeBadge" class="badge bg-secondary text-dark rounded-pill">Normal View</span>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2 ms-auto">
+                                <button id="toggleEditBtn" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-bold d-flex align-items-center gap-1">
+                                    <span class="material-icons fs-6">edit</span> <span id="editBtnText">Edit Layout</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Edit Layout Toolbar (Visible in Edit Mode) -->
+                        <div id="editToolbar" class="p-3 mb-3 rounded-3 d-none" style="background: rgba(56, 189, 248, 0.08); border: 1px dashed var(--primary);">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold text-info small d-flex align-items-center gap-1"><span class="material-icons fs-6">view_column</span> Grid Columns:</span>
+                                <span class="text-secondary small">Tap <span class="material-icons fs-6 align-middle text-info">visibility</span> to hide/reveal apps</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-info flex-fill col-btn" data-cols="1">1 Col</button>
+                                <button class="btn btn-sm btn-outline-info flex-fill col-btn" data-cols="2">2 Cols</button>
+                                <button class="btn btn-sm btn-outline-info flex-fill col-btn active" data-cols="3">3 Cols</button>
+                            </div>
+                        </div>
+
+                        <!-- Simulated App Grid -->
+                        <div id="replicaGrid" class="row row-cols-3 g-3 mb-3">
+                            <!-- App cards generated dynamically by JS -->
+                        </div>
+
+                        <!-- Collapsible Hidden Apps Drawer -->
+                        <div id="hiddenAppsContainer" class="p-3 rounded-3 d-none" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+                                <span class="fw-bold text-danger small d-flex align-items-center gap-1 text-nowrap">
+                                    <span class="material-icons fs-6">visibility_off</span> Hidden Apps (<span id="hiddenCount">0</span>)
+                                </span>
+                                <span class="text-secondary small">Tap to restore</span>
+                            </div>
+                            <div id="hiddenGrid" class="d-flex flex-wrap gap-2">
+                                <!-- Hidden app chips generated dynamically -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Collapsible Feature Accordion with 1:1 App Visualizations -->
+                <div class="accordion d-flex flex-column gap-4 mb-5" id="featuresAccordion">
+
+                    <!-- 1. Customize Launcher & Gestures -->
+                    <div class="accordion-item custom-card border-0 overflow-hidden">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button custom-card bg-transparent fw-bold text-info shadow-none py-3 px-4 fs-6" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                <span class="material-icons align-middle text-info me-2">tune</span><span data-i18n="af_acc_1_title">1. How to Use & Customize the Launcher</span>
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#featuresAccordion">
+                            <div class="accordion-body p-4 text-secondary">
+                                <ul class="feature-list mb-4">
+                                    <li data-i18n="af_acc_1_l1"><strong class="strong-text">Layout Toggles (1 to 4 Columns):</strong> Tap "Edit Layout" in the Launcher header to switch between 1-column side-by-side cards and 2, 3, or 4-column compact grid cards.</li>
+                                    <li data-i18n="af_acc_1_l2"><strong class="strong-text">Drag & Drop Reordering:</strong> Long-press any app card in Edit Mode and drag it to arrange your most frequently used tools at the top.</li>
+                                    <li data-i18n="af_acc_1_l3"><strong class="strong-text">Visibility Controls:</strong> Tap the eye icon in Edit Mode to hide or reveal tools you use less often.</li>
+                                    <li data-i18n="af_acc_1_l4"><strong class="strong-text">Custom Launcher Gestures:</strong> Map 2 custom gestures (Swipe Left, Swipe Right) to open specific apps or trigger quick actions directly from the home screen.</li>
+                                </ul>
+
+                                <!-- Container 1 App Screen Visualization: Launcher Gestures Mapping -->
+                                <div class="mt-4 pt-3 border-top" style="border-color: var(--border) !important;">
+                                    <h4 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <span class="material-icons">touch_app</span>
+                                            <span>App Interface Visualization: Custom Launcher Gestures</span>
+                                        </span>
+                                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                            <span class="material-icons fs-5">help_outline</span>
+                                        </button>
+                                    </h4>
+                                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+                                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                            <strong class="strong-text fs-6 d-block mb-3">Launcher Gestures Mapping</strong>
+
+                                            <div class="d-flex flex-column gap-2">
+                                                <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);">
+                                                    <span class="strong-text small d-flex align-items-center gap-2"><span class="material-icons text-info fs-5">arrow_back</span> Swipe Left</span>
+                                                    <span class="badge bg-primary text-dark rounded-pill px-2.5 py-1">Work</span>
+                                                </div>
+                                                <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);">
+                                                    <span class="strong-text small d-flex align-items-center gap-2"><span class="material-icons text-info fs-5">arrow_forward</span> Swipe Right</span>
+                                                    <span class="badge bg-primary text-dark rounded-pill px-2.5 py-1">Calendar</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Change Themes & Accent Palettes -->
+                    <div class="accordion-item custom-card border-0 overflow-hidden">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed custom-card bg-transparent fw-bold text-info shadow-none py-3 px-4 fs-6" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                <span class="material-icons align-middle text-info me-2">palette</span><span data-i18n="af_acc_2_title">2. Custom Themes & Dark/Light Modes</span>
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#featuresAccordion">
+                            <div class="accordion-body p-4 text-secondary">
+                                <ul class="feature-list mb-4">
+                                    <li data-i18n="af_acc_2_l1"><strong class="strong-text">Dark & Light Mode Toggling:</strong> Switch between sleek dark slate and soft, eye-friendly contrast light mode in Settings.</li>
+                                    <li data-i18n="af_acc_2_l2"><strong class="strong-text">Primary Accent Color Palettes:</strong> Personalize button highlights, progress rings, and top app bars with custom primary accent color choices.</li>
+                                    <li data-i18n="af_acc_2_l3"><strong class="strong-text">Where to Customize Themes:</strong> Navigate to <strong>Main Menu / Launcher → Settings → General / Theme Settings</strong> or tap the Theme icon in the top app bar to customize themes, toggle dark/light modes, and pick custom accent colors.</li>
+                                </ul>
+
+                                <!-- Container 2 App Screen Visualization: Theme Customization Sheet -->
+                                <div class="mt-4 pt-3 border-top" style="border-color: var(--border) !important;">
+                                    <h4 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <span class="material-icons">palette</span>
+                                            <span>App Interface Visualization: Theme Customization Sheet</span>
+                                        </span>
+                                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                            <span class="material-icons fs-5">help_outline</span>
+                                        </button>
+                                    </h4>
+                                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+                                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                                <strong class="strong-text fs-6">Customize Dark Theme</strong>
+                                            </div>
+
+                                            <!-- Accent Color Options Row -->
+                                            <span class="text-info small fw-bold d-block mb-2">Primary Accent Color</span>
+                                            <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded-3" style="background: rgba(255, 255, 255, 0.03);">
+                                                <div class="rounded-circle p-1" style="width: 32px; height: 32px; background: #38BDF8; border: 2px solid var(--primary); cursor: pointer;" title="Sky Blue"></div>
+                                                <div class="rounded-circle p-1" style="width: 32px; height: 32px; background: #10B981; cursor: pointer;" title="Emerald Green"></div>
+                                                <div class="rounded-circle p-1" style="width: 32px; height: 32px; background: #2563EB; cursor: pointer;" title="Royal Blue"></div>
+                                                <div class="rounded-circle p-1" style="width: 32px; height: 32px; background: #8B5CF6; cursor: pointer;" title="Violet Purple"></div>
+                                                <div class="rounded-circle p-1" style="width: 32px; height: 32px; background: #F43F5E; cursor: pointer;" title="Rose Pink"></div>
+                                            </div>
+
+                                            <!-- Live Preview Box -->
+                                            <span class="text-info small fw-bold d-block mb-2">Live Preview Example</span>
+                                            <div class="p-3 rounded-3" style="background: rgba(9, 9, 11, 0.8); border: 1px solid var(--primary);">
+                                                <strong class="text-info small d-block mb-2">Sample Action Item</strong>
+                                                <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(24, 24, 27, 0.9); border: 1px solid rgba(56, 189, 248, 0.3);">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="material-icons text-info fs-5">settings</span>
+                                                        <strong class="strong-text small">Preview Card</strong>
+                                                    </div>
+                                                    <span class="material-icons text-info fs-5">chevron_right</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Notifications & Real-Time Sync -->
+                    <div class="accordion-item custom-card border-0 overflow-hidden">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed custom-card bg-transparent fw-bold text-info shadow-none py-3 px-4 fs-6" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                <span class="material-icons align-middle text-info me-2">notifications</span><span data-i18n="af_acc_3_title">3. How Notifications & Real-Time Sync Work</span>
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#featuresAccordion">
+                            <div class="accordion-body p-4 text-secondary">
+                                <ul class="feature-list mb-4">
+                                    <li data-i18n="af_acc_3_l1"><strong class="strong-text">Instant Group Cloud Sync:</strong> Powered by Google Firebase, items added or checked off by group members update live on everyone's device.</li>
+                                    <li data-i18n="af_acc_3_l2"><strong class="strong-text">Notification Badges:</strong> Unread notification counts display live on the Launcher top app bar bell icon and Red Container widget.</li>
+                                    <li data-i18n="af_acc_3_l3"><strong class="strong-text">Real-time Comment & Support Alerts:</strong> Receive instant notification alerts whenever other users update support requests or leave event comments.</li>
+                                </ul>
+
+                                <!-- Container 3 App Screen Visualization: Launcher Header & Sync Bar -->
+                                <div class="mt-4 pt-3 border-top" style="border-color: var(--border) !important;">
+                                    <h4 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
+                                        <span class="d-flex align-items-center gap-2">
+                                            <span class="material-icons">notifications</span>
+                                            <span>App Interface Visualization: Launcher Header & Top Bar</span>
+                                        </span>
+                                        <button class="btn btn-sm btn-link text-info p-0 ms-2" data-bs-toggle="modal" data-bs-target="#vizDisclaimerModal" title="Visualization Disclaimer" aria-label="Visualization Disclaimer" style="line-height: 1;">
+                                            <span class="material-icons fs-5">help_outline</span>
+                                        </button>
+                                    </h4>
+                                    <div class="p-3 p-md-4 rounded-4 shadow-md text-start mx-auto" style="background: var(--background); border: 1.5px solid var(--border); max-width: 480px;">
+
+                                        <!-- Launcher Top Bar Replica (LauncherTopBar.kt) -->
+                                        <div class="d-flex align-items-center justify-content-between mb-3 px-1">
+                                            <div class="d-flex align-items-center gap-1">
+                                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;" title="Support Hub">support_agent</span>
+                                                <span class="material-icons text-secondary fs-5" style="cursor: pointer;" title="Settings">settings</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="material-icons text-primary fs-5" title="Uploading">cloud_upload</span>
+                                                <div class="position-relative" style="cursor: pointer;">
+                                                    <span class="material-icons text-danger fs-5">notifications</span>
+                                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger fw-bold" style="font-size: 9px; padding: 2px 4px;">3</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Launcher Greeting Header Replica (LauncherGreetingHeader.kt) -->
+                                        <div class="p-3 rounded-3 text-center" style="background: var(--surface); border: 1px solid var(--border);">
+                                            <h3 class="display-6 fw-bold text-info fs-3 mb-2">Hello, Serhii!</h3>
+
+                                            <div class="d-flex align-items-center justify-content-center position-relative mb-1">
+                                                <div class="px-3 py-1.5 rounded-pill d-inline-flex align-items-center gap-2" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); cursor: pointer;">
+                                                    <span class="material-icons text-info fs-6">groups</span>
+                                                    <span class="strong-text small text-truncate" style="max-width: 100px;">Household</span>
+                                                    <span class="material-icons text-secondary fs-6">arrow_drop_down</span>
+                                                </div>
+                                                <span class="material-icons text-secondary fs-5 position-absolute end-0" style="cursor: pointer;" title="Search Apps">search</span>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Red Container Link Banner -->
+                <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
+                    <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title"><span class="material-icons align-middle text-danger me-2 fs-5">layers</span> Red Container: Primary Actions & Background Hub</h3>
+                    <p class="text-secondary small mb-3" data-i18n="af_rc_banner_desc">Learn how the Red Container manages primary action buttons, background transfer queues, and side-switching gestures across the app.</p>
+                    <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Disclaimer Modal -->
+        <div class="modal fade" id="vizDisclaimerModal" tabindex="-1" aria-labelledby="vizDisclaimerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="vizDisclaimerModalLabel">
+                            <span class="material-icons text-info">help_outline</span>
+                            <span data-i18n="viz_disclaimer_title">Visualization Disclaimer</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start py-3">
+                        <p class="text-secondary mb-0 fs-6" data-i18n="viz_disclaimer_body">
+                            Note: This visualization provides a feel and understanding of the app's layout rather than representing a 100% pixel-perfect snapshot of every screen state.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-info rounded-pill px-4" data-bs-dismiss="modal" data-i18n="viz_disclaimer_close">Got it</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary fs-6">
+            <div class="mb-2">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+    <script>
+        // Interactive Launcher & App Hiding Replica Script
+        document.addEventListener('DOMContentLoaded', () => {
+            const apps = [
+                { id: 'work', name: 'Workday', icon: 'schedule' },
+                { id: 'calendar', name: 'Calendar', icon: 'calendar_month' },
+                { id: 'shop', name: 'ShopList', icon: 'shopping_cart' },
+                { id: 'notes', name: 'Notes', icon: 'description' },
+                { id: 'cleaning', name: 'Cleaning', icon: 'brush' },
+                { id: 'links', name: 'Links', icon: 'link' },
+                { id: 'trends', name: 'Trends', icon: 'show_chart' },
+                { id: 'time', name: 'Time', icon: 'calculate' },
+                { id: 'vaults', name: 'Vaults', icon: 'folder_special' }
+            ];
+
+            let isEditMode = false;
+            let hiddenApps = new Set();
+            let gridCols = 3;
+
+            const toggleEditBtn = document.getElementById('toggleEditBtn');
+            const editBtnText = document.getElementById('editBtnText');
+            const editToolbar = document.getElementById('editToolbar');
+            const replicaModeBadge = document.getElementById('replicaModeBadge');
+            const replicaGrid = document.getElementById('replicaGrid');
+            const hiddenAppsContainer = document.getElementById('hiddenAppsContainer');
+            const hiddenGrid = document.getElementById('hiddenGrid');
+            const hiddenCount = document.getElementById('hiddenCount');
+            const colBtns = document.querySelectorAll('.col-btn');
+
+            if (!toggleEditBtn || !replicaGrid) return;
+
+            function updateView() {
+                if (isEditMode) {
+                    editToolbar.classList.remove('d-none');
+                    replicaModeBadge.textContent = 'Edit Layout Mode';
+                    replicaModeBadge.className = 'badge bg-warning text-dark rounded-pill';
+                    editBtnText.textContent = 'Done Editing';
+                } else {
+                    editToolbar.classList.add('d-none');
+                    replicaModeBadge.textContent = 'Normal View';
+                    replicaModeBadge.className = 'badge bg-secondary text-dark rounded-pill';
+                    editBtnText.textContent = 'Edit Layout';
+                }
+
+                replicaGrid.className = `row row-cols-${gridCols} g-3 mb-3`;
+                renderGrid();
+                renderHidden();
+            }
+
+            function renderGrid() {
+                replicaGrid.innerHTML = '';
+                const visible = apps.filter(a => !hiddenApps.has(a.id));
+
+                if (visible.length === 0) {
+                    replicaGrid.innerHTML = `<div class="col-12 text-center text-secondary py-4 small">All apps are currently hidden. Tap eye icons below to restore them!</div>`;
+                    return;
+                }
+
+                visible.forEach(app => {
+                    const col = document.createElement('div');
+                    col.className = 'col';
+
+                    col.innerHTML = `
+                        <div class="custom-card p-3 text-center position-relative h-100 d-flex flex-column align-items-center justify-content-center" style="background: var(--surface); border: 1px solid var(--border);">
+                            ${isEditMode ? `
+                                <button class="btn btn-sm btn-link p-0 position-absolute top-0 end-0 m-2 text-danger toggle-hide-btn" data-id="${app.id}">
+                                    <span class="material-icons fs-6">visibility</span>
+                                </button>
+                            ` : ''}
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mb-2" style="width: 44px; height: 44px; background: rgba(56, 189, 248, 0.1);">
+                                <span class="material-icons text-info fs-5">${app.icon}</span>
+                            </div>
+                            <span class="fw-bold strong-text small">${app.name}</span>
+                        </div>
+                    `;
+
+                    replicaGrid.appendChild(col);
+                });
+
+                // Attach hide event listeners
+                document.querySelectorAll('.toggle-hide-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        hiddenApps.add(id);
+                        updateView();
+                    });
+                });
+            }
+
+            function renderHidden() {
+                hiddenGrid.innerHTML = '';
+                hiddenCount.textContent = hiddenApps.size;
+
+                if (!isEditMode || hiddenApps.size === 0) {
+                    hiddenAppsContainer.classList.add('d-none');
+                    return;
+                }
+
+                hiddenAppsContainer.classList.remove('d-none');
+
+                apps.filter(a => hiddenApps.has(a.id)).forEach(app => {
+                    const chip = document.createElement('button');
+                    chip.className = 'btn btn-sm btn-outline-danger rounded-pill d-inline-flex align-items-center gap-1 text-nowrap';
+                    chip.innerHTML = `<span class="material-icons fs-6">${app.icon}</span> ${app.name} <span class="material-icons fs-6 ms-1">visibility_off</span>`;
+                    chip.addEventListener('click', () => {
+                        hiddenApps.delete(app.id);
+                        updateView();
+                    });
+                    hiddenGrid.appendChild(chip);
+                });
+            }
+
+            toggleEditBtn.addEventListener('click', () => {
+                isEditMode = !isEditMode;
+                updateView();
+            });
+
+            colBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    colBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    gridCols = parseInt(btn.getAttribute('data-cols')) || 3;
+                    updateView();
+                });
+            });
+
+            updateView();
+
+            // Smooth scroll to top of accordion item when opened
+            const accordions = document.querySelectorAll('.accordion-collapse');
+            accordions.forEach(acc => {
+                acc.addEventListener('show.bs.collapse', function(e) {
+                    const header = e.target.previousElementSibling;
+                    if(header) {
+                        const top = header.getBoundingClientRect().top + window.scrollY - 80;
+                        window.scrollTo({ top: top, behavior: 'smooth' });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

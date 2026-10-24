@@ -22,6 +22,7 @@ object Launcher : AppProperties(AppScreenEnum.LAUNCHER) {
             onSupportClick = { deps.setScreen(AppScreenEnum.SUPPORT_HUB) },
             onAccountClick = { deps.setScreen(AppScreenEnum.SETTINGS_ACCOUNT) },
             settingsManager = deps.settingsManager,
+            dataManager = deps.dataManager,
             currentGroupId = deps.currentGroupId,
             groups = deps.groups,
             onJoinGroupClick = { 

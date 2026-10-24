@@ -5,7 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,12 +29,12 @@ import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.settings.main.SettingsMainScreen
 import com.jtool.android.features.settings.account.AccountScreen
 import com.jtool.android.features.settings.groups.GroupsScreen
+import com.jtool.android.features.settings.groups.components.groups_info_sheet.GroupsInfoSheet
 import com.jtool.android.features.settings.general.GeneralSettingsScreen
 import com.jtool.android.features.settings.updates.AppUpdatesScreen
-import com.jtool.android.features.settings.visibility.AppVisibilityScreen
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.BaseScreen
-import com.jtool.android.core.components.layout.GenericTitle
+import com.jtool.android.core.components.layout.TitleActionIcon
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +59,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(startOnUpdates, startOnGroups, startOnAccount) {
@@ -77,12 +80,22 @@ fun SettingsScreen(
             AppScreenEnum.SETTINGS_ACCOUNT -> Loc.Settings.account
             AppScreenEnum.SETTINGS_GENERAL -> Loc.Settings.generalSettings
             AppScreenEnum.SETTINGS_UPDATES -> Loc.Settings.appUpdates
-            AppScreenEnum.SETTINGS_VISIBILITY -> Loc.Settings.interfaceAndApps
             AppScreenEnum.SETTINGS_GROUPS -> Loc.Settings.groups
             else -> Loc.Launcher.settings
         },
         onBack = { 
             if (uiState.currentSubScreen == AppScreenEnum.SETTINGS) onBack() else viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) 
+        },
+        actions = {
+            if (uiState.currentSubScreen == AppScreenEnum.SETTINGS_GROUPS) {
+                TitleActionIcon(
+                    icon = Icons.AutoMirrored.Filled.HelpOutline,
+                    contentDescription = "Help Guide",
+                    onClick = {
+                        com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "groups")
+                    }
+                )
+            }
         }
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -117,10 +130,6 @@ fun SettingsScreen(
                 )
                 AppScreenEnum.SETTINGS_UPDATES -> AppUpdatesScreen(
                     backupManager = backupManager
-                )
-                AppScreenEnum.SETTINGS_VISIBILITY -> AppVisibilityScreen(
-                    settingsManager = settingsManager,
-                    onBack = { viewModel.onEvent(SettingsEvent.Navigate(AppScreenEnum.SETTINGS)) }
                 )
                 else -> {}
             }

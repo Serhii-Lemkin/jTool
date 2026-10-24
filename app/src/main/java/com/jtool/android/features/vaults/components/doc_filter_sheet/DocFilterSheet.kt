@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.utils.rememberCustomDatePickerState
 import com.jtool.android.ui.components.common.GenericSheet
 import java.text.SimpleDateFormat
 import java.util.*
@@ -50,7 +51,7 @@ fun DocFilterSheet(
             "udt" -> udt ?: System.currentTimeMillis()
             else -> System.currentTimeMillis()
         }
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = currentMillis)
+        val datePickerState = rememberCustomDatePickerState(initialSelectedDateMillis = currentMillis)
         DatePickerDialog(
             onDismissRequest = { showDatePickerFor = null },
             confirmButton = {

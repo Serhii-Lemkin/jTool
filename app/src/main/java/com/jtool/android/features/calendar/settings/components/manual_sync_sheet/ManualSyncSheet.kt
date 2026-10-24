@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.utils.rememberCustomDatePickerState
 import com.jtool.android.ui.components.common.GenericSheet
 import java.time.Instant
 import java.time.LocalDate
@@ -143,7 +144,7 @@ fun ManualSyncSheet(
     }
 
     if (showFromPicker) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
+        val state = rememberCustomDatePickerState(initialSelectedDateMillis = fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { showFromPicker = false },
             confirmButton = {
@@ -158,7 +159,7 @@ fun ManualSyncSheet(
     }
 
     if (showToPicker) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = toDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
+        val state = rememberCustomDatePickerState(initialSelectedDateMillis = toDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { showToPicker = false },
             confirmButton = {

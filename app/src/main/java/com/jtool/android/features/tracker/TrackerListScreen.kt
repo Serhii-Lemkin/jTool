@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +31,7 @@ fun TrackerListScreen(
     onNavigate: (AppScreenEnum) -> Unit,
     viewModel: TrackerViewModel
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingTracker by remember { mutableStateOf<Tracker?>(null) }
@@ -44,6 +46,18 @@ fun TrackerListScreen(
         isLoading = uiState.isLoading,
         onBack = onBack,
         onRefresh = { viewModel.onEvent(TrackerEvent.Refresh) },
+        actions = {
+            com.jtool.android.core.components.layout.TitleDropdownMenu {
+                DropdownMenuItem(
+                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
+                    onClick = {
+                        val settingsManager = com.jtool.android.core.settings.SettingsManager(context)
+                        com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "trendify")
+                    },
+                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                )
+            }
+        },
         floatingActionButton = {
             UnifiedFAB(
                 onClick = { showCreateSheet = true },

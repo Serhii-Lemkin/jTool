@@ -33,4 +33,8 @@ object SupportLoc {
     val crash_log_copied get() = Loc.s("support_crash_log_copied", "Crash log copied to clipboard")
     val copy_request_text get() = Loc.s("support_copy_request_text", "Copy Request Text")
     val request_text_copied get() = Loc.s("support_request_text_copied", "Request text copied to clipboard")
+    val status_updated_notif get() = Loc.s("support_status_updated_notif", "Support Ticket Status Updated")
+    val status_updated_msg get() = Loc.s("support_status_updated_msg", "Ticket #%s status changed to %s")
+    val comment_added_notif get() = Loc.s("support_comment_added_notif", "New Comment on Support Ticket")
+    val comment_added_msg get() = Loc.s("support_comment_added_msg", "%s commented on Ticket #%s")
 }

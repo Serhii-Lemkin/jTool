@@ -1,26 +1,33 @@
 package com.jtool.android.core.services
 
 import android.content.Context
-import android.content.Intent
-import android.os.Build
+import android.util.Log
+import androidx.work.*
 import com.jtool.android.core.models.vaults.VaultDocument
+import com.jtool.android.core.services.workers.FileExportWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 
+@Serializable
 enum class ExportFileStatus { PENDING, EXPORTING, COMPLETED, FAILED }
 
+@Serializable
 data class ExportFileProgress(
     val id: String = UUID.randomUUID().toString(),
-    val fileName: String,
-    val fileIndex: Int,
+    val fileName: String = "",
+    val fileIndex: Int = 0,
     val progressPercent: Int = 0,
     val status: ExportFileStatus = ExportFileStatus.PENDING,
     val errorMessage: String? = null
 )
 
+@Serializable
 data class ExportTask(
     val id: String = UUID.randomUUID().toString(),
     val doc: VaultDocument,
@@ -29,6 +36,7 @@ data class ExportTask(
     val errorMessage: String? = null
 )
 
+@Serializable
 data class ExportState(
     val tasks: List<ExportTask> = emptyList(),
     val isExporting: Boolean = false
@@ -43,10 +51,56 @@ data class ExportState(
 }
 
 object FileExportQueueManager {
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
     private val _exportState = MutableStateFlow(ExportState())
     val exportState: StateFlow<ExportState> = _exportState.asStateFlow()
+    private var appContext: Context? = null
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+        loadState(context.applicationContext)
+    }
+
+    private fun saveState() {
+        val ctx = appContext ?: return
+        try {
+            val prefs = ctx.getSharedPreferences("jtool_export_queue_prefs", Context.MODE_PRIVATE)
+            val jsonString = json.encodeToString(_exportState.value)
+            prefs.edit().putString("export_state", jsonString).apply()
+        } catch (e: Exception) {
+            Log.e("FileExportQueueManager", "Failed to save export state", e)
+        }
+    }
+
+    private fun loadState(context: Context) {
+        try {
+            val prefs = context.getSharedPreferences("jtool_export_queue_prefs", Context.MODE_PRIVATE)
+            val jsonString = prefs.getString("export_state", null) ?: return
+            val restored = json.decodeFromString<ExportState>(jsonString)
+            
+            val hasUnfinished = restored.tasks.any { !it.isFailed && it.files.any { f -> f.status != ExportFileStatus.COMPLETED } }
+            val updatedState = restored.copy(isExporting = hasUnfinished)
+            _exportState.value = updatedState
+
+            if (hasUnfinished) {
+                try {
+                    val workRequest = OneTimeWorkRequestBuilder<FileExportWorker>()
+                        .build()
+                    WorkManager.getInstance(context).enqueueUniqueWork("file_export_work", ExistingWorkPolicy.KEEP, workRequest)
+                } catch (e: Exception) {
+                    Log.e("FileExportQueueManager", "Failed to enqueue WorkManager work", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FileExportQueueManager", "Failed to load export state, clearing corrupted state", e)
+            try {
+                context.getSharedPreferences("jtool_export_queue_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+            } catch (_: Exception) {}
+        }
+    }
 
     fun enqueue(context: Context, doc: VaultDocument, fileIndex: Int? = null) {
+        appContext = context.applicationContext
         val indices = if (fileIndex != null) {
             listOf(fileIndex)
         } else {
@@ -67,12 +121,14 @@ object FileExportQueueManager {
                 isExporting = true
             )
         }
+        saveState()
 
-        val intent = Intent(context, FileExportService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        try {
+            val workRequest = OneTimeWorkRequestBuilder<FileExportWorker>()
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("file_export_work", ExistingWorkPolicy.KEEP, workRequest)
+        } catch (e: Exception) {
+            Log.e("FileExportQueueManager", "Failed to enqueue WorkManager work", e)
         }
     }
 
@@ -90,6 +146,7 @@ object FileExportQueueManager {
             }
             state.copy(tasks = updatedTasks)
         }
+        saveState()
     }
 
     fun markTaskFailed(taskId: String, errorMsg: String) {
@@ -99,6 +156,7 @@ object FileExportQueueManager {
             }
             state.copy(tasks = updatedTasks)
         }
+        saveState()
     }
 
     fun markTaskCompleted(taskId: String) {
@@ -114,6 +172,7 @@ object FileExportQueueManager {
                 isExporting = updatedTasks.any { !it.isFailed && it.files.any { f -> f.status != ExportFileStatus.COMPLETED } }
             )
         }
+        saveState()
     }
 
     fun clearCompletedTasks() {
@@ -126,9 +185,11 @@ object FileExportQueueManager {
                 isExporting = remainingTasks.any { !it.isFailed && it.files.any { f -> f.status != ExportFileStatus.COMPLETED } }
             )
         }
+        saveState()
     }
 
     fun retryTask(context: Context, taskId: String) {
+        appContext = context.applicationContext
         _exportState.update { state ->
             val updatedTasks = state.tasks.map { task ->
                 if (task.id == taskId) {
@@ -141,16 +202,19 @@ object FileExportQueueManager {
             }
             state.copy(tasks = updatedTasks, isExporting = true)
         }
+        saveState()
 
-        val intent = Intent(context, FileExportService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        try {
+            val workRequest = OneTimeWorkRequestBuilder<FileExportWorker>()
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("file_export_work", ExistingWorkPolicy.KEEP, workRequest)
+        } catch (e: Exception) {
+            Log.e("FileExportQueueManager", "Failed to enqueue WorkManager work", e)
         }
     }
 
     fun markQueueFinished() {
         _exportState.update { it.copy(isExporting = false) }
+        saveState()
     }
 }

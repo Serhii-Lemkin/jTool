@@ -14,6 +14,7 @@ object WorkdayLoc {
     val finishAt get() = Loc.s("worktime_finishAt", "Finish at")
     val timeLeft get() = Loc.s("worktime_timeLeft", "Time left")
     val workFinished get() = Loc.s("worktime_workFinished", "Work day finished!")
+    val eventEnded get() = Loc.s("worktime_eventEnded", "Event Ended")
     val invalidFormat get() = Loc.s("worktime_invalidFormat", "Invalid format. Try 6.13, 613, or 06:13")
     val noWorkScheduled get() = Loc.s("worktime_noWorkScheduled", "No work hours scheduled for today!")
     val editHours get() = Loc.s("worktime_editHours", "Edit Hours")

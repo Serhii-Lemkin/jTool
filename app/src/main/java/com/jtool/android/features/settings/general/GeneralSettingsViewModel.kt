@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 
 class GeneralSettingsViewModel(
     private val settingsManager: SettingsManager,
@@ -19,13 +20,16 @@ class GeneralSettingsViewModel(
     val uiState: StateFlow<GeneralSettingsUiState> = _uiState.asStateFlow()
 
     init {
+        val worktimeOptions = settingsManager.getWorktimeOptions()
+        val startDay = try { DayOfWeek.valueOf(worktimeOptions.weeklyStartDay) } catch (_: Exception) { DayOfWeek.MONDAY }
         _uiState.update { it.copy(
             isDarkMode = settingsManager.isDarkMode(),
             language = settingsManager.getLanguage(),
             lightPrimary = settingsManager.getLightPrimaryColor(),
             lightBg = settingsManager.getLightBgColor(),
             darkPrimary = settingsManager.getDarkPrimaryColor(),
-            darkBg = settingsManager.getDarkBgColor()
+            darkBg = settingsManager.getDarkBgColor(),
+            weeklyStartDay = startDay
         ) }
     }
 
@@ -52,6 +56,13 @@ class GeneralSettingsViewModel(
                     settingsManager.setLightBgColor(event.bgHex)
                     _uiState.update { it.copy(lightPrimary = event.primaryHex, lightBg = event.bgHex) }
                 }
+                viewModelScope.launch { dataManager.pushUserSettings() }
+            }
+            is GeneralSettingsEvent.SetWeeklyStartDay -> {
+                val currentOptions = settingsManager.getWorktimeOptions()
+                val newOptions = currentOptions.copy(weeklyStartDay = event.day.name)
+                settingsManager.saveWorktimeOptions(newOptions)
+                _uiState.update { it.copy(weeklyStartDay = event.day) }
                 viewModelScope.launch { dataManager.pushUserSettings() }
             }
         }

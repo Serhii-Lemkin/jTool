@@ -30,6 +30,7 @@ import com.jtool.android.features.calendar.components.group_picker_sheet.GroupPi
 import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.EventColorPickerSheet
 import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getGoogleCalendarColorPalette
 import com.jtool.android.features.calendar.edit.components.required_fields_sheet.RequiredFieldsSheet
+import com.jtool.android.core.utils.rememberCustomDatePickerState
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -103,7 +104,7 @@ fun CalendarAddEditScreen(
     }
     
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
+        val datePickerState = rememberCustomDatePickerState(
             initialSelectedDateMillis = currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
         DatePickerDialog(

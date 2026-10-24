@@ -1,0 +1,294 @@
+:root, html[data-theme="dark"] {
+    /* Dark Theme Default */
+    --primary: #38BDF8;
+    --primary-variant: #0284C7;
+    --on-primary: #0F172A;
+    --background: #09090B;
+    --surface: rgba(24, 24, 27, 0.7);
+    --on-surface: #F8FAFC;
+    --on-surface-variant: #94A3B8;
+    --border: rgba(255, 255, 255, 0.12);
+    --glow: rgba(56, 189, 248, 0.18);
+    --nav-bg: rgba(9, 9, 11, 0.95);
+    --body-gradient: radial-gradient(circle at top, #111827 0%, var(--background) 100%);
+    --dropdown-bg: rgba(24, 24, 27, 0.98);
+    --dropdown-hover: rgba(56, 189, 248, 0.15);
+    --logo-text-color: #F8FAFC;
+    --hamburger-invert: 0;
+}
+
+html[data-theme="light"] {
+    /* Soft, High-Contrast Light Theme */
+    --primary: #0284C7;
+    --primary-variant: #0369A1;
+    --on-primary: #FFFFFF;
+    --background: #CBD5E1;
+    --surface: #FFFFFF;
+    --on-surface: #0F172A;
+    --on-surface-variant: #334155;
+    --border: rgba(0, 0, 0, 0.18);
+    --glow: rgba(2, 132, 199, 0.2);
+    --nav-bg: rgba(255, 255, 255, 0.96);
+    --body-gradient: radial-gradient(circle at top, #9CA3AF 0%, var(--background) 100%);
+    --dropdown-bg: #FFFFFF;
+    --dropdown-hover: rgba(2, 132, 199, 0.12);
+    --logo-text-color: #0F172A;
+    --hamburger-invert: 1;
+}
+
+body {
+    background: var(--body-gradient);
+    color: var(--on-surface);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Material Icons Font Helper */
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+ word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    vertical-align: middle;
+}
+
+/* Typography & Links */
+.text-info { color: var(--primary) !important; }
+.text-secondary { color: var(--on-surface-variant) !important; }
+.strong-text { color: var(--on-surface) !important; font-weight: bold; }
+a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
+a:hover { color: var(--primary-variant); text-decoration: none; }
+
+/* Top Nav Blur */
+.top-nav {
+    background-color: var(--nav-bg) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+.nav-logo-img { width: 32px; height: 32px; border-radius: 8px; }
+.nav-link { color: var(--on-surface-variant) !important; font-weight: 500; font-size: 15px; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.nav-link:hover { color: var(--primary) !important; }
+.navbar-brand { color: var(--logo-text-color) !important; padding-top: 0; padding-bottom: 0; }
+.navbar-brand:hover { color: var(--primary) !important; }
+
+/* Custom Hamburger Icon Color */
+.navbar-toggler-icon {
+    filter: invert(var(--hamburger-invert));
+}
+
+/* Dropdown styling */
+.dropdown-menu.custom-dropdown {
+    background-color: var(--dropdown-bg) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+}
+.dropdown-menu.custom-dropdown .dropdown-item { 
+    font-size: 14px !important; 
+    padding: 8px 16px !important; 
+    color: var(--on-surface) !important; 
+}
+.dropdown-menu.custom-dropdown .dropdown-item:hover { 
+    background-color: var(--dropdown-hover) !important; 
+    color: var(--primary) !important; 
+}
+
+/* Custom UI Elements */
+.app-logo {
+    width: 80px; height: 80px; border-radius: 22px;
+    box-shadow: 0 10px 30px var(--glow); border: 1px solid var(--border);
+}
+
+.custom-card {
+    background-color: var(--surface);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    transition: transform 0.3s, border-color 0.3s, background-color 0.3s, box-shadow 0.3s;
+}
+.custom-card.card-highlight {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, var(--surface) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    box-shadow: 0 10px 30px var(--glow);
+}
+.custom-card.hover-lift:hover {
+    transform: translateY(-4px);
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 15px 35px var(--glow);
+}
+
+.gradient-btn {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-variant) 100%);
+    color: var(--on-primary) !important; border-radius: 30px; font-weight: 600; border: none;
+    box-shadow: 0 8px 25px var(--glow); transition: all 0.3s;
+}
+.gradient-btn:hover {
+    transform: translateY(-2px); box-shadow: 0 12px 35px rgba(56, 189, 248, 0.35); color: var(--on-primary) !important; text-decoration: none;
+}
+
+.step-number {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-variant) 100%);
+    color: var(--on-primary); width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 14px;
+}
+
+.logic-section, .support-hub {
+    background-color: var(--surface);
+    backdrop-filter: blur(10px);
+    border-radius: 24px; border: 1px solid var(--border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Feature List Styling */
+.feature-list { list-style: none; padding-left: 0; }
+.feature-list li { position: relative; padding-left: 32px; margin-bottom: 1rem; color: var(--on-surface-variant); font-size: 15px;}
+.feature-list li::before {
+    content: "check_circle";
+    font-family: 'Material Icons';
+    color: var(--primary);
+    position: absolute;
+    left: 0;
+    font-size: 20px;
+    top: 2px;
+}
+.fl-cleaning li::before { content: "brush"; color: var(--primary); }
+.fl-trendify li::before { content: "show_chart"; color: var(--primary); }
+.fl-personal li::before { content: "description"; color: var(--primary); }
+.fl-work li::before { content: "schedule"; color: var(--primary); }
+.fl-shopping li::before { content: "shopping_cart"; color: var(--primary); }
+.fl-vaults li::before { content: "folder_special"; color: var(--primary); }
+.fl-calendar li::before { content: "calendar_month"; color: var(--primary); }
+
+/* Custom Badge */
+.platform-badge {
+    display: inline-block; background-color: rgba(56, 189, 248, 0.1); color: var(--primary);
+    padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.5px; border: 1px solid rgba(56, 189, 248, 0.2); text-transform: uppercase;
+}
+
+/* Dynamic Typography Adjustments */
+h1, h2, h3 { letter-spacing: -0.5px; }
+.display-4 { font-size: 3rem; }
+.display-5 { font-size: 2.2rem; }
+
+/* RTL Support */
+body.rtl { direction: rtl; text-align: right; }
+body.rtl .feature-list li { padding-left: 0; padding-right: 32px; }
+body.rtl .feature-list li::before { left: auto; right: 0; }
+body.rtl .ms-auto { margin-right: auto !important; margin-left: 0 !important; }
+body.rtl .logic-step > div:not(.step-number) { text-align: right; }
+body.rtl .dropdown-menu { text-align: right; }
+
+@media (max-width: 991px) {
+    .navbar-collapse {
+        background-color: var(--dropdown-bg);
+        backdrop-filter: blur(16px);
+        padding: 20px; border-radius: 12px; margin-top: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        border: 1px solid var(--border);
+    }
+}
+
+/* Specific Mobile Typography Fixes */
+@media (max-width: 576px) {
+    .display-4 { font-size: 2.5rem; }
+    .display-5 { font-size: 1.8rem; }
+    h1 { font-size: 1.8rem !important; }
+    .lead { font-size: 1.1rem; }
+    .custom-card { padding: 1.5rem !important; }
+    .logic-section, .support-hub { padding: 1.5rem !important; }
+}
+.navbar-brand > span { color: var(--logo-text-color) !important; }
+
+/* Bulletproof Navbar Text Overrides */
+.top-nav .nav-link {
+    color: var(--on-surface-variant) !important;
+}
+.top-nav .nav-link:hover {
+    color: var(--primary) !important;
+}
+.top-nav .navbar-brand,
+.top-nav .navbar-brand > span {
+    color: var(--logo-text-color) !important;
+}
+
+/* Reusable App Visualization Replica Classes */
+.replica-box {
+    background: var(--background);
+    border: 1.5px solid var(--border);
+    border-radius: 1rem;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.replica-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+}
+.replica-card-active {
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid var(--primary);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+}
+.color-chip {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+    border: 2px solid transparent;
+}
+.color-chip.active {
+    transform: scale(1.15);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px var(--glow);
+}
+.gesture-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Mobile Fixes for Visualizations */
+@media (max-width: 576px) {
+    .shadow-md.mx-auto {
+        font-size: 0.85rem !important;
+        padding: 1rem !important;
+    }
+    .shadow-md.mx-auto .fs-5 { font-size: 1.1rem !important; }
+    .shadow-md.mx-auto .fs-6 { font-size: 0.9rem !important; }
+    .shadow-md.mx-auto .small { font-size: 0.75rem !important; }
+    .shadow-md.mx-auto .badge { font-size: 0.7rem !important; white-space: normal !important; text-align: center; line-height: 1.2; padding: 0.35rem 0.6rem !important; height: auto !important; }
+
+    /* Ensure Hidden Apps container doesn't break to 2 lines awkwardly */
+    #hiddenAppsContainer .d-flex.align-items-center { flex-wrap: wrap; gap: 0.5rem; }
+    #hiddenAppsContainer .badge { white-space: nowrap !important; }
+
+    /* Truncate Links in Hub securely */
+    .text-truncate {
+        max-width: 180px !important;
+    }
+}

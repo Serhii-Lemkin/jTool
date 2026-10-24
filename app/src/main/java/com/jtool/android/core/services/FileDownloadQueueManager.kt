@@ -1,25 +1,32 @@
 package com.jtool.android.core.services
 
 import android.content.Context
-import android.content.Intent
-import android.os.Build
+import android.util.Log
+import androidx.work.*
 import com.jtool.android.core.models.vaults.VaultDocument
+import com.jtool.android.core.services.workers.FileDownloadWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 
+@Serializable
 enum class DownloadFileStatus { PENDING, DOWNLOADING, COMPLETED, FAILED }
 
+@Serializable
 data class DownloadFileProgress(
     val id: String = UUID.randomUUID().toString(),
-    val fileName: String,
-    val fileIndex: Int,
+    val fileName: String = "",
+    val fileIndex: Int = 0,
     val progressPercent: Int = 0,
     val status: DownloadFileStatus = DownloadFileStatus.PENDING
 )
 
+@Serializable
 data class DownloadTask(
     val id: String = UUID.randomUUID().toString(),
     val doc: VaultDocument,
@@ -28,6 +35,7 @@ data class DownloadTask(
     val errorMessage: String? = null
 )
 
+@Serializable
 data class DownloadState(
     val tasks: List<DownloadTask> = emptyList(),
     val isDownloading: Boolean = false
@@ -42,10 +50,56 @@ data class DownloadState(
 }
 
 object FileDownloadQueueManager {
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
     private val _downloadState = MutableStateFlow(DownloadState())
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
+    private var appContext: Context? = null
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+        loadState(context.applicationContext)
+    }
+
+    private fun saveState() {
+        val ctx = appContext ?: return
+        try {
+            val prefs = ctx.getSharedPreferences("jtool_download_queue_prefs", Context.MODE_PRIVATE)
+            val jsonString = json.encodeToString(_downloadState.value)
+            prefs.edit().putString("download_state", jsonString).apply()
+        } catch (e: Exception) {
+            Log.e("FileDownloadQueueManager", "Failed to save download state", e)
+        }
+    }
+
+    private fun loadState(context: Context) {
+        try {
+            val prefs = context.getSharedPreferences("jtool_download_queue_prefs", Context.MODE_PRIVATE)
+            val jsonString = prefs.getString("download_state", null) ?: return
+            val restored = json.decodeFromString<DownloadState>(jsonString)
+            
+            val hasUnfinished = restored.tasks.any { !it.isFailed && it.files.any { f -> f.status != DownloadFileStatus.COMPLETED } }
+            val updatedState = restored.copy(isDownloading = hasUnfinished)
+            _downloadState.value = updatedState
+
+            if (hasUnfinished) {
+                try {
+                    val workRequest = OneTimeWorkRequestBuilder<FileDownloadWorker>()
+                        .build()
+                    WorkManager.getInstance(context).enqueueUniqueWork("file_download_work", ExistingWorkPolicy.KEEP, workRequest)
+                } catch (e: Exception) {
+                    Log.e("FileDownloadQueueManager", "Failed to enqueue WorkManager work", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FileDownloadQueueManager", "Failed to load download state, clearing corrupted state", e)
+            try {
+                context.getSharedPreferences("jtool_download_queue_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+            } catch (_: Exception) {}
+        }
+    }
 
     fun enqueue(context: Context, doc: VaultDocument) {
+        appContext = context.applicationContext
         val totalFiles = if (doc.fileNames.isNotEmpty()) doc.fileNames.size else if (doc.driveFileIds.isNotEmpty()) doc.driveFileIds.size else 1
         val files = (0 until totalFiles).map { i ->
             val fileName = doc.fileNames.getOrNull(i) ?: doc.name
@@ -60,12 +114,14 @@ object FileDownloadQueueManager {
                 isDownloading = true
             )
         }
+        saveState()
 
-        val intent = Intent(context, FileDownloadService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        try {
+            val workRequest = OneTimeWorkRequestBuilder<FileDownloadWorker>()
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("file_download_work", ExistingWorkPolicy.KEEP, workRequest)
+        } catch (e: Exception) {
+            Log.e("FileDownloadQueueManager", "Failed to enqueue WorkManager work", e)
         }
     }
 
@@ -83,9 +139,11 @@ object FileDownloadQueueManager {
             }
             state.copy(tasks = updatedTasks)
         }
+        saveState()
     }
 
     fun retryTask(context: Context, taskId: String) {
+        appContext = context.applicationContext
         _downloadState.update { state ->
             val updatedTasks = state.tasks.map { task ->
                 if (task.id == taskId) {
@@ -98,12 +156,14 @@ object FileDownloadQueueManager {
             }
             state.copy(tasks = updatedTasks, isDownloading = true)
         }
+        saveState()
 
-        val intent = Intent(context, FileDownloadService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        try {
+            val workRequest = OneTimeWorkRequestBuilder<FileDownloadWorker>()
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("file_download_work", ExistingWorkPolicy.KEEP, workRequest)
+        } catch (e: Exception) {
+            Log.e("FileDownloadQueueManager", "Failed to enqueue WorkManager work", e)
         }
     }
 
@@ -114,6 +174,7 @@ object FileDownloadQueueManager {
             }
             state.copy(tasks = updatedTasks)
         }
+        saveState()
     }
 
     fun markTaskCompleted(taskId: String) {
@@ -129,6 +190,7 @@ object FileDownloadQueueManager {
                 isDownloading = updatedTasks.any { !it.isFailed && it.files.any { f -> f.status != DownloadFileStatus.COMPLETED } }
             )
         }
+        saveState()
     }
 
     fun clearCompletedTasks() {
@@ -141,6 +203,7 @@ object FileDownloadQueueManager {
                 isDownloading = remainingTasks.any { !it.isFailed && it.files.any { f -> f.status != DownloadFileStatus.COMPLETED } }
             )
         }
+        saveState()
     }
 
     fun removeTask(taskId: String) {
@@ -151,9 +214,11 @@ object FileDownloadQueueManager {
                 isDownloading = updatedTasks.any { !it.isFailed && it.files.any { f -> f.status != DownloadFileStatus.COMPLETED } }
             )
         }
+        saveState()
     }
 
     fun markQueueFinished() {
         _downloadState.update { it.copy(isDownloading = false) }
+        saveState()
     }
 }

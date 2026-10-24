@@ -28,4 +28,7 @@ data class SupportUiState(
     val searchQuery: String = "",
     val isSearchVisible: Boolean = false,
     val pagingLimit: Int = 15
-)
+) {
+    val canSeeAll: Boolean get() = isAdmin || isReviewer
+    val canManageRequests: Boolean get() = isAdmin || isReviewer
+}

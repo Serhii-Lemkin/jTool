@@ -99,7 +99,9 @@ class CalendarDayViewModel(
                 
                 _googleEvents.value = allEvents
                 
-                val exts = dataManager.getCalendarExtensionsForRange(startMs, endMs)
+                val userId = settingsManager.getUserId()
+                val groupIds = settingsManager.getGroups().keys.toList()
+                val exts = dataManager.getCalendarExtensionsForRange(userId, groupIds, startMs, endMs)
                 val mappedExtensions = mutableMapOf<String, CalendarEventExtension>()
                 allEvents.forEach { event ->
                     val ext = exts[event.id] 

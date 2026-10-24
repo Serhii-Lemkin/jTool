@@ -29,7 +29,7 @@ fun ReviewerInfoSheet(
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "You are a designated Reviewer. You have unlimited support request submissions to help evaluate and improve the application. Thank you for your valuable contribution to making jTool better.",
+            text = "You are a designated Reviewer. You can view all support requests, change ticket types and statuses, leave comments, and have unlimited support submissions. Thank you for your valuable contribution to making jTool better.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant

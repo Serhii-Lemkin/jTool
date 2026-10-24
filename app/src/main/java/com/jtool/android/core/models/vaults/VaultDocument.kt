@@ -2,9 +2,11 @@ package com.jtool.android.core.models.vaults
 
 import androidx.annotation.Keep
 import com.google.firebase.firestore.IgnoreExtraProperties
+import kotlinx.serialization.Serializable
 
 @Keep
 @IgnoreExtraProperties
+@Serializable
 data class VaultDocument(
     var id: String = "",
     val vaultId: String = "",

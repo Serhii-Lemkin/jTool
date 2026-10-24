@@ -28,6 +28,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import com.jtool.android.core.services.FileDownloadQueueManager
 import com.jtool.android.core.services.FileExportQueueManager
 import com.jtool.android.core.services.FileUploadQueueManager
@@ -136,8 +138,19 @@ fun BoxScope.RedContainer(
                     Surface(
                         shape = if (isLeftSide != isRtl) RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp) else RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp),
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(width = 18.dp, height = 28.dp)
-                    ) {}
+                        modifier = Modifier.size(width = 20.dp, height = 28.dp)
+                    ) {
+                        if (totalNotifCount > 0) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Text(
+                                    text = if (totalNotifCount > 9) "9+" else totalNotifCount.toString(),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
                 if (hasUploadActivity) {
                     Surface(
@@ -217,24 +230,41 @@ fun BoxScope.RedContainer(
                     enter = scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)) + fadeIn() + slideInVertically { it / 2 },
                     exit = scaleOut() + fadeOut() + slideOutVertically { it / 2 }
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.error,
-                        contentColor = Color.White,
-                        tonalElevation = 8.dp,
-                        shadowElevation = 8.dp,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .clickable { handleNotifClick?.invoke() }
+                    BadgedBox(
+                        badge = {
+                            if (totalNotifCount > 0) {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ) {
+                                    androidx.compose.material3.Text(
+                                        text = if (totalNotifCount > 99) "99+" else totalNotifCount.toString(),
+                                        fontSize = 11.sp,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+                        }
                     ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Notifications",
-                                tint = Color.White,
-                                modifier = Modifier.size(26.dp)
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.error,
+                            contentColor = Color.White,
+                            tonalElevation = 8.dp,
+                            shadowElevation = 8.dp,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .clickable { handleNotifClick?.invoke() }
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
                         }
                     }
                 }

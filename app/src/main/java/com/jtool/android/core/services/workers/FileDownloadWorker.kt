@@ -1,38 +1,30 @@
-package com.jtool.android.core.services
+package com.jtool.android.core.services.workers
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
 import com.jtool.android.MainActivity
 import com.jtool.android.R
+import com.jtool.android.core.services.DownloadFileStatus
+import com.jtool.android.core.services.FileDownloadQueueManager
 import com.jtool.android.features.vaults.common.GoogleDriveVaultHelper
-import kotlinx.coroutines.*
 
-class FileDownloadService : Service() {
+class FileDownloadWorker(
+    private val appContext: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    override fun onCreate() {
-        super.onCreate()
+    override suspend fun doWork(): Result {
         createNotificationChannel()
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = createNotification("Caching files offline...", 0)
-        startForeground(NOTIFICATION_ID, notification)
-
-        serviceScope.launch {
-            processDownloadQueue()
-        }
-
-        return START_NOT_STICKY
+        processDownloadQueue()
+        return Result.success()
     }
 
     private suspend fun processDownloadQueue() {
@@ -42,8 +34,7 @@ class FileDownloadService : Service() {
 
             if (pendingTask == null) {
                 FileDownloadQueueManager.markQueueFinished()
-                stopForeground(true)
-                stopSelf()
+                cancelNotification()
                 break
             }
 
@@ -58,11 +49,11 @@ class FileDownloadService : Service() {
                     updateNotification("Caching '${f.fileName}'...", FileDownloadQueueManager.downloadState.value.overallProgress)
 
                     val localPath = GoogleDriveVaultHelper.downloadDocumentToLocal(
-                        context = applicationContext,
+                        context = appContext,
                         vaultId = pendingTask.doc.vaultId,
                         doc = pendingTask.doc,
                         index = f.fileIndex,
-                        onProgress = { bytes, percent ->
+                        onProgress = { _, percent ->
                             FileDownloadQueueManager.updateFileProgress(pendingTask.id, f.fileIndex, percent, DownloadFileStatus.DOWNLOADING)
                             updateNotification("Caching '${f.fileName}' ($percent%)...", FileDownloadQueueManager.downloadState.value.overallProgress)
                         }
@@ -85,7 +76,7 @@ class FileDownloadService : Service() {
                     FileDownloadQueueManager.markTaskCompleted(pendingTask.id)
                 }
             } catch (e: Exception) {
-                Log.e("FileDownloadService", "Download task processing error", e)
+                Log.e("FileDownloadWorker", "Download task processing error", e)
                 FileDownloadQueueManager.markTaskFailed(pendingTask.id, e.message ?: "Download error")
                 showFailureNotification(pendingTask.doc.name, e.message ?: "Download error")
             }
@@ -103,13 +94,13 @@ class FileDownloadService : Service() {
                 setSound(null, null)
                 enableVibration(false)
             }
-            val manager = getSystemService(NotificationManager::class.java)
+            val manager = appContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
     private fun createNotification(contentText: String, progressPercent: Int) =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle("jTools Offline Cache")
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_jtool_launcher)
@@ -120,25 +111,18 @@ class FileDownloadService : Service() {
             .build()
 
     private fun updateNotification(contentText: String, progressPercent: Int) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIFICATION_ID, createNotification(contentText, progressPercent))
     }
 
-    private fun showSuccessNotification(docName: String) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val notif = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Offline Cache Ready")
-            .setContentText("'$docName' saved locally on device")
-            .setSmallIcon(R.drawable.ic_jtool_launcher)
-            .setAutoCancel(true)
-            .setContentIntent(createPendingIntent())
-            .build()
-        manager.notify(docName.hashCode(), notif)
+    private fun cancelNotification() {
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(NOTIFICATION_ID)
     }
 
     private fun showFailureNotification(docName: String, errorMsg: String) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val notif = NotificationCompat.Builder(this, CHANNEL_ID)
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notif = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle("Caching Failed")
             .setContentText("'$docName': $errorMsg")
             .setSmallIcon(R.drawable.ic_jtool_launcher)
@@ -149,22 +133,15 @@ class FileDownloadService : Service() {
     }
 
     private fun createPendingIntent(): PendingIntent {
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(appContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         return PendingIntent.getActivity(
-            this,
+            appContext,
             0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onDestroy() {
-        serviceScope.cancel()
-        super.onDestroy()
     }
 
     companion object {

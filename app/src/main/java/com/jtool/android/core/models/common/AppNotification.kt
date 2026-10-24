@@ -11,7 +11,8 @@ val UserNotification.icon: ImageVector
     get() = when (type) {
         NotificationTypeEnum.EVENT_ACCEPTED, NotificationTypeEnum.GROUP_JOIN_ACCEPTED -> Icons.Default.CheckCircle
         NotificationTypeEnum.EVENT_DECLINED, NotificationTypeEnum.EVENT_DELETED, NotificationTypeEnum.GROUP_JOIN_DECLINED -> Icons.Default.Cancel
-        NotificationTypeEnum.EVENT_COMMENT -> Icons.AutoMirrored.Filled.Comment
+        NotificationTypeEnum.EVENT_COMMENT, NotificationTypeEnum.SUPPORT_COMMENT_ADDED -> Icons.AutoMirrored.Filled.Comment
+        NotificationTypeEnum.SUPPORT_STATUS_CHANGED -> Icons.Default.ConfirmationNumber
         NotificationTypeEnum.INVITE -> Icons.Default.Group
         NotificationTypeEnum.JOIN_REQUEST -> Icons.Default.PersonAdd
         NotificationTypeEnum.INFO -> if (isGroupLevel) Icons.Default.Groups else Icons.Default.Info

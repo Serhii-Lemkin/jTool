@@ -28,6 +28,7 @@ import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.TitleActionIcon
+import com.jtool.android.core.components.layout.TitleDropdownMenu
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.links.components.link_delete_confirm_sheet.LinkDeleteConfirmSheet
 import com.jtool.android.features.links.components.link_edit_sheet.LinkEditSheet
@@ -83,6 +84,15 @@ fun LinksScreen(
         searchPlaceholder = Loc.Links.searchLinks,
         actions = {
             TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
+            TitleDropdownMenu {
+                DropdownMenuItem(
+                    text = { Text(Loc.General.learnMore) },
+                    onClick = {
+                        com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "personal-hub")
+                    },
+                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                )
+            }
         },
         floatingActionButton = {
             UnifiedFAB(

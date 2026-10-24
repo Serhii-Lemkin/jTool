@@ -17,7 +17,7 @@ class AnrInterceptor(private val context: Context) : Thread() {
             handler.post { lastTick = 0L }
 
             try {
-                sleep(5000)
+                sleep(15000)
             } catch (e: InterruptedException) {
                 return
             }

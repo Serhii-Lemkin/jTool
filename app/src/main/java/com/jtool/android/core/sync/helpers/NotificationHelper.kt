@@ -31,7 +31,7 @@ class NotificationHelper(
 
     fun personalNotificationsFlow(): Flow<List<UserNotification>> = callbackFlow {
         val uid = auth.currentUser?.uid ?: run { close(); return@callbackFlow }
-        val listener = getUserDataColl().document(uid).addSnapshotListener { snapshot, error -> 
+        val listener = getUserDataColl().document(uid).collection("notifications").addSnapshotListener { snapshot, error -> 
             if (error != null) {
                 Log.e("jTool", "Error in personalNotificationsFlow: ${error.message}")
                 trySend(emptyList())
@@ -39,8 +39,10 @@ class NotificationHelper(
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                val data = snapshot.toObject(UserData::class.java)
-                trySend(data?.notifications ?: emptyList())
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(UserNotification::class.java)?.copy(id = doc.id)
+                }
+                trySend(list)
             }
         }
         awaitClose { listener.remove() }
@@ -96,18 +98,8 @@ class NotificationHelper(
                     }
                 }
                 else -> {
-                    val userRef = getUserDataColl().document(uid)
-                    val snapshot = userRef.get(Source.SERVER).await()
-                    val data = snapshot.toObject(UserData::class.java)
-                    val currentNotifs = data?.notifications ?: emptyList()
-                    
-                    val updatedNotifs = currentNotifs.filter { 
-                        if (notification.id.isNotEmpty()) it.id != notification.id
-                        else it.timestamp != notification.timestamp || it.title != notification.title
-                    }
-                    
-                    if (currentNotifs.size != updatedNotifs.size) {
-                        userRef.update("notifications", updatedNotifs).await()
+                    if (notification.id.isNotEmpty()) {
+                        getUserDataColl().document(uid).collection("notifications").document(notification.id).delete().await()
                     }
                 }
             }
@@ -317,7 +309,55 @@ class NotificationHelper(
     }
 
     suspend fun sendSystemNotification(uid: String, notification: UserNotification) {
-        getUserDataColl().document(uid).update("notifications", FieldValue.arrayUnion(notification)).await()
+        getUserDataColl().document(uid).collection("notifications").document(notification.id).set(notification).await()
+    }
+
+    suspend fun sendSupportStatusNotification(targetUid: String, requestId: String, requestNumber: Int, newStatus: com.jtool.android.core.models.support.enums.SupportStatusEnum) {
+        val statusText = when (newStatus) {
+            com.jtool.android.core.models.support.enums.SupportStatusEnum.OPENED -> Loc.Support.status_opened
+            com.jtool.android.core.models.support.enums.SupportStatusEnum.IN_PROGRESS -> Loc.Support.status_in_progress
+            com.jtool.android.core.models.support.enums.SupportStatusEnum.CLOSED -> Loc.Support.status_closed
+            com.jtool.android.core.models.support.enums.SupportStatusEnum.CUT -> Loc.Support.status_cut
+        }
+        val notificationId = UUID.randomUUID().toString()
+        val notification = UserNotification(
+            id = notificationId,
+            title = Loc.Support.status_updated_notif,
+            message = Loc.Support.status_updated_msg.format(requestNumber.toString(), statusText),
+            timestamp = System.currentTimeMillis(),
+            type = NotificationTypeEnum.SUPPORT_STATUS_CHANGED,
+            isGroupLevel = false,
+            link = DeepLinkService.createSupportRequestDeepLink(requestId),
+            titleKey = "support_status_updated_notif",
+            messageKey = "support_status_updated_msg",
+            messageArgs = listOf(requestNumber.toString(), statusText)
+        )
+        try {
+            sendSystemNotification(targetUid, notification)
+        } catch (e: Exception) {
+            Log.e("jTool", "Failed to send support status notification: ${e.message}")
+        }
+    }
+
+    suspend fun sendSupportCommentNotification(targetUid: String, requestId: String, requestNumber: Int, commenterName: String) {
+        val notificationId = UUID.randomUUID().toString()
+        val notification = UserNotification(
+            id = notificationId,
+            title = Loc.Support.comment_added_notif,
+            message = Loc.Support.comment_added_msg.format(commenterName, requestNumber.toString()),
+            timestamp = System.currentTimeMillis(),
+            type = NotificationTypeEnum.SUPPORT_COMMENT_ADDED,
+            isGroupLevel = false,
+            link = DeepLinkService.createSupportRequestDeepLink(requestId),
+            titleKey = "support_comment_added_notif",
+            messageKey = "support_comment_added_msg",
+            messageArgs = listOf(commenterName, requestNumber.toString())
+        )
+        try {
+            sendSystemNotification(targetUid, notification)
+        } catch (e: Exception) {
+            Log.e("jTool", "Failed to send support comment notification: ${e.message}")
+        }
     }
 
     suspend fun sendGroupLevelNotification(groupId: String, notification: UserNotification) {

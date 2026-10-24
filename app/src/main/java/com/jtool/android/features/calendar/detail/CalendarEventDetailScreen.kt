@@ -113,7 +113,7 @@ fun CalendarEventDetailScreen(
 
     BaseScreen(
         title = Loc.Calendar.event,
-        isLoading = uiState.isLoading,
+        isLoading = uiState.isLoading || uiState.isResponding,
         onBack = onBack,
         onRefresh = { viewModel.refresh() },
         actions = {

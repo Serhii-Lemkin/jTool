@@ -99,6 +99,7 @@ fun VaultListScreen(
         VaultsListSettingsSheet(
             onVaultSettings = { onNavigate(AppScreenEnum.VAULT_SETTINGS) },
             onVaultsInfo = { showVaultsInfoSheet = true },
+            onLearnMore = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "vaults") },
             onDismiss = { showVaultsListSettingsSheet = false }
         )
     }

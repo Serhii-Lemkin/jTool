@@ -85,6 +85,8 @@ object SettingsLoc {
     val manualSync get() = Loc.s("settings_manualSync", "Manual Sync (Merge)")
     val groups get() = Loc.s("settings_groups", "Groups")
     val groupInvite get() = Loc.s("settings_groupInvite", "Invite to Group")
+    val inviteOnly get() = Loc.s("settings_inviteOnly", "Invite Only")
+    val inviteOnlyDesc get() = Loc.s("settings_inviteOnlyDesc", "Disallow users from requesting to join this group")
     val enterEmail get() = Loc.s("settings_enterEmail", "Enter user email...")
     val confirmUnlinkTitle get() = Loc.s("settings_confirmUnlinkTitle", "Leave Group?")
     val confirmUnlinkMsg get() = Loc.s("settings_confirmUnlinkMsg", "Are you sure you want to leave this group?")
@@ -143,6 +145,9 @@ object SettingsLoc {
     val groupsInfoStep3Desc get() = Loc.s("settings_groupsInfoStep3Desc", "To join an existing group, you'll need its unique Group ID or an email invitation.")
 
     // Legacy settings keys
+    val releaseNotes get() = Loc.s("settings_releaseNotes", "Release Notes")
+    val releaseNotesDesc get() = Loc.s("settings_releaseNotesDesc", "See all recent features, changes, and bug fixes for version 2.8.0 (Build 59)")
+    val viewChangelog get() = Loc.s("settings_viewChangelog", "View Release Notes")
     val notSignedIn get() = Loc.s("settings_notSignedIn", "You are not signed in.")
     val noneSelected get() = Loc.s("settings_noneSelected", "None selected")
     val noGroupsMsg get() = Loc.s("settings_noGroupsMsg", "You are not a member in any group, please create one yourself or ask a friend to invite you in.")

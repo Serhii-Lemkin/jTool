@@ -247,7 +247,7 @@ class CalendarEventDetailViewModel(
                     GoogleCalendarSyncHelper.updateAttendeeStatus(dataManager.context, event.id, authEmail, CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED)
                 }
 
-                val googleEventId = event.iCalUID ?: event.id
+                val googleEventId = (event.iCalUID ?: event.id).removePrefix("ext_")
                 val currentExt = ext ?: CalendarEventExtension(googleEventId = googleEventId)
                 val extStatuses = currentExt.attendeeStatuses.toMutableMap()
                 extStatuses[userEmail] = CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED
@@ -260,7 +260,7 @@ class CalendarEventDetailViewModel(
                     title = event.title
                 ))
                 
-                ext?.sharedGroupIds?.forEach { gid ->
+                currentExt.sharedGroupIds.forEach { gid ->
                     dataManager.sendEventResponseNotification(gid, event.title, true, googleEventId)
                 }
                 dataManager.markEventNotificationsAsRead(event.id)
@@ -297,7 +297,7 @@ class CalendarEventDetailViewModel(
                     GoogleCalendarSyncHelper.updateAttendeeStatus(dataManager.context, event.id, authEmail, CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED)
                 }
 
-                val googleEventId = event.iCalUID ?: event.id
+                val googleEventId = (event.iCalUID ?: event.id).removePrefix("ext_")
                 val currentExt = ext ?: CalendarEventExtension(googleEventId = googleEventId)
                 val extStatuses = currentExt.attendeeStatuses.toMutableMap()
                 extStatuses[userEmail] = CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
@@ -310,7 +310,7 @@ class CalendarEventDetailViewModel(
                     title = event.title
                 ))
                 
-                ext?.sharedGroupIds?.forEach { gid ->
+                currentExt.sharedGroupIds.forEach { gid ->
                     dataManager.sendEventResponseNotification(gid, event.title, false, googleEventId)
                 }
                 dataManager.markEventNotificationsAsRead(event.id)

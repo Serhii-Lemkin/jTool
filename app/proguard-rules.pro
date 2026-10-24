@@ -19,9 +19,11 @@
 # Keep Google Play Services Auth classes
 -keep class com.google.android.gms.auth.api.signin.** { *; }
 -keep class com.google.android.gms.common.api.** { *; }
--keep class com.google.android.gms.internal.auth.** { *; }
--keep class com.google.android.gms.auth.api.signin.** { *; }
--keep class com.google.android.gms.common.api.** { *; }
 -keep class com.google.firebase.auth.** { *; }
 # Keep OAuth credentials & Jackson/Gson serialization if used
 -dontwarn com.google.android.gms.**
+
+# WorkManager and Room generated classes
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**

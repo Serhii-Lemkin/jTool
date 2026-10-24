@@ -45,6 +45,9 @@ import com.jtool.android.core.models.common.enums.NotificationTypeEnum
 import com.jtool.android.core.models.group.Invite
 import com.jtool.android.core.models.group.JoinRequest
 import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.core.services.FileUploadQueueManager
+import com.jtool.android.core.services.FileDownloadQueueManager
+import com.jtool.android.core.services.FileExportQueueManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.SyncStatusOverlay
 import com.jtool.android.core.models.common.enums.AppScreenEnum
@@ -105,6 +108,14 @@ class MainActivity : ComponentActivity() {
         backupManager = BackupManager(this)
         authManager = AuthManager(this)
         dataManager = DataManager(this)
+
+        try {
+            FileUploadQueueManager.init(this)
+            FileDownloadQueueManager.init(this)
+            FileExportQueueManager.init(this)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error initializing Queue Managers on launch", e)
+        }
 
         connectivityObserver = ConnectivityObserver(this, settingsManager, dataManager, lifecycleScope)
         signInHandler = SignInHandler(this, authManager, dataManager, lifecycleScope)
@@ -418,6 +429,13 @@ class MainActivity : ComponentActivity() {
                                                 if (eventId.isNotEmpty()) {
                                                     settingsManager.setSelectedCalendarEventId(eventId)
                                                     pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
+                                                    showNotificationsSheet = false
+                                                }
+                                            } else if (path.startsWith("/support/")) {
+                                                val requestId = path.removePrefix("/support/")
+                                                if (requestId.isNotEmpty()) {
+                                                    settingsManager.setSelectedSupportRequestId(requestId)
+                                                    pendingScreen = AppScreenEnum.SUPPORT_HUB
                                                     showNotificationsSheet = false
                                                 }
                                             }

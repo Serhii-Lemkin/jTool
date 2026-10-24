@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.support.SupportRequest
 import com.jtool.android.core.models.support.enums.SupportStatusEnum
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.jtool.android.core.models.support.enums.SupportTypeEnum
 import com.jtool.android.core.components.comments.CommentSection
 import com.jtool.android.core.components.comments.CommentEvent
@@ -32,7 +35,7 @@ import com.jtool.android.ui.components.common.MessageType
 @Composable
 fun SupportDetailCard(
     request: SupportRequest,
-    isAdmin: Boolean,
+    canManage: Boolean,
     currentUserId: String,
     onStatusUpdate: (SupportStatusEnum) -> Unit,
     onTypeUpdate: (SupportTypeEnum) -> Unit,
@@ -62,7 +65,7 @@ fun SupportDetailCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                if (isAdmin) {
+                if (canManage) {
                     Box {
                         val displayType = request.pendingType ?: request.type
                         val isPending = request.pendingType != null
@@ -128,7 +131,7 @@ fun SupportDetailCard(
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isAdmin) {
+                if (canManage) {
                     Box {
                         val displayStatus = request.pendingStatus ?: request.status
                         val isPending = request.pendingStatus != null
@@ -198,7 +201,7 @@ fun SupportDetailCard(
                             },
                             leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
                         )
-                        if (isAdmin) {
+                        if (canManage) {
                             DropdownMenuItem(
                                 text = { Text(Loc.Support.copy_request_text) },
                                 onClick = {
@@ -220,7 +223,7 @@ fun SupportDetailCard(
                                 leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
                             )
                         }
-                        if (isAdmin || request.status == SupportStatusEnum.CUT) {
+                        if (canManage || request.status == SupportStatusEnum.CUT) {
                             DropdownMenuItem(
                                 text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
                                 onClick = {
@@ -237,10 +240,20 @@ fun SupportDetailCard(
         
         Spacer(Modifier.height(16.dp))
         
+        if (request.userName.isNotBlank()) {
+            val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+            Text(
+                text = "${request.userName} • ${dateFormat.format(Date(request.timestamp))}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
         Text(text = request.text, style = MaterialTheme.typography.bodyLarge)
         
         
-        if (isAdmin || request.deviceInfo.isNotEmpty()) {
+        if (canManage || request.deviceInfo.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             Text(text = Loc.Support.device_info, style = MaterialTheme.typography.titleSmall)
             request.deviceInfo.forEach { (key, value) ->

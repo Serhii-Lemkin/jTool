@@ -1,41 +1,32 @@
-package com.jtool.android.core.services
+package com.jtool.android.core.services.workers
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.Service
-import android.content.Intent
+import android.content.Context
 import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.jtool.android.core.services.ExportFileStatus
+import com.jtool.android.core.services.FileExportQueueManager
 import com.jtool.android.features.vaults.common.GoogleDriveVaultHelper
 import com.jtool.android.features.vaults.common.VaultDocUtils
-import kotlinx.coroutines.*
 
-class FileExportService : Service() {
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+class FileExportWorker(
+    private val appContext: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
         private const val NOTIFICATION_ID = 2003
         private const val CHANNEL_ID = "jtools_file_export"
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onCreate() {
-        super.onCreate()
+    override suspend fun doWork(): Result {
         createNotificationChannel()
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = createNotification("Saving files to Downloads...", 0)
-        startForeground(NOTIFICATION_ID, notification)
-
-        serviceScope.launch {
-            processExportQueue()
-        }
-
-        return START_NOT_STICKY
+        processExportQueue()
+        return Result.success()
     }
 
     private suspend fun processExportQueue() {
@@ -45,8 +36,7 @@ class FileExportService : Service() {
 
             if (pendingTask == null) {
                 FileExportQueueManager.markQueueFinished()
-                stopForeground(true)
-                stopSelf()
+                cancelNotification()
                 break
             }
 
@@ -60,14 +50,14 @@ class FileExportService : Service() {
                     FileExportQueueManager.updateFileProgress(pendingTask.id, f.fileIndex, 0, ExportFileStatus.EXPORTING)
                     updateNotification("Exporting '${f.fileName}'...", FileExportQueueManager.exportState.value.overallProgress)
 
-                    val localFile = VaultDocUtils.getOfflineLocalFile(applicationContext, pendingTask.doc, f.fileIndex)
+                    val localFile = VaultDocUtils.getOfflineLocalFile(appContext, pendingTask.doc, f.fileIndex)
                     val rawName = pendingTask.doc.fileNames.getOrNull(f.fileIndex) ?: pendingTask.doc.name
                     val type = pendingTask.doc.fileTypes.getOrNull(f.fileIndex) ?: pendingTask.doc.fileType
 
                     val success = if (localFile.exists() && localFile.length() > 0) {
-                        GoogleDriveVaultHelper.saveToPublicDownloads(applicationContext, localFile.absolutePath, rawName, type)
+                        GoogleDriveVaultHelper.saveToPublicDownloads(appContext, localFile.absolutePath, rawName, type)
                     } else {
-                        GoogleDriveVaultHelper.saveRemoteDriveFileToPublicDownloads(applicationContext, pendingTask.doc, f.fileIndex)
+                        GoogleDriveVaultHelper.saveRemoteDriveFileToPublicDownloads(appContext, pendingTask.doc, f.fileIndex)
                     }
 
                     if (!success) {
@@ -86,7 +76,7 @@ class FileExportService : Service() {
                     FileExportQueueManager.markTaskCompleted(pendingTask.id)
                 }
             } catch (e: Exception) {
-                Log.e("FileExportService", "Export task processing error", e)
+                Log.e("FileExportWorker", "Export task processing error", e)
                 FileExportQueueManager.markTaskFailed(pendingTask.id, e.message ?: "Export error")
             }
         }
@@ -103,13 +93,13 @@ class FileExportService : Service() {
                 setSound(null, null)
                 enableVibration(false)
             }
-            val manager = getSystemService(NotificationManager::class.java)
+            val manager = appContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
     private fun createNotification(title: String, progress: Int): android.app.Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle(title)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setOngoing(true)
@@ -119,12 +109,12 @@ class FileExportService : Service() {
     }
 
     private fun updateNotification(title: String, progress: Int) {
-        val manager = getSystemService(NotificationManager::class.java)
+        val manager = appContext.getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, createNotification(title, progress))
     }
 
-    override fun onDestroy() {
-        serviceScope.cancel()
-        super.onDestroy()
+    private fun cancelNotification() {
+        val manager = appContext.getSystemService(NotificationManager::class.java)
+        manager.cancel(NOTIFICATION_ID)
     }
 }

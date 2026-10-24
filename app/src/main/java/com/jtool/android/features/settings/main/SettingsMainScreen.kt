@@ -93,70 +93,24 @@ fun SettingsMainScreen(
             }
             item {
                 SettingsMenuItem(
-                    title = Loc.Settings.interfaceAndApps,
-                    subtitle = Loc.Settings.visibilitySubtitle,
-                    icon = Icons.Default.Visibility,
-                    onClick = { onNavigate(AppScreenEnum.SETTINGS_VISIBILITY) }
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-            }
-            item {
-                val scope = rememberCoroutineScope()
-                SettingsMenuItem(
                     title = Loc.General.aboutApp,
                     subtitle = Loc.General.landingPageSubtitle,
                     icon = Icons.Default.Info,
                     onClick = {
                         val dataManager = DataManager(context)
-                        scope.launch {
-                            try {
-                                val options = dataManager.getAppOptions()
-                                val rawUrl = options?.website
-                                val url = if (rawUrl.isNullOrBlank()) Config.DEEP_LINK_BASE_URL else rawUrl
-                                
-                                val lang = settingsManager.getLanguage()
-                                val uri = Uri.parse(url).buildUpon()
-                                    .appendQueryParameter("lang", lang)
-                                    .build()
-                                val intent = Intent(Intent.ACTION_VIEW, uri)
-                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                infoMessage = "Could not open landing page"
-                            }
-                        }
+                        com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "")
                     }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
             item {
-                val scope = rememberCoroutineScope()
                 SettingsMenuItem(
                     title = Loc.Settings.privacyPolicy,
                     subtitle = Loc.Settings.privacySubtitle,
                     icon = Icons.Default.PrivacyTip,
                     onClick = {
                         val dataManager = DataManager(context)
-                        scope.launch {
-                            val options = dataManager.getAppOptions()
-                            val url = options?.privacy
-                            if (!url.isNullOrBlank()) {
-                                try {
-                                    val lang = settingsManager.getLanguage()
-                                    val uri = Uri.parse(url).buildUpon()
-                                        .appendQueryParameter("lang", lang)
-                                        .build()
-                                    val intent = Intent(Intent.ACTION_VIEW, uri)
-                                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    infoMessage = "Could not open Privacy Policy"
-                                }
-                            } else {
-                                android.util.Log.e("jTool", "Privacy Policy URL is missing in Firebase")
-                                infoMessage = "Privacy Policy URL not found"
-                            }
-                        }
+                        com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "privacy")
                     }
                 )
             }

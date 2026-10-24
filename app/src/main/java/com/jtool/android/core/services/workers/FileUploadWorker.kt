@@ -1,56 +1,46 @@
-package com.jtool.android.core.services
+package com.jtool.android.core.services.workers
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
 import com.jtool.android.MainActivity
 import com.jtool.android.R
 import com.jtool.android.core.models.vaults.VaultDocument
+import com.jtool.android.core.services.FileUploadQueueManager
+import com.jtool.android.core.services.UploadFileStatus
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
-import com.jtool.android.features.vaults.common.VaultDocUtils
 import com.jtool.android.features.vaults.common.GoogleDriveVaultHelper
-import kotlinx.coroutines.*
+import com.jtool.android.features.vaults.common.VaultDocUtils
 import java.io.File
 
-class FileUploadService : Service() {
+class FileUploadWorker(
+    private val appContext: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private lateinit var dataManager: DataManager
-    private lateinit var settingsManager: SettingsManager
+    private val dataManager = DataManager(appContext)
+    private val settingsManager = SettingsManager(appContext)
 
-    override fun onCreate() {
-        super.onCreate()
-        dataManager = DataManager(applicationContext)
-        settingsManager = SettingsManager(applicationContext)
+    override suspend fun doWork(): Result {
         createNotificationChannel()
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = createNotification("Uploading files...", 0)
-        startForeground(NOTIFICATION_ID, notification)
-
-        serviceScope.launch {
-            processUploadQueue()
-        }
-
-        return START_NOT_STICKY
+        processUploadQueue()
+        return Result.success()
     }
 
     private suspend fun processUploadQueue() {
         while (true) {
-            if (!VaultDocUtils.isNetworkAvailable(applicationContext)) {
-                Log.w("FileUploadService", "No internet connection. Waiting for network reconnection...")
+            if (!VaultDocUtils.isNetworkAvailable(appContext)) {
+                Log.w("FileUploadWorker", "No internet connection. Waiting for network reconnection...")
                 updateNotification("Offline. Upload will resume when connected.", 0)
-                delay(5000)
-                continue
+                break
             }
 
             val state = FileUploadQueueManager.uploadState.value
@@ -58,8 +48,7 @@ class FileUploadService : Service() {
 
             if (pendingTask == null) {
                 FileUploadQueueManager.markQueueFinished()
-                stopForeground(true)
-                stopSelf()
+                cancelNotification()
                 break
             }
 
@@ -67,23 +56,34 @@ class FileUploadService : Service() {
                 val gid = settingsManager.getCurrentGroupId() ?: ""
                 val memberEmails = dataManager.getGroupMemberEmails(gid)
 
-                val uploadedFileIds = mutableListOf<String>()
-                val uploadedDriveUrls = mutableListOf<String>()
-                val fileNames = mutableListOf<String>()
-                val fileTypes = mutableListOf<String>()
+                val completedFiles = pendingTask.files.filter { it.status == UploadFileStatus.COMPLETED }
+                val uploadedFileIds = completedFiles.mapNotNull { it.driveFileId }.toMutableList()
+                val uploadedDriveUrls = completedFiles.mapNotNull { it.driveUrl }.toMutableList()
+                val fileNames = completedFiles.map { "${it.fileName}${it.extension}" }.toMutableList()
+                val fileTypes = completedFiles.map { it.extension.removePrefix(".") }.toMutableList()
 
-                var docFolderId = ""
-                var docFolderUrl = ""
-                val targetFolderId = run {
-                    val (fId, fUrl) = GoogleDriveVaultHelper.createSubFolder(
-                        applicationContext,
-                        pendingTask.vault.driveFolderId,
-                        pendingTask.docName,
-                        memberEmails
-                    )
-                    docFolderId = fId ?: ""
-                    docFolderUrl = fUrl ?: ""
-                    fId ?: pendingTask.vault.driveFolderId
+                var docFolderId = pendingTask.createdFolderId ?: ""
+                var docFolderUrl = pendingTask.createdFolderUrl ?: ""
+
+                val targetFolderId = if (pendingTask.files.size > 1) {
+                    if (docFolderId.isNotEmpty()) {
+                        docFolderId
+                    } else {
+                        val (fId, fUrl) = GoogleDriveVaultHelper.createSubFolder(
+                            appContext,
+                            pendingTask.vault.driveFolderId,
+                            pendingTask.docName,
+                            memberEmails
+                        )
+                        docFolderId = fId ?: ""
+                        docFolderUrl = fUrl ?: ""
+                        if (docFolderId.isNotEmpty()) {
+                            FileUploadQueueManager.setTaskFolder(pendingTask.id, docFolderId, docFolderUrl)
+                        }
+                        fId ?: pendingTask.vault.driveFolderId
+                    }
+                } else {
+                    pendingTask.vault.driveFolderId
                 }
 
                 var taskFailed = false
@@ -106,7 +106,7 @@ class FileUploadService : Service() {
                     updateNotification(notifText, FileUploadQueueManager.uploadState.value.overallProgress)
 
                     val (uploadResult, err) = GoogleDriveVaultHelper.uploadDocumentToDrive(
-                        context = applicationContext,
+                        context = appContext,
                         parentFolderId = targetFolderId,
                         sourceUri = f.uri,
                         fileName = fullFileName,
@@ -131,7 +131,15 @@ class FileUploadService : Service() {
                         FileUploadQueueManager.updateFileProgress(pendingTask.id, f.id, 0L, 0, UploadFileStatus.FAILED)
                         break
                     } else {
-                        FileUploadQueueManager.updateFileProgress(pendingTask.id, f.id, f.fileSize, 100, UploadFileStatus.COMPLETED)
+                        FileUploadQueueManager.updateFileProgress(
+                            pendingTask.id,
+                            f.id,
+                            f.fileSize,
+                            100,
+                            UploadFileStatus.COMPLETED,
+                            driveFileId = uploadResult.first,
+                            driveUrl = uploadResult.second
+                        )
                         uploadedFileIds.add(uploadResult.first)
                         uploadedDriveUrls.add(uploadResult.second)
                         fileNames.add(fullFileName)
@@ -140,16 +148,17 @@ class FileUploadService : Service() {
                 }
 
                 if (taskFailed) {
-                    // Cleanup remote Drive garbage
-                    if (docFolderId.isNotEmpty()) {
-                        GoogleDriveVaultHelper.deleteRemoteDriveItem(applicationContext, docFolderId)
-                    } else {
+                    // Cleanup remote Drive garbage only if no files succeeded
+                    if (uploadedFileIds.isEmpty() && docFolderId.isNotEmpty()) {
+                        GoogleDriveVaultHelper.deleteRemoteDriveItem(appContext, docFolderId)
+                        FileUploadQueueManager.setTaskFolder(pendingTask.id, "", "")
+                    } else if (docFolderId.isEmpty()) {
                         uploadedFileIds.forEach { id ->
-                            GoogleDriveVaultHelper.deleteRemoteDriveItem(applicationContext, id)
+                            GoogleDriveVaultHelper.deleteRemoteDriveItem(appContext, id)
                         }
                     }
                     fileNames.forEach { fName ->
-                        val srcFile = File(applicationContext.filesDir, "vaults/${pendingTask.vault.id}/$fName")
+                        val srcFile = File(appContext.filesDir, "vaults/${pendingTask.vault.id}/$fName")
                         if (srcFile.exists()) srcFile.delete()
                     }
 
@@ -179,21 +188,21 @@ class FileUploadService : Service() {
 
                     if (pendingTask.saveOffline) {
                         try {
-                            val docDir = File(applicationContext.filesDir, "vaults/${pendingTask.vault.id}/$docId")
+                            val docDir = File(appContext.filesDir, "vaults/${pendingTask.vault.id}/$docId")
                             if (!docDir.exists()) docDir.mkdirs()
                             fileNames.forEach { fileName ->
-                                val srcFile = File(applicationContext.filesDir, "vaults/${pendingTask.vault.id}/$fileName")
+                                val srcFile = File(appContext.filesDir, "vaults/${pendingTask.vault.id}/$fileName")
                                 if (srcFile.exists()) {
                                     srcFile.copyTo(File(docDir, fileName), overwrite = true)
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e("FileUploadService", "Failed local offline caching", e)
+                            Log.e("FileUploadWorker", "Failed local offline caching", e)
                         }
                     }
 
                     fileNames.forEach { fileName ->
-                        val srcFile = File(applicationContext.filesDir, "vaults/${pendingTask.vault.id}/$fileName")
+                        val srcFile = File(appContext.filesDir, "vaults/${pendingTask.vault.id}/$fileName")
                         if (srcFile.exists()) srcFile.delete()
                     }
 
@@ -201,7 +210,7 @@ class FileUploadService : Service() {
                     showSuccessNotification(pendingTask.docName)
                 }
             } catch (e: Exception) {
-                Log.e("FileUploadService", "Task processing error", e)
+                Log.e("FileUploadWorker", "Task processing error", e)
                 FileUploadQueueManager.markTaskFailed(pendingTask.id, e.message ?: "Upload error")
                 showFailureNotification(pendingTask.docName, e.message ?: "Upload error")
             }
@@ -219,13 +228,13 @@ class FileUploadService : Service() {
                 setSound(null, null)
                 enableVibration(false)
             }
-            val manager = getSystemService(NotificationManager::class.java)
+            val manager = appContext.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
     private fun createNotification(contentText: String, progressPercent: Int) =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle("jTools File Upload")
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_jtool_launcher)
@@ -236,13 +245,18 @@ class FileUploadService : Service() {
             .build()
 
     private fun updateNotification(contentText: String, progressPercent: Int) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIFICATION_ID, createNotification(contentText, progressPercent))
     }
 
+    private fun cancelNotification() {
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(NOTIFICATION_ID)
+    }
+
     private fun showSuccessNotification(docName: String) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val notif = NotificationCompat.Builder(this, CHANNEL_ID)
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notif = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle("Upload Complete")
             .setContentText("'$docName' uploaded successfully")
             .setSmallIcon(R.drawable.ic_jtool_launcher)
@@ -253,8 +267,8 @@ class FileUploadService : Service() {
     }
 
     private fun showFailureNotification(docName: String, errorMsg: String) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val notif = NotificationCompat.Builder(this, CHANNEL_ID)
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notif = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle("Upload Failed")
             .setContentText("'$docName': $errorMsg. Tap to view and retry.")
             .setSmallIcon(R.drawable.ic_jtool_launcher)
@@ -265,23 +279,16 @@ class FileUploadService : Service() {
     }
 
     private fun createPendingIntent(): PendingIntent {
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(appContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("OPEN_UPLOAD_PROGRESS", true)
         }
         return PendingIntent.getActivity(
-            this,
+            appContext,
             0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onDestroy() {
-        serviceScope.cancel()
-        super.onDestroy()
     }
 
     companion object {

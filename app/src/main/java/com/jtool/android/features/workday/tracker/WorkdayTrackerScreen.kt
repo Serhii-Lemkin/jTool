@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.GenericTitle
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.utils.rememberCustomDatePickerState
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.workday.enums.PickerTypeEnum
 import com.jtool.android.core.models.workday.enums.WorkModeEnum
@@ -54,8 +55,9 @@ fun WorkdayTrackerScreen(
         }
     )
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val datePickerState = rememberDatePickerState()
+    val datePickerState = rememberCustomDatePickerState()
     val timePickerState = rememberTimePickerState(is24Hour = true)
     val scaffoldState = rememberBottomSheetScaffoldState()
 
@@ -166,8 +168,17 @@ fun WorkdayTrackerScreen(
         isLoading = uiState.isLoading,
         onBack = onBack,
         actions = {
-            IconButton(onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) }) {
-                Icon(Icons.Default.Settings, null)
+            com.jtool.android.core.components.layout.TitleDropdownMenu {
+                DropdownMenuItem(
+                    text = { Text(Loc.Launcher.settings) },
+                    onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) },
+                    leadingIcon = { Icon(Icons.Default.Settings, null) }
+                )
+                DropdownMenuItem(
+                    text = { Text(Loc.General.learnMore) },
+                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "work-tracker") },
+                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                )
             }
         }
     ) { _ ->
@@ -326,7 +337,9 @@ fun EventPickerSection(
                 val eventColor = getEventColor(selectedEvent?.colorKey)
                 val workShiftColorKey = remember { settingsManager.getWorkShiftColorKey() }
                 val isWork = selectedEvent != null && ((selectedEvent.colorKey != null && selectedEvent.colorKey == workShiftColorKey) || (selectedEvent.colorKey == null && (workShiftColorKey == "7" || workShiftColorKey == "1")))
-                
+                val nowMs = System.currentTimeMillis()
+                val isEnded = selectedEvent != null && (selectedEvent.dtEnd ?: 0L) > 0L && nowMs > (selectedEvent.dtEnd ?: 0L)
+
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -342,13 +355,22 @@ fun EventPickerSection(
                     )
                 }
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    text = selectedEvent?.title ?: "---",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = selectedEvent?.title ?: "---",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    if (isEnded) {
+                        Text(
+                            text = Loc.Workday.eventEnded,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
                 
                 Icon(Icons.Default.ArrowDropDown, null)
             }
@@ -365,7 +387,7 @@ fun EventPickerSection(
                         .size(56.dp)
                         .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
                 ) {
-                    Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(Icons.Default.Event, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
         }
@@ -389,7 +411,7 @@ fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerView
     val currentTimer = if (uiState.mode == WorkModeEnum.QUICK_START) uiState.quickStartTimer else uiState.eventTimer
     
     val color = if (currentTimer.isFinished) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val label = if (currentTimer.isFinished) Loc.Workday.overtime else (currentTimer.label ?: Loc.Workday.timeLeft)
+    val label = if (currentTimer.isFinished) Loc.Workday.eventEnded else (currentTimer.label ?: Loc.Workday.timeLeft)
     val time = if (currentTimer.isFinished) currentTimer.overtimeMillis else currentTimer.timeLeftMillis
     
     val showTimer = uiState.isSessionActive

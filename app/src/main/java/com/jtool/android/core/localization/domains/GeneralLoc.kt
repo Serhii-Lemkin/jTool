@@ -50,4 +50,5 @@ object GeneralLoc {
     val allFilesDownloaded get() = Loc.s("general_allFilesDownloaded", "All files downloaded")
     val cachingOfflineProgress get() = Loc.s("general_cachingOfflineProgress", "Caching Offline Progress")
     val uploadProgress get() = Loc.s("general_uploadProgress", "Upload Progress")
+    val learnMore get() = Loc.s("general_learnMore", "Learn More")
 }

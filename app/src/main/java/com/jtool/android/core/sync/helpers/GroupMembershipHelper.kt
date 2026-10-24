@@ -97,6 +97,8 @@ class GroupMembershipHelper(
     suspend fun sendJoinRequest(groupId: String): Boolean {
         val uid = auth.currentUser?.uid ?: return false
         return try {
+            val groupData = getGroupsColl().document(groupId).get().await().toObject(GroupInfo::class.java)
+            if (groupData == null || groupData.isPrivate || groupData.isInviteOnly) return false
             val request = JoinRequest(
                 groupId = groupId, 
                 userId = uid, 

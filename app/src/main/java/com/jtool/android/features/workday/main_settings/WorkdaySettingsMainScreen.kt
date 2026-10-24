@@ -50,7 +50,8 @@ fun WorkdaySettingsMainScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxHeight(0.9f)
+                    .fillMaxWidth()
+                    .wrapContentHeight()
                     .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
             ) {
                 Text(

@@ -60,10 +60,12 @@ fun TodayEventsSheet(
                     val isSelected = selectedEventId == event.id
                     val themeColor = getEventColor(event.colorKey)
                     val isWork = (event.colorKey != null && event.colorKey == workShiftColorKey) || (event.colorKey == null && workShiftColorKey == "1")
+                    val nowMs = System.currentTimeMillis()
+                    val isEnded = (event.dtEnd ?: 0L) > 0L && nowMs > (event.dtEnd ?: 0L)
 
                     ActionListItem(
                         headline = event.title,
-                        supportingText = "${event.startTime} - ${event.endTime}",
+                        supportingText = "${event.startTime} - ${event.endTime}" + if (isEnded) " • ${Loc.Workday.eventEnded}" else "",
                         leadingContent = {
                             Box(
                                 modifier = Modifier

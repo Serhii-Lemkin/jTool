@@ -12,6 +12,12 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
 
+    function isReviewer() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isReviewer', false) == true;
+    }
+
     function isGroupMember(groupId) {
       return isSignedIn() &&
              exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
@@ -54,6 +60,10 @@ service cloud.firestore {
 
     match /user_data/{userId} {
       allow read, write: if isSignedIn() && userId == request.auth.uid;
+      match /notifications/{notifId} {
+        allow read, write, delete: if isSignedIn() && userId == request.auth.uid;
+        allow create: if isSignedIn();
+      }
       match /{allSubcollections=**} {
         allow read, write: if isSignedIn() && userId == request.auth.uid;
       }
@@ -82,7 +92,10 @@ service cloud.firestore {
 
       match /join_requests/{userId} {
         allow read: if isSignedIn() && (isGroupMember(groupId) || request.auth.uid == userId);
-        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isSignedIn() && request.auth.uid == userId &&
+          exists(/databases/$(database)/documents/groups/$(groupId)) &&
+          get(/databases/$(database)/documents/groups/$(groupId)).data.get('isPrivate', false) == false &&
+          get(/databases/$(database)/documents/groups/$(groupId)).data.get('isInviteOnly', false) == false;
         allow delete: if isSignedIn() && (isGroupMember(groupId) || request.auth.uid == userId);
       }
 
@@ -128,11 +141,11 @@ service cloud.firestore {
     // 8. SUPPORT REQUESTS
     match /support_requests/{requestId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isReviewer());
 
       match /comments/{commentId} {
         allow read, write: if isSignedIn() &&
-          get(/databases/$(database)/documents/support_requests/$(requestId)).data.userId == request.auth.uid;
+          (get(/databases/$(database)/documents/support_requests/$(requestId)).data.userId == request.auth.uid || isReviewer());
       }
     }
 

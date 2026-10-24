@@ -1,91 +1,47 @@
-# Gemini System Instructions & Guidelines
+# Gemini System Instructions & Architectural Index
 
-## 1. Code Generation & Refactoring
-* **No Comments:** Never add inline comments or documentation blocks to generated code.
-*   **Firestore Rules Management**: When updating the database schema or making any changes that affect access control, ensure the `core/firestore.rules` file is updated to the latest version. Never update this file without explicit confirmation from the developer. NEVER simplify the rules for convenience; only modify them if technically required for a new feature while maintaining maximum security.
-*   **Strong Typing & Generics**: Strictly enforce strong typing across all data models. Abstract shared functionality using interfaces and generic implementations where applicable.
-*   **String IDs**: All data models and Firestore documents must use `String` for their `id` property. Never use numeric types for identifiers.
-*   **Enum Extraction, Naming & Location**: All `enum class` definitions must be extracted into their own dedicated files. Every enum class name must end with the `Enum` suffix (e.g., `SupportStatusEnum`). These files must be placed within the `core/models` directory under a relevant category's `enums` subfolder (e.g., `core/models/support/enums/SupportStatusEnum.kt`) or in `core/models/common/enums/` if shared across multiple domains. Never define enums inside other classes or feature logic files.
-*   **Strict Type Definitions**: Never use `Any` (or `Object`) as a class placeholder. Always use an existing class or create a new dedicated class if a suitable model does not exist.
-* **Enum-Based Parameters:** When building generic components or functions accessed via string parameters, map all string options to an enum (string-based or numeric). Never accept loose string parameters directly, and ensure existing code remains compatible without breakage.
-* **Component Extraction Prompting:** Whenever an opportunity arises to modularize code, prompt the developer to extract the logic into a reusable file and add it to the Admin Panel "Kitchen Sink."
-* **File Size Limit:** Strictly keep all Kotlin files under 500 lines. If a file exceeds or is nearing this limit, split it into smaller helper classes, components, or sub-viewmodels immediately.
-* **Database Field Stability**: Never modify, rename, or remove existing data model property names to maintain database schema stability and prevent connection errors.
-* **Timestamp-Based Dates & Times**: Always use `Long` timestamps (UTC milliseconds) for all date and time properties in data models and Firestore. Never store dates or times as `String` (e.g., "2023-10-01" or "09:00"). For UI display, convert these timestamps dynamically in the model or view layer.
+This document serves as the master entry point for project guidelines, architectural standards, and task-specific skill instructions.
 
-## 2. Verification & Build Safety
-* **Build Verification**: Always verify that the project builds successfully before finishing a request. If compilation errors are introduced, they must be resolved immediately.
-* **Testing**: Run relevant tests (unit or UI) if applicable to ensure no regressions.
+---
 
-## 3. Localization & Internationalization
-* **Dynamic Resource Strings**: Never hardcode user-facing strings. Add all new display text to the Localization Service across all supported language files.
-* **Dynamic Language Resolution**: Never hardcode lists of supported languages. Always query and resolve language options dynamically from the implemented language resource files at runtime.
-* **Gender-Neutral Phrasing**: All user-facing strings across all languages (specifically Hebrew and Ukrainian) must use strictly gender-neutral language. 
-    *   **No Slashes**: Avoid gendered slashes (e.g., `את/ה`, `בטוח/ה`, `בחר/і`).
-    *   **Impersonal/Infinitive Forms**: Rephrase verbs to use infinitives (e.g., `חישוב`, `בחירה`) or impersonal/passive constructions (e.g., `בפעולה זאת... האם להמשיך?`, `відхилено`) to ensure a professional and inclusive tone for all users.
+## 1. Universal Principles (Applies to EVERY Request)
+Whenever modifying code, fixing bugs, or implementing features, strictly adhere to these baseline rules:
+1. **No Comments**: Never add inline comments, docstrings, or KDoc blocks to generated code. Keep code self-documenting, concise, and clean.
+2. **Minimal Code Changes & Regression Safety**: Prioritize making the least amount of code changes necessary. Keep edits targeted and surgical, ensuring existing functionality remains intact without regressions.
+3. **Build Verification**: Always verify that the project builds successfully (`gradle_build("app:assembleDebug")`) before finishing a request. Resolve any introduced compilation errors immediately.
+4. **Localization via `Loc`**: Never hardcode user-facing strings. Add all new display text to `Loc` (`core/localization/Loc.kt`) and domain localization files using gender-neutral phrasing across all supported languages.
+5. **Single Official Changelog & Version Header**: Continuously update the single official changelog file at [`website/y/changelogs/changelog.txt`](file:///var/home/serhii/AndroidStudioProjects/jTool/website/y/changelogs/changelog.txt) whenever user-facing changes are made. Always preserve the version header (`[Version]\nv2.8.0 (Build 59)`). Do not maintain duplicate changelogs in `app/`. The developer will purge historical entries after release.
+6. **Centralized Web Links**: All website links (Privacy Policy, Landing page, Feature Learn-More pages) MUST route through `WebUtils.openAppPage` using dynamically fetched and cached URLs from Firestore (`app_options/config`). Never hardcode website URLs or duplicate `Intent.ACTION_VIEW` logic across individual screens.
+7. **Instruction Updating Strategy**: When asked to update instructions, determine where the rule belongs. If it is a common instruction applying to ALL requests, add it directly to this main `instructions.md`. If it touches a specific workflow or specialized task, create or update a dedicated skill `.md` file in `core/ai/`.
 
-## 4. Page Consistency & Architectural Changes
-* **Structural Consistency:** New pages must conform strictly to existing project layouts, structural patterns, and implementation styles.
-* **Base Screen & Centralized Loading**: All screens MUST implement `BaseScreen` as their root layout wrapper. Loading states (`isLoading`) must be delegated to `BaseScreen`'s centralized loader rather than instantiating ad-hoc local loading boxes or progress indicators within individual screen implementations.
-* **Red Container Delegation**: `BaseScreen` automatically embeds `RedContainer` (`core/components/layout/RedContainer.kt`), which manages all floating action buttons, status indicators, and side-switching gestures. Never instantiate separate floating containers on individual screens.
-* **Change Approvals:** Any proposed deviations or new architectural implementations must be backed by a clear technical justification and explicitly prompted to the user for approval before applying.
+---
 
-## 5. UI Patterns: Popups, Paging & Refresh
-* **Slide-Up Popups (Sheets)**: All primary selection dialogs, confirmation prompts, and input pickers must use a slide-up popup pattern (e.g., `ModalBottomSheet`) instead of standard centered `AlertDialogs` or system dialogs. This ensures a consistent interaction model across the application.
-    *   **Modular Structure**: Each Sheet must reside in its own dedicated subfolder within a `components` directory.
-    *   **Naming Convention**: All Sheet components and their containing subfolders must end with the `Sheet` suffix in their names (e.g., `features/settings/groups/components/invite_sheet/InviteSheet.kt`).
-    *   **Feature Integration**: Sheets should be reusable and isolated from the main screen logic, exposing only necessary callbacks for state management.
-    *   **No Cancel Buttons in Sheets**: Never add 'Cancel' buttons inside BottomSheets or slide-up Sheets. Since all Sheets can be dismissed naturally by swiping down or tapping outside, explicit Cancel buttons are redundant and strictly prohibited. Only primary action/confirmation buttons should be rendered inside Sheets.
-* **Switch Inputs Over Checkboxes**: Always use `Switch` (sliding toggle) for all boolean selections, checkable list items, and binary filter options instead of standard square `Checkbox` components.
-*   **Refresh Implementation**: Use `androidx.compose.material3.pulltorefresh.PullToRefreshBox`. Bind `isRefreshing` to `uiState.isLoading` and trigger a `Refresh` event.
-    *   **ViewModel Pattern**: In the `Refresh` handler, first set `isLoading = true` and `data = emptyList()`. Perform a manual fetch if needed, then resume the real-time listener. This ensures the UI is reset to the server's state and prevents "expired" cached data from lingering.
-*   **Paging Implementation**: 
-    *   Maintain a `pagingLimit` in the `UiState` (default e.g., 15).
-    *   Perform filtering/sorting on the full dataset in a `remember` block within the Composable.
-    *   Derive `pagedData` using `fullData.take(uiState.pagingLimit)`.
-    *   Show a "Load More" `TextButton` in the `LazyColumn` footer if `fullData.size > uiState.pagingLimit`.
-    *   The `LoadMore` event should increment `pagingLimit` by the page size.
+## 2. Specialized Task Skills Index
+Depending on the task being performed, you MUST consult and follow the corresponding specialized skill document in the `core/ai/` directory:
 
-## 6. Background File Transfers & Red Container Architecture
+### 📊 [Data Handling, Models & Database Rules](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/data_handling.md)
+* **When to use**: Defining data models, updating Firestore schema/rules, creating enums, managing `UserData` encapsulation, handling timestamps/IDs, or handling user change cache purges.
+* **Key Topics**: Strong typing (no `Any`/`Object`), default property values, `String` IDs, `Long` UTC timestamps, `Enum` suffix, Firestore `Property::name.name` keys, `core/firestore.rules` security, `SettingsManager.checkAndPurgeIfUserChanged`.
 
-### A. Centralized Background Services & Queue Managers
-All file operations across the application MUST run through dedicated background foreground services and queue managers. Never perform file uploads, downloads, or exports directly on the UI thread or within view models:
-1. **File Uploads**: `FileUploadQueueManager` & `FileUploadService` (`core/services/FileUploadService.kt`)
-2. **Offline Cache Downloads**: `FileDownloadQueueManager` & `FileDownloadService` (`core/services/FileDownloadService.kt`)
-3. **Public Exports to Downloads**: `FileExportQueueManager` & `FileExportService` (`core/services/FileExportService.kt`)
-4. **Notifications**: `NotificationQueueManager` (`core/services/NotificationQueueManager.kt`)
+### ⚡ [Background File Transfers & Red Container](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/background_transfers.md)
+* **When to use**: Handling background file uploads, downloads, public exports, notifications, floating progress indicators, or Red Container gestures.
+* **Key Topics**: Queue managers & background services (`FileUploadService`, `FileDownloadService`, `FileExportService`), FAB color coding (Blue Upload, Green Download, Orange Export, Red Notif), `FloatingProgressIndicator` delegation, Red Container >50% drag side persistence, `LauncherScreen` header icons sync.
 
-### B. Color Coding Rules for Floating Action Buttons
-Every FAB and status indicator inside the Red Container has a strictly enforced, distinct color:
-* **Blue (`Color(0xFF2563EB)`)**: Active File Uploads (`FloatingUploadProgressIndicator`)
-* **Green (`Color(0xFF16A34A)`)**: Active Offline Cache Downloads (`FloatingDownloadProgressIndicator`)
-* **Orange (`Color(0xFFEA580C)`)**: Active Public Exports (`FloatingExportProgressIndicator`)
-* **Red (`MaterialTheme.colorScheme.error`)**: Unread Notifications
-* **Primary (`MaterialTheme.colorScheme.primary`)**: Child Screen Actions (`UnifiedFAB` / `floatingActionButton`)
+### 📱 [UI Design: Screens, Sheets & Components](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/ui_sheets_screens_components.md)
+* **When to use**: Creating or updating UI screens, slide-up bottom sheets, input controls, pickers, filters, pull-to-refresh, or paging.
+* **Key Topics**: Mandatory `BaseScreen` layout wrapper, centralized loader, `RedContainer` delegation, slide-up `ModalBottomSheet` naming & subfolder placement (no Cancel buttons inside sheets), `Switch` inputs over `Checkbox`, `PullToRefreshBox`, `pagingLimit` paging pattern, `Modifier.imePadding()`.
 
-### C. Creating New FABs & Indicators
-When creating new floating action buttons or progress indicators:
-* **Delegation to `FloatingProgressIndicator`**: Always delegate UI rendering to `FloatingProgressIndicator` (`features/vaults/components/floating_progress_indicator/FloatingProgressIndicator.kt`). This handles circular progress rings, sizing, spring entrance/exit animations (`scaleIn` / `scaleOut`), and click callbacks.
-* **Spring Animation Specs**: Use bouncy spring specs (`dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow`) for button entrance/exit transitions.
+### 🚀 [Creating New Apps & Feature Modules](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/new_app_or_feature_creation.md)
+* **When to use**: Adding a new app module, creating a new feature directory, or registering screens in the launcher.
+* **Key Topics**: Registering in `AppProperties.allApps` for automatic Launcher, Search, Gestures, and Visibility wiring; `new_app_creation_guide.md` workflow; ViewModel structure (`BaseSyncViewModel`, `UiState`, `Event`).
 
-### D. Red Container Gestures & Side Persistence
-* **Deliberate Side-Switching**: Dragging the Red Container horizontally across **more than 50% of the screen width** (`screenWidth / 2`) flips the container side between Right and Left, persisting the choice locally in `SettingsManager`. Dragging less than 50% springs back without changing sides.
-* **Edge Collapsing**: Dragging the container towards the screen edge collapses it into a vertical stack of small, color-coded edge pills.
-* **Persistent Collapsed State**: The collapsed or expanded state is saved in `SettingsManager` and remains preserved across screen changes and app launches until the user expands it again via tap or drag.
+### 🛠️ [Code Changes, Build Verification & Reporting](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/code_changes_and_reporting.md)
+* **When to use**: Preparing code output, verifying builds, handling localization, or writing developer changelog summaries.
+* **Key Topics**: Code formatting, minimal surgical diffs, 500-line file limit, gender-neutral localization rules, `gradle_build` verification, single official changelog at `website/y/changelogs/changelog.txt`.
 
-### E. Main Menu / Launcher Header Sync (`LauncherScreen.kt`)
-Whenever active tasks or notifications exist in `FileUploadQueueManager`, `FileDownloadQueueManager`, `FileExportQueueManager`, or `NotificationQueueManager`:
-* `LauncherScreen` MUST render corresponding smaller color-coded icon buttons (Blue Upload, Green Download, Orange Export, Red Notification) in its top app bar header next to the notification bell.
-* Tapping any header button opens its respective progress sheet (`UploadProgressSheet`, `DownloadProgressSheet`, `ExportProgressSheet`, or `NotificationsSheet`).
-
-## 7. State & Async Handling
-* **Safe Loading States:** Guarantee every loading state execution path (success, failure, cancellation, or exception) resolves properly to prevent deadlocks or frozen UIs.
-* **Keyboard Obstruction:** Always ensure that input fields and action buttons are not obstructed by the software keyboard. Use `Modifier.imePadding()` or `WindowInsets.ime` where appropriate to keep the focused element visible.
-* **User Change Awareness & Cache Isolation**: The app must be strictly user-change aware. Before loading any data or initializing view models, applications must actively check whether the current authenticated user UID (`FirebaseAuth.getInstance().currentUser?.uid`) matches the last active user UID via `SettingsManager.checkAndPurgeIfUserChanged(...)`. If a user change is detected (login, logout, or account switch), all local caches, SharedPreferences, and persistence files must be instantly purged. In-memory state flows must start empty. This prevents stale or sensitive data from the previous user from showing up even for a split second.
-* **Error Notification:** If an unresolved loading state risk arises, flag the issue to the developer immediately to determine a resolution.
-
-## 8. Change Logs & Developer Reporting
-* **Technical Summaries:** End responses with a clear summary of modifications, including technical implementation details and an assessment of potential risks introduced by the changes.
+### 🌐 [Website & App Landing Pages Sync](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/website_and_app_pages.md)
+* **When to use**: Updating website landing pages, app feature descriptions, or synchronization between Android apps and website descriptions.
+* **Key Topics**: Repository website path [`website/`](file:///var/home/serhii/AndroidStudioProjects/jTool/website/), app "Learn More" links, `WebUtils` dynamic URL fetching & local caching, Alpha testing modal access flow (`jackflit51997@gmail.com`), single changelog file at [`website/y/changelogs/changelog.txt`](file:///var/home/serhii/AndroidStudioProjects/jTool/website/y/changelogs/changelog.txt), website i18n (`en.json`, `uk.json`, `he.json`).
 
 ---
 
@@ -93,16 +49,17 @@ Whenever active tasks or notifications exist in `FileUploadQueueManager`, `FileD
 To maintain consistency across all sessions, copy the following block into **Android Studio > Settings > Tools > Gemini > Custom Instructions**:
 
 ```text
-Follow the architectural guidelines in 'app/src/main/java/com/jtool/android/core/instructions.md'.
+Follow the architectural guidelines in 'app/src/main/java/com/jtool/android/core/instructions.md' and task skill files in 'core/ai/'.
 - No comments/KDoc in code.
-- Strict typing (no Any/Object).
+- Minimal code changes & no regressions.
+- Strict typing (no Any/Object), String IDs, default property values, UTC timestamps.
 - All Enums must have 'Enum' suffix and stay in 'core/models/.../enums/'.
-- All IDs must be Strings.
-- Data models must have default values for all properties (Firestore compatibility).
-- Use Property::name.name for Firestore keys.
-- Use Localization Service (Loc) for all UI strings.
-- Route file transfers via background services & queue managers.
-- Respect Red Container color rules (Blue=Upload, Green=Download, Orange=Export, Red=Notif).
-- All FAB progress indicators must delegate to FloatingProgressIndicator.
-- Always use Switch instead of Checkbox. No Cancel buttons in Sheets.
+- All UI strings must use Localization Service (Loc) with gender-neutral phrasing.
+- All screens must use BaseScreen wrapper; slide-up sheets use 'Sheet' suffix in dedicated folder (no Cancel buttons).
+- Use Switch over Checkbox.
+- Route file transfers via background services & queue managers with Red Container color rules.
+- Maintain single official changelog at 'website/y/changelogs/changelog.txt' with version header.
+- Keep website/ source files updated when app features or descriptions are updated.
+- Route all web links via WebUtils.openAppPage with dynamic db fetching and local caching.
+- Add common instructions to main instructions.md and workflow-specific rules to new/existing core/ai/ skill files.
 ```

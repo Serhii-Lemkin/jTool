@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -104,9 +105,35 @@ fun AppUpdatesScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(Loc.Settings.releaseNotes, style = MaterialTheme.typography.titleSmall)
+            Text(
+                Loc.Settings.releaseNotesDesc,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            OutlinedButton(
+                onClick = {
+                    val settingsManager = com.jtool.android.core.settings.SettingsManager(context)
+                    val dataManager = com.jtool.android.core.sync.DataManager(context)
+                    com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "changelog")
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ReceiptLong, null)
+                Spacer(Modifier.width(8.dp))
+                Text(Loc.Settings.viewChangelog)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(Loc.Settings.playStoreUpdates, style = MaterialTheme.typography.titleSmall)

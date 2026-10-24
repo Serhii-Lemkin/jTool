@@ -133,12 +133,110 @@ class SettingsManager(context: Context) {
         prefs.edit().putString("language", lang).apply()
     }
 
+    fun getCachedWebsiteUrl(): String {
+        return prefs.getString("cached_website_url", "") ?: ""
+    }
+
+    fun setCachedWebsiteUrl(url: String) {
+        prefs.edit().putString("cached_website_url", url).apply()
+    }
+
+    fun getLauncherConfig(): com.jtool.android.core.models.user.LauncherConfig {
+        val jsonStr = prefs.getString("launcher_config", null)
+        if (jsonStr != null) {
+            return try {
+                json.decodeFromString<com.jtool.android.core.models.user.LauncherConfig>(jsonStr)
+            } catch (_: Exception) {
+                com.jtool.android.core.models.user.LauncherConfig(
+                    appOrder = getAppOrder(),
+                    hiddenApps = getHiddenApps(),
+                    gridColumnCount = getGridColumnCount()
+                )
+            }
+        }
+        return com.jtool.android.core.models.user.LauncherConfig(
+            appOrder = getAppOrder(),
+            hiddenApps = getHiddenApps(),
+            gridColumnCount = getGridColumnCount()
+        )
+    }
+
+    fun saveLauncherConfig(config: com.jtool.android.core.models.user.LauncherConfig) {
+        prefs.edit().putString("launcher_config", json.encodeToString(config)).apply()
+        if (config.appOrder.isNotEmpty()) saveAppOrder(config.appOrder)
+        saveHiddenApps(config.hiddenApps)
+        if (config.gridColumnCount in 1..4) setGridColumnCount(config.gridColumnCount)
+    }
+
+    fun getLauncherGestures(): Map<String, String> {
+        return getLauncherConfig().gestures
+    }
+
+    fun saveLauncherGesture(gestureId: String, actionId: String) {
+        val config = getLauncherConfig()
+        val newGestures = config.gestures.toMutableMap()
+        if (actionId.isEmpty()) {
+            newGestures.remove(gestureId)
+        } else {
+            newGestures[gestureId] = actionId
+        }
+        saveLauncherConfig(config.copy(gestures = newGestures))
+    }
+
+    fun getAppOrder(): List<String> {
+        val jsonStr = prefs.getString("app_order", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<String>>(jsonStr)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveAppOrder(order: List<String>) {
+        prefs.edit().putString("app_order", json.encodeToString(order)).apply()
+    }
+
+    fun getHiddenApps(): List<String> {
+        val jsonStr = prefs.getString("hidden_apps", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<String>>(jsonStr)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveHiddenApps(hidden: List<String>) {
+        prefs.edit().putString("hidden_apps", json.encodeToString(hidden)).apply()
+    }
+
+    fun isAppVisible(appId: String): Boolean {
+        return !getHiddenApps().contains(appId)
+    }
+
     fun isAppVisible(appId: AppScreenEnum): Boolean {
-        return prefs.getBoolean("visible_${appId.id}", true)
+        return isAppVisible(appId.id)
+    }
+
+    fun setAppVisible(appId: String, visible: Boolean) {
+        val hidden = getHiddenApps().toMutableList()
+        if (visible) {
+            hidden.remove(appId)
+        } else {
+            if (!hidden.contains(appId)) hidden.add(appId)
+        }
+        saveHiddenApps(hidden)
     }
 
     fun setAppVisible(appId: AppScreenEnum, visible: Boolean) {
-        prefs.edit().putBoolean("visible_${appId.id}", visible).apply()
+        setAppVisible(appId.id, visible)
+    }
+
+    fun getGridColumnCount(): Int {
+        return prefs.getInt("grid_column_count", 3).coerceIn(1, 4)
+    }
+
+    fun setGridColumnCount(count: Int) {
+        prefs.edit().putInt("grid_column_count", count.coerceIn(1, 4)).apply()
     }
 
     fun isGridLayout(): Boolean {
@@ -170,7 +268,8 @@ class SettingsManager(context: Context) {
                     id = id,
                     name = groupJson.getString("name"),
                     ownerUid = if (groupJson.has("ownerUid")) groupJson.getString("ownerUid") else null,
-                    isPrivate = if (groupJson.has("isPrivate")) groupJson.getBoolean("isPrivate") else false
+                    isPrivate = if (groupJson.has("isPrivate")) groupJson.getBoolean("isPrivate") else false,
+                    isInviteOnly = if (groupJson.has("isInviteOnly")) groupJson.getBoolean("isInviteOnly") else false
                 )
             }
             map
@@ -186,6 +285,7 @@ class SettingsManager(context: Context) {
             groupJson.put("name", info.name)
             groupJson.put("ownerUid", info.ownerUid)
             groupJson.put("isPrivate", info.isPrivate)
+            groupJson.put("isInviteOnly", info.isInviteOnly)
             obj.put(id, groupJson)
         }
         prefs.edit().putString("remembered_groups", obj.toString()).apply()
@@ -231,6 +331,14 @@ class SettingsManager(context: Context) {
 
     fun setSelectedCalendarEventId(id: String?) {
         prefs.edit().putString("selected_calendar_event_id", id).commit()
+    }
+
+    fun getSelectedSupportRequestId(): String? {
+        return prefs.getString("selected_support_request_id", null)
+    }
+
+    fun setSelectedSupportRequestId(id: String?) {
+        prefs.edit().putString("selected_support_request_id", id).commit()
     }
 
     fun shouldAutoOpenCalendarAdd(): Boolean {

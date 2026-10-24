@@ -11,5 +11,8 @@ data class GroupInfo(
     val createdAt: Long = 0L,
     @get:PropertyName("isPrivate")
     @PropertyName("isPrivate")
-    val isPrivate: Boolean = false
+    val isPrivate: Boolean = false,
+    @get:PropertyName("isInviteOnly")
+    @PropertyName("isInviteOnly")
+    val isInviteOnly: Boolean = false
 )

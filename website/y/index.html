@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="index_title">JTools - Simplify Your Group's Day-to-Day (Android Only)</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg top-nav fixed-top">
+        <div class="container">
+            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
+                <img src="/512.png" alt="JTools" class="nav-logo-img">
+                <span><span class="text-info">J</span>Tools</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
+                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
+                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
+                            🌐 English
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
+        <!-- Hero Banner Card -->
+        <header class="custom-card p-4 p-md-5 text-center my-4 shadow-lg">
+            <img src="/512.png" alt="JTools Logo" class="app-logo mb-4">
+            <h1 class="display-4 fw-bold mb-3"><span class="text-info">J</span>Tools</h1>
+            <p class="lead text-secondary mb-4 mx-auto" style="max-width: 600px;" data-i18n="index_tagline">The Ultimate Life-Sync App for Groups.</p>
+            <div class="platform-badge" data-i18n="index_badge">Android Only</div>
+        </header>
+
+        <!-- Group Architecture & Core Mechanics Section -->
+        <section class="logic-section p-4 p-md-5 my-5 shadow-lg">
+            <div class="row align-items-center mb-4">
+                <div class="col-md-8">
+                    <h2 class="text-info fw-bold mb-2 d-flex align-items-center gap-2">
+                        <span class="material-icons fs-3 text-info">groups</span> Group Architecture & Core Mechanics
+                    </h2>
+                    <p class="text-secondary mb-0">
+                        Groups are the core pillar binding all JTools applications together. Whether managing shared family lists, partner calendars, or roommate chores—or working privately in your personal Private Group—everything syncs seamlessly through your active Group.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <a href="/groups" class="btn gradient-btn px-4 py-2 fs-6 d-inline-flex align-items-center gap-2">
+                        <span>Explore Group System Guide</span> ➜
+                    </a>
+                </div>
+            </div>
+
+            <div class="d-flex flex-column gap-4 border-top pt-4" style="border-color: var(--border) !important;">
+                <div class="logic-step d-flex gap-3 align-items-start">
+                    <div class="step-number">1</div>
+                    <div data-i18n="index_logic_1"><strong class="strong-text fs-5">Seamless Shared & Private Group Management.</strong> JTools is built around collaborative groups. Create or join shared groups effortlessly with invite codes, or switch to your automatic <strong>Private Group</strong> for 100% isolated personal notes, documents, and private schedules.</div>
+                </div>
+                <div class="logic-step d-flex gap-3 align-items-start">
+                    <div class="step-number">2</div>
+                    <div data-i18n="index_logic_2"><strong class="strong-text fs-5">Instant Cloud Sync.</strong> No waiting or manual refreshes. Cloud-powered lists, notes, and task states sync across every member's device <strong>instantly</strong> via Google Firebase. When one person checks off an item or updates a schedule, everyone sees it right away.</div>
+                </div>
+                <div class="logic-step d-flex gap-3 align-items-start">
+                    <div class="step-number">3</div>
+                    <div data-i18n="index_logic_3"><strong class="strong-text fs-5">Professional Accuracy.</strong> From precise work timers with real-time overtime tracking to aisle-sorted shopping lists and document vaults, JTools brings professional-grade organization to your personal and shared ecosystem.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid Section -->
+        <section class="my-5 pt-2">
+            <div class="custom-card p-4 text-center mb-4 shadow-sm">
+                <h2 class="display-6 fw-bold mb-2" data-i18n="index_section_title">One App. Everything Shared.</h2>
+                <p class="lead text-secondary mb-0" data-i18n="index_section_subtitle">Designed to eliminate daily coordination friction between partners, roommates, and teams.</p>
+            </div>
+
+            <!-- Standard Bootstrap Grid -->
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <!-- 1. App Features & Launcher System (FIRST) -->
+                <div class="col">
+                    <div class="custom-card card-highlight hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">widgets</span><span data-i18n="index_feat_app_features_title">App Features</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_app_features_desc">Discover how the internal Launcher unifies all productivity apps into one uncluttered home screen with custom gestures and theme controls.</p>
+                        <a href="/app-features" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 2. Work Tracker -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">schedule</span><span data-i18n="index_feat_work_title">Work Tracker</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_work_desc">High-visibility centered timer for shift work. Automated calculations and real-time overtime tracking let you know exactly when the workday is done.</p>
+                        <a href="/work-tracker" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 3. Pro Calendar -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">calendar_month</span><span data-i18n="index_feat_calendar_title">Pro Calendar</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_calendar_desc">Advanced month and day grids tied directly to your Google Calendar. Categorize by event type and share group invites instantly.</p>
+                        <a href="/calendar" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 4. Smart Shopping -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">shopping_cart</span><span data-i18n="index_feat_shopping_title">Smart Shopping</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_shopping_desc">Organize shopping lists by aisle. With instant sync, your household stays stocked without the double-buying headache.</p>
+                        <a href="/shopping-list" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 5. Personal Hub -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">description</span><span data-i18n="index_feat_hub_title">Personal Hub</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_hub_desc">Checklists and text notes for everything from group chores to gift ideas. Securely backed up to your private cloud vault.</p>
+                        <a href="/personal-hub" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 6. Cleaning Manager -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">brush</span><span data-i18n="index_feat_cleaning_title">Cleaning Manager</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_cleaning_desc">The ultimate roommate tool. Assign recurring chores, track last-cleaned dates, and maintain a shared living space friction-free.</p>
+                        <a href="/cleaning" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 7. Trendify Metrics -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">show_chart</span><span data-i18n="index_feat_trendify_title">Trendify Metrics</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_trendify_desc">Track anything from workout progress to savings. Visualize personal or group data with multi-person graphs and trend analysis.</p>
+                        <a href="/trendify" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 8. Vaults -->
+                <div class="col">
+                    <div class="custom-card hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">folder_special</span><span data-i18n="index_feat_vaults_title">Vaults</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_vaults_desc">Securely attach and reference Google Drive documents, organize with tags, and share important files safely within your group.</p>
+                        <a href="/vaults" class="text-info fw-bold mt-3 d-inline-flex align-items-center gap-2" data-i18n="learn_more">Learn how it works ➜</a>
+                    </div>
+                </div>
+
+                <!-- 9. More to Come -->
+                <div class="col">
+                    <div class="custom-card card-highlight hover-lift h-100 p-4 d-flex flex-column">
+                        <h3 class="text-info fw-bold mb-3"><span class="material-icons align-middle text-info me-2 fs-4">extension</span><span data-i18n="index_feat_more_title">More to come!</span></h3>
+                        <p class="text-secondary flex-grow-1" data-i18n="index_feat_more_desc">When you start using the app, you will be able to request more features, or enjoy the other people's requested features as they are added to the app.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Direct Developer Support Hub Section -->
+        <section class="support-hub p-4 p-md-5 my-5 shadow-lg text-center">
+            <h2 class="text-info fw-bold mb-3" data-i18n="index_support_title">Direct Developer Access</h2>
+            <p class="lead text-secondary mb-4 mx-auto" style="max-width: 700px;" data-i18n="index_support_desc">Through our built-in <strong class="strong-text">Support Hub</strong>, you can report bugs or suggest new features directly to the developer. Your feedback directly influences JTools's development roadmap.</p>
+            <a href="/support-hub" class="btn btn-outline-info rounded-pill px-4 py-2 fw-bold" data-i18n="learn_more">Learn how it works ➜</a>
+        </section>
+
+        <!-- CTA Section Card -->
+        <section class="custom-card p-4 p-md-5 text-center my-5 shadow-lg">
+            <h2 class="display-6 fw-bold mb-3" data-i18n="index_cta_title">Ready to sync your life?</h2>
+            <p class="lead text-secondary mb-4" data-i18n="index_cta_desc">jTool is currently in active Alpha. Connect with us to get early access, test new features, and help shape the app!</p>
+            <button type="button" class="btn gradient-btn px-5 py-3 fs-5" data-bs-toggle="modal" data-bs-target="#testerModal" data-i18n="index_cta_btn">Become a Tester</button>
+        </section>
+
+        <!-- Become a Tester Alpha Modal -->
+        <div class="modal fade" id="testerModal" tabindex="-1" aria-labelledby="testerModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="testerModalLabel" data-i18n="modal_tester_title"><span class="material-icons text-info">rocket_launch</span> Join Alpha & Help Shape jTool</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start py-3">
+                        <div class="p-3 mb-3 rounded-3 text-center" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);">
+                            <span class="fs-5 d-block fw-bold text-info mb-1 d-flex align-items-center justify-content-center gap-2"><span class="material-icons text-info">rocket_launch</span> Join the Alpha Community</span>
+                            <span class="text-secondary small">Connect with us to test new features, enjoy early access, and help shape jTool!</span>
+                        </div>
+                        <p class="text-secondary mb-3" data-i18n="modal_tester_desc">
+                            jTool is currently in active <strong>Alpha</strong> on Google Play. Send your Google account email address to the developer so you can be added to the authorized tester list.
+                        </p>
+                        <div class="p-3 mb-3 rounded-3" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1" data-i18n="modal_tester_email_label">Developer Contact Email:</strong>
+                            <span class="text-info fw-bold fs-6">jtools.app@yahoo.com</span>
+                        </div>
+                        <a href="mailto:jtools.app@yahoo.com?subject=JTools%20Alpha%20Tester%20Access%20Request&body=Hi%20JTools%20team,%0A%0APlease%20add%20my%20Google%20account%20email%20to%20the%20jTool%20Alpha%20Testing%20pool:%0A%0AMy%20Google%20Account%20Email:%20" class="btn gradient-btn w-100 py-3 text-center fw-bold d-flex align-items-center justify-content-center gap-2" data-i18n="modal_tester_btn">
+                            <span class="material-icons">email</span> Send Email to Request Access
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
+        <div class="container text-center text-secondary">
+            <div class="mb-3">
+                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
+            </div>
+            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong class="strong-text">Serhii Lemkin</strong> for the Android ecosystem.</div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+</body>
+</html>

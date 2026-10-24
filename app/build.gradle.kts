@@ -23,8 +23,8 @@ android {
         applicationId = "com.jtool.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 59
-        versionName = "2.8.0"
+        versionCode = 63
+        versionName = "2.8.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.serialization.json)
     
     // Firebase

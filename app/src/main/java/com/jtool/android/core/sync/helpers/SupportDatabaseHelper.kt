@@ -110,8 +110,8 @@ class SupportDatabaseHelper(private val firestore: FirebaseFirestore) {
         }
     }
 
-    fun getRequestsFlow(isAdmin: Boolean, userId: String): Flow<List<SupportRequest>> = callbackFlow {
-        val query = if (isAdmin) {
+    fun getRequestsFlow(canSeeAll: Boolean, userId: String): Flow<List<SupportRequest>> = callbackFlow {
+        val query = if (canSeeAll) {
             getSupportColl().orderBy(SupportRequest::timestamp.name, Query.Direction.DESCENDING)
         } else {
             getSupportColl().whereEqualTo(SupportRequest::userId.name, userId).orderBy(SupportRequest::timestamp.name, Query.Direction.DESCENDING)
