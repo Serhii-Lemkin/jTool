@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
@@ -78,6 +79,14 @@ fun SupportHubScreen(
         uiState.error?.let {
             infoMessage = it to MessageType.ERROR
             viewModel.onEvent(SupportEvent.ResetStatus)
+        }
+    }
+
+    val pendingSupportDraft by com.jtool.android.core.sync.ImportManager.pendingSupportDraft.collectAsState()
+    LaunchedEffect(pendingSupportDraft) {
+        pendingSupportDraft?.let { draft ->
+            viewModel.prepareFeatureRequestDraft(draft.text)
+            com.jtool.android.core.sync.ImportManager.clearPendingSupportDraft()
         }
     }
 
@@ -182,18 +191,20 @@ fun SupportHubScreen(
                 TitleActionIcon(icon = Icons.Default.FilterList, onClick = { showFilterSheet = true })
                 TitleDropdownMenu {
                     if (uiState.isReviewer) {
-                        DropdownMenuItem(
-                            text = { Text("Reviewer Status") },
+                        ActionListItem(
+                            headline = "Reviewer Status",
+                            supportingText = "View reviewer guidelines and priority queue",
+                            leadingContent = { Icon(Icons.Default.RateReview, null, tint = MaterialTheme.colorScheme.primary) },
                             onClick = {
                                 showReviewerInfoSheet = true
-                            },
-                            leadingIcon = { Icon(Icons.Default.RateReview, null) }
+                            }
                         )
                     }
-                    DropdownMenuItem(
-                        text = { Text(Loc.General.learnMore) },
-                        onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "support-hub") },
-                        leadingIcon = { Icon(Icons.Default.Language, null) }
+                    ActionListItem(
+                        headline = Loc.General.learnMore,
+                        supportingText = Loc.s("support_learnMoreSubtitle", "View online guide and feature documentation"),
+                        leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
+                        onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "support-hub") }
                     )
                 }
             }

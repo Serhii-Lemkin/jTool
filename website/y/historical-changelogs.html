@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="historical_changelog_title">JTools - Historical Release Notes</title>
+    <link rel="icon" type="image/png" href="/512.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/main.css?v=3">
+    <script src="/scripts/components.js"></script>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <jtool-navbar></jtool-navbar>
+
+    <main class="container flex-grow-1" style="padding-top: 100px;">
+        <header class="custom-card p-4 text-center my-4 shadow-sm">
+            <div class="mb-2">
+                <a href="/changelog" class="text-info text-decoration-none fw-semibold d-inline-flex align-items-center gap-1">
+                    <span class="material-icons fs-6">arrow_back</span> <span data-i18n="back_to_current_changelog">Current Release Notes</span>
+                </a>
+            </div>
+            <h1 class="display-5 fw-bold mb-2"><span class="text-info">J</span>Tools Historical Release Notes</h1>
+            <p class="lead text-secondary mx-auto mb-4" style="max-width: 650px;" data-i18n="historical_changelog_subtitle">
+                Explore archive notes and release history from previous JTools versions.
+            </p>
+
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-surface border-end-0 text-secondary">
+                            <span class="material-icons">search</span>
+                        </span>
+                        <input type="text" id="historicalSearchInput" class="form-control border-start-0 ps-0" placeholder="Search version, feature, or bug fix..." onkeyup="filterHistoricalNotes()">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="my-4">
+            <div id="versionTabs" class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+                <!-- Version buttons populated dynamically -->
+            </div>
+
+            <div id="historicalChangelogContainer" class="d-flex flex-column gap-4">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-info" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <jtool-footer></jtool-footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scripts/i18n.js?v=3"></script>
+    <script>
+        const historicalVersions = ['v2.8.3', 'v2.8.2'];
+        let activeVersion = 'v2.8.2';
+        let loadedChangelogs = {};
+
+        async function initHistoricalChangelogs() {
+            renderVersionTabs();
+            await loadAllVersions();
+            renderActiveVersion();
+        }
+
+        function renderVersionTabs() {
+            const tabsContainer = document.getElementById('versionTabs');
+            tabsContainer.innerHTML = '';
+            historicalVersions.forEach(ver => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `btn rounded-pill px-4 py-2 ${ver === activeVersion ? 'btn-info text-dark fw-bold' : 'btn-outline-secondary'}`;
+                btn.innerHTML = `<span class="material-icons fs-6 align-middle me-1">sell</span> ${ver}`;
+                btn.onclick = () => {
+                    activeVersion = ver;
+                    renderVersionTabs();
+                    renderActiveVersion();
+                };
+                tabsContainer.appendChild(btn);
+            });
+        }
+
+        async function loadAllVersions() {
+            const lang = document.documentElement.lang || 'en';
+            for (const ver of historicalVersions) {
+                try {
+                    let url = `/changelogs/history/${ver}.txt`;
+                    if (lang !== 'en') {
+                        url = `/changelogs/history/${ver}_${lang}.txt`;
+                    }
+
+                    let res = await fetch(url);
+                    if (!res.ok && lang !== 'en') {
+                        res = await fetch(`/changelogs/history/${ver}.txt`);
+                    }
+
+                    if (res.ok) {
+                        const txt = await res.text();
+                        loadedChangelogs[ver] = parseChangelogText(txt);
+                    }
+                } catch (e) {
+                    console.error('Error loading historical version:', ver, e);
+                }
+            }
+        }
+
+        function renderActiveVersion() {
+            const container = document.getElementById('historicalChangelogContainer');
+            const sections = loadedChangelogs[activeVersion];
+            const searchVal = document.getElementById('historicalSearchInput').value.toLowerCase().trim();
+
+            if (!sections) {
+                container.innerHTML = `<div class="alert alert-danger text-center p-4">Unable to load release notes for ${activeVersion}.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+
+            sections.forEach(sec => {
+                if (sec.title === 'Version') {
+                    const verBanner = document.createElement('div');
+                    verBanner.className = 'custom-card card-highlight p-4 text-center mb-2';
+                    const verText = sec.items.length > 0 ? sec.items[0].replace(/^-\s*/, '') : activeVersion;
+                    verBanner.innerHTML = `<h2 class="h4 fw-bold text-info mb-0 d-flex align-items-center justify-content-center gap-2"><span class="material-icons text-info fs-4">history</span> Version ${verText} (Archive)</h2>`;
+                    container.appendChild(verBanner);
+                    return;
+                }
+
+                const filteredItems = sec.items.filter(item => {
+                    if (!searchVal) return true;
+                    return item.toLowerCase().includes(searchVal) || sec.title.toLowerCase().includes(searchVal);
+                });
+
+                if (filteredItems.length === 0) return;
+
+                const card = document.createElement('div');
+                card.className = 'custom-card p-4 p-md-5';
+
+                let badgeColor = 'bg-primary';
+                let badgeIconName = 'rocket_launch';
+                if (sec.title.includes('Minor')) {
+                    badgeColor = 'bg-info text-dark';
+                    badgeIconName = 'auto_awesome';
+                } else if (sec.title.includes('Bug')) {
+                    badgeColor = 'bg-warning text-dark';
+                    badgeIconName = 'build';
+                }
+
+                let html = `<div class="d-flex align-items-center gap-2 mb-4">
+                    <span class="badge ${badgeColor} fs-6 px-3 py-2 rounded-pill d-inline-flex align-items-center gap-2"><span class="material-icons fs-6">${badgeIconName}</span> ${sec.title}</span>
+                </div>`;
+
+                html += `<ul class="feature-list mb-0">`;
+                filteredItems.forEach(item => {
+                    const cleanItem = item.replace(/^-\s*/, '');
+                    const parts = cleanItem.split(': ');
+                    if (parts.length > 1) {
+                        html += `<li><strong class="strong-text">${parts[0]}:</strong> ${parts.slice(1).join(': ')}</li>`;
+                    } else {
+                        html += `<li>${cleanItem}</li>`;
+                    }
+                });
+                html += `</ul>`;
+
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+
+            if (container.children.length === 0) {
+                container.innerHTML = `<div class="custom-card p-5 text-center text-secondary"><span class="material-icons fs-1 mb-2">search_off</span><p class="mb-0">No matching updates found for "${searchVal}" in ${activeVersion}.</p></div>`;
+            }
+        }
+
+        function filterHistoricalNotes() {
+            renderActiveVersion();
+        }
+
+        function parseChangelogText(rawText) {
+            const lines = rawText.split('\n');
+            const sections = [];
+            let currentSection = null;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    const title = trimmed.substring(1, trimmed.length - 1);
+                    currentSection = { title, items: [] };
+                    sections.push(currentSection);
+                } else if (currentSection) {
+                    currentSection.items.push(trimmed);
+                }
+            });
+
+            return sections;
+        }
+
+        document.addEventListener('DOMContentLoaded', initHistoricalChangelogs);
+    </script>
+</body>
+</html>

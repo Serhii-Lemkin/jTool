@@ -1,0 +1,56 @@
+[Version]
+v2.8.3
+
+[Big Changes]
+- Streamlined Link Filter Sheet: Redesigned the link category filter sheet to 70% screen height with a scrollable types container, top 'Select All'/'Clear All' shortcuts, and a single full-width 'Apply' button that discards unapplied changes on dismiss.
+- Unsupported Format Support Request Dialog: Added a popup dialog when receiving unsupported share formats with a direct 'Request Support' shortcut pre-filling a Feature Request form in Support Hub.
+- System Share Intent for Web Links & Text Notes: Registered jTools as a system share target for web links and text shared from Instagram or browsers, launching a guided wizard (Group -> Links / Notes -> Pre-filled creation form) to edit and save shared links or text notes.
+- Integrated Share Import Wizard & Native Upload Sheet: Shared files launch a guided multi-step wizard (Group -> Feature App -> Target Vault / Inline Creation) opening Vaults' native upload sheet pre-filled strictly with the first file's name.
+- Universal Slide-Up Action Sheets: Converted top bar 3-dots menus across all app screens into slide-up action sheets with bold headlines, icons, and supporting descriptions.
+- Dedicated Reminder Creation Screen: Built a separate creation and edit screen tailored specifically for Google Calendar Reminders with custom reminder labels, notification alert lead times, and streamlined schedule pickers.
+- Unified Document Search & Tabbed Sort Sheet: Replaced standalone filter and sort popups with a unified dual-tab bottom sheet featuring Filter and Sort tabs, equipped with 'Clear' (resets both filter and sort) and 'Apply' (applies both) actions.
+- Service-Worker Document Edit Uploads & Progress FAB: Routed new file uploads during document edits through `FileUploadQueueManager` and `FileUploadWorker`, automatically popping up the upload progress FAB and enforcing garbage file cleanup on both Google Drive and local cache.
+- Dual-State Calendar Month Grid: Redesigned month grid with 'Closed' (compact Dots view with day view list at bottom) and 'Opened' (full-screen Boxes view with event title cards).
+- Dual-State Shopping Add Container: Added gesture-driven compact/expanded states for the shopping add-item box. Swiping down hides amount fields for fast item entry; swiping up expands quantity/unit fields.
+
+[Minor Changes]
+- Redesigned Notes Sheets & Localized System Tags: Converted Notes creation and filter sheets to big action items with supporting descriptions without title headers, translated Select All / Clear All and Calendar Reminder screens, and ensured all system vault tags auto-localize.
+- Shopping Item Action Sheet: Converted 3-dots dropdown menu on shopping items into a full slide-up action sheet with icons and supporting descriptions.
+- Dynamic DB-Filtered Link Category Sheet: Updated link filter sheet to dynamically display only categories that have active records in the database, hiding unused tags.
+- Redesigned Link Action Sheet: Converted the 3-dots link options sheet into prominent action items with icons, bold titles, and supporting descriptions without a title header.
+- Local Vault Pinning to Top: Added local phone option ('Pin to Top' / 'Unpin Vault') in vault action sheet, keeping pinned vaults strictly ordered at the top of the vaults list.
+- Preferred Date Format Setting & Unified Date Pickers: Added user date format preference (DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD) in General Settings, configuring manual date entry patterns and display formatting across all app pickers.
+- Document Search FAB & Active Filter Badge: Added `FindInPage` (file with magnifying glass) FAB with active non-default filter badges across Vaults list and Vault details views.
+- Local Custom Tag Caching & Unified Suggestions: Added local device tag caching in `SettingsManager` so custom tags created on upload automatically persist on device and render alongside built-in tag chips in both `UploadDocSheet` and `DocFilterSheet`.
+- Prominent Red Container Filter Button: Redesigned document search button in the Red Container using full FAB styling with active filter indicator badges when document search filters are declared.
+- Isolated Vault Search: Restored top search bar to filter Vaults strictly by name or description without displaying inner vault files.
+- Expanded Vault Document Tags: Added standard tags including License, Contract, Insurance, Medical, Tax, Vehicle, Property, Financial, Certificate, and Education.
+- Document Details Section Padding: Fixed layout padding on the document details screen so section title headers align cleanly with card margins.
+- Auto-Capitalization & Clear Buttons on Text Fields: Applied sentence auto-capitalization and clear 'X' buttons across all text fields for effortless typing and instant text clearing.
+- Gesture-Only Grid Toggling & State Persistence: Swiping down opens full-screen boxes mode; swiping up returns to compact dots mode. State is persisted across screens.
+- Notes Standard Checkbox: Replaced custom checklist switches in Notes with clean, standard Compose checkboxes.
+- Non-Invasive Shopping Item Entry: Removed invasive 'Item Restored' sheets when checking/adding items to maintain user focus.
+- Streamlined Event Date & Time Layout: Arranged start date/time and end date/time on two clean horizontal row cards with reduced outer padding for maximum horizontal space.
+- Multi-Maps App Chooser: Integrated geo link launcher allowing users to choose between Google Maps, Waze, or browser apps when opening locations.
+- Event Repeat Details & Redesigned Sheet: Added repeat frequency details to the event details screen and upgraded the event 3-dots sheet with description items without redundant title headers.
+- Workday Shift Name Setting: Added custom work shift name settings in 3-dots action sheet and Workday settings screen.
+
+[Bug Fixes]
+- Crash Protection for Updating Records: Reactive update state tracking blocks user interactions and presents informative alerts if a document is currently uploading/updating in background, preventing crashes on record access.
+- Double File Extension Removal: Fixed duplicate extension display in `EditDocSheet` text fields so base file names and extension labels remain strictly isolated.
+- Single Update Progress Loader: Removed duplicate trailing progress spinner during background document updates, relying exclusively on the document icon badge loader.
+- Top Search Auto-Clearing: Closing top action bar search automatically clears the search string and resets search filters cleanly across Vault list and Vault details views.
+- Smart Pagination Check: Enforced strict pagination detection so the 'Load More' button appears only when additional un-paged records exist.
+- Strict Search Mode Separation & Matching Accuracy: Isolated Vault search (`VAULTS_ONLY`) from Cross-Vault Document search (`DOCS_ACROSS_VAULTS`), ensuring searching for Vault names strictly returns matching Vaults and searching Documents strictly returns matching Documents across all group vaults without cross-contamination.
+- Fixed Filter Sheet Gesture Scrolling: Resolved bottom sheet scrolling twitching in `DocFilterSheet` by eliminating gesture handler conflicts.
+- Share Import Wizard Back Gestures & Selection Highlights: Added system back gesture support (`BackHandler`) in the Share Import Wizard and highlighted selected Group / Vault items with checkmarks.
+- Instant Offline Download Badge Refresh: Added reactive state observation for file upload and download progress so offline cached document badges update instantaneously without requiring pull-to-refresh.
+- Vault Selection Description Fix: Removed '0 documents' subtitle in Step 3 of the import wizard; now displays vault descriptions or clean vault names.
+- Verified Offline Cache Storage Fix: Fixed background upload worker to copy uploaded source files or download from Google Drive into local cache directory whenever 'Save to offline cache' (`saveOffline`) is checked.
+- Same Start & End Time Event Timeline Height: Fixed same-time/zero-duration events (e.g. 08:00 to 08:00 on the same day) erroneously expanding to end-of-day in calendar day timeline view.
+- Auto 15-Minute Event Default Duration: Events created without an end time automatically default to 15 minutes after start time.
+- All-Day Event Centering: Centered all-day event titles and icons vertically inside day timeline cards, removing top padding offset.
+- Overnight & Cross-Day Continuation: Rendered 00:00 continuation for overnight events starting on prior days.
+- Google Calendar Extension Sync: Mapped Firestore extensions directly to events brought by Google Calendar without database timestamp range drops.
+- Same-Time Events Overlap: Unique key mapping in overlap calculations so same-time events render in distinct side-by-side columns.
+- Duplicate & Ghost Events: Unified extension sync with canonical iCalUIDs and title/time reconciliation.

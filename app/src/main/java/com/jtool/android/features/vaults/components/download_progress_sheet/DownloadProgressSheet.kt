@@ -30,7 +30,10 @@ fun DownloadProgressSheet(
     val downloadState by FileDownloadQueueManager.downloadState.collectAsState()
 
     GenericSheet(
-        onDismiss = onDismiss,
+        onDismiss = {
+            FileDownloadQueueManager.clearFinishedTasks()
+            onDismiss()
+        },
         title = "Caching Offline Progress"
     ) {
         Column(

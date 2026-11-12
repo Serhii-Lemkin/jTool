@@ -23,57 +23,80 @@ fun NoteFilterSheet(
 ) {
     GenericSheet(
         onDismiss = onDismiss,
-        title = Loc.ShopList.filterItems,
+        title = null,
         showCloseButton = false
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             ActionListItem(
                 headline = Loc.ShopList.all,
-                leadingContent = { Icon(Icons.Default.List, null) },
-                trailingContent = {
-                    if (currentFilter == null) {
-                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
-                    }
+                supportingText = Loc.s("notes_filterAllDesc", "Show all text notes and checklists"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.List,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
                 },
+                trailingContent = if (currentFilter == null) {
+                    { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                } else null,
                 onClick = {
                     onSelectFilter(null)
                     onDismiss()
                 }
             )
+
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
             ActionListItem(
                 headline = Loc.Notes.textNote,
-                leadingContent = { Icon(Icons.AutoMirrored.Filled.Notes, null) },
-                trailingContent = {
-                    if (currentFilter == NoteTypeEnum.TEXT) {
-                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
-                    }
+                supportingText = Loc.s("notes_filterTextDesc", "Show text notes only"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Notes,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
                 },
+                trailingContent = if (currentFilter == NoteTypeEnum.TEXT) {
+                    { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                } else null,
                 onClick = {
                     onSelectFilter(NoteTypeEnum.TEXT)
                     onDismiss()
                 }
             )
+
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
             ActionListItem(
                 headline = Loc.Notes.checklistNote,
-                leadingContent = { Icon(Icons.Default.Checklist, null) },
-                trailingContent = {
-                    if (currentFilter == NoteTypeEnum.CHECKLIST) {
-                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
-                    }
+                supportingText = Loc.s("notes_filterChecklistDesc", "Show checklist notes only"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Checklist,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
                 },
+                trailingContent = if (currentFilter == NoteTypeEnum.CHECKLIST) {
+                    { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                } else null,
                 onClick = {
                     onSelectFilter(NoteTypeEnum.CHECKLIST)
                     onDismiss()
                 }
             )
+
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

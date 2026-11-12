@@ -82,12 +82,16 @@ object CalendarEventHelper {
                 start.plusHours(1) 
             } else {
                 val t = parseTime(endTime)
-                if (t.isBefore(start) || t == start) LocalTime.MAX else t
+                if (t.isBefore(start)) LocalTime.MAX else t
             }
             
             val durationMinutes = Duration.between(start, end).toMinutes().toInt()
             (durationMinutes * hourHeight / 60).coerceAtLeast(hourHeight / 4)
         } catch (_: Exception) { hourHeight }
+    }
+
+    fun getEventUniqueKey(event: CalendarEvent, index: Int = 0): String {
+        return "${event.id}_${event.title}_${event.dtStart}_$index"
     }
 
     fun calculateOverlapGroups(events: List<CalendarEvent>): Map<String, Pair<Int, Int>> {
@@ -120,28 +124,33 @@ object CalendarEventHelper {
 
     private fun assignColumns(group: List<CalendarEvent>, result: MutableMap<String, Pair<Int, Int>>) {
         val columns = mutableListOf<LocalTime?>() 
+        val eventKeys = group.mapIndexed { idx, evt -> getEventUniqueKey(evt, idx) }
         val eventColumns = mutableMapOf<String, Int>()
         
-        for (event in group) {
+        for (i in group.indices) {
+            val event = group[i]
+            val key = eventKeys[i]
             val startTime = parseTime(event.startTime)
             var assigned = false
-            for (i in columns.indices) {
-                if (columns[i] == null || !startTime.isBefore(columns[i])) {
-                    columns[i] = if (event.endTime.isNullOrBlank()) startTime.plusHours(1) else parseTime(event.endTime)
-                    eventColumns[event.id] = i
+            for (c in columns.indices) {
+                if (columns[c] == null || !startTime.isBefore(columns[c])) {
+                    columns[c] = if (event.endTime.isNullOrBlank()) startTime.plusHours(1) else parseTime(event.endTime)
+                    eventColumns[key] = c
                     assigned = true
                     break
                 }
             }
             if (!assigned) {
                 columns.add(if (event.endTime.isNullOrBlank()) startTime.plusHours(1) else parseTime(event.endTime))
-                eventColumns[event.id] = columns.size - 1
+                eventColumns[key] = columns.size - 1
             }
         }
         
         val totalCols = columns.size
-        for (event in group) {
-            result[event.id] = Pair(eventColumns[event.id]!!, totalCols)
+        for (i in group.indices) {
+            val key = eventKeys[i]
+            val colIndex = eventColumns[key] ?: 0
+            result[key] = Pair(colIndex, totalCols)
         }
     }
 

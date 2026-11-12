@@ -29,16 +29,64 @@ import java.io.File
 
 object VaultDocUtils {
 
+    fun getFileNameFromUri(context: Context, uri: Uri): String {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            try {
+                context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        result = c.getString(c.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/') ?: -1
+            if (cut != -1) {
+                result = result?.substring(cut + 1)
+            }
+        }
+        return result ?: "file"
+    }
+
+    fun getExtFromUri(context: Context, uri: Uri): String {
+        val fileName = getFileNameFromUri(context, uri)
+        return if (fileName.contains('.')) {
+            fileName.substringAfterLast('.').lowercase()
+        } else {
+            val mimeType = context.contentResolver.getType(uri)
+            MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "file"
+        }
+    }
+
     fun getLocalizedTag(tagKey: String): String {
-        return when (tagKey) {
-            "#WARRANTY#" -> VaultsLoc.tagWarranty
-            "#DOCUMENT#" -> VaultsLoc.tagDocument
-            "#RECEIPT#" -> VaultsLoc.tagReceipt
-            "#INVOICE#" -> VaultsLoc.tagInvoice
-            "#AGREEMENT#" -> VaultsLoc.tagAgreement
-            "#IDENTIFICATION#" -> VaultsLoc.tagId
-            "#SLIP#" -> VaultsLoc.tagSlip
-            else -> tagKey
+        val clean = tagKey.trim().removeSurrounding("#").uppercase()
+        return when (clean) {
+            "WARRANTY", "גאראנטיה", "אחריות" -> VaultsLoc.tagWarranty
+            "DOCUMENT", "מסמך", "ДОКУМЕНТ" -> VaultsLoc.tagDocument
+            "RECEIPT", "קבלה", "ЧЕК" -> VaultsLoc.tagReceipt
+            "INVOICE", "חשבונית", "РАХУНОК" -> VaultsLoc.tagInvoice
+            "AGREEMENT", "הסכם", "ДОГОВІР" -> VaultsLoc.tagAgreement
+            "IDENTIFICATION", "ID", "תעודה מזהה", "ПОСВІДЧЕННЯ" -> VaultsLoc.tagId
+            "SLIP", "תלוש", "КВИТАНЦІЯ" -> VaultsLoc.tagSlip
+            "LICENSE", "רישיון", "ЛІЦЕНЗІЯ / ПРАВА", "ЛІЦЕНЗІЯ" -> VaultsLoc.tagLicense
+            "CONTRACT", "חוזה" -> VaultsLoc.tagContract
+            "INSURANCE", "ביטוח", "СТРАХОВКА" -> VaultsLoc.tagInsurance
+            "MEDICAL", "רפואי", "МЕДИЧНИЙ" -> VaultsLoc.tagMedical
+            "TAX", "מיסים", "ПОДАТКИ" -> VaultsLoc.tagTax
+            "VEHICLE", "רכב", "ТРАНСПОРТ" -> VaultsLoc.tagVehicle
+            "PROPERTY", "נכס", "НЕРУХОМІСТЬ" -> VaultsLoc.tagProperty
+            "FINANCIAL", "פיננסי", "ФІНАНСИ" -> VaultsLoc.tagFinancial
+            "CERTIFICATE", "תעודה", "СЕРТИФІКАТ" -> VaultsLoc.tagCertificate
+            "EDUCATION", "חינוך", "ОСВІТА" -> VaultsLoc.tagEducation
+            else -> {
+                if (tagKey.startsWith("#") && tagKey.endsWith("#")) {
+                    tagKey.removeSurrounding("#")
+                } else {
+                    tagKey
+                }
+            }
         }
     }
 
@@ -199,13 +247,20 @@ object VaultDocUtils {
         val docDirFile = File(context.filesDir, "vaults/${doc.vaultId}/${doc.id}/$fileName")
         if (docDirFile.exists() && docDirFile.length() > 0) return docDirFile
 
-        // 2. Check doc-specific directory with rawName
+        // 2. Check localPaths or localPath if populated
+        val customPath = doc.localPaths.getOrNull(index) ?: if (index == 0) doc.localPath else ""
+        if (customPath.isNotEmpty()) {
+            val customFile = File(customPath)
+            if (customFile.exists() && customFile.length() > 0) return customFile
+        }
+
+        // 3. Check doc-specific directory with rawName
         if (rawName != fileName) {
             val rawDocDirFile = File(context.filesDir, "vaults/${doc.vaultId}/${doc.id}/$rawName")
             if (rawDocDirFile.exists() && rawDocDirFile.length() > 0) return rawDocDirFile
         }
 
-        // 3. Check legacy prefixed file name
+        // 4. Check legacy prefixed file name
         val legacyFile = File(context.filesDir, "vaults/${doc.vaultId}/${doc.id}_${doc.name}")
         if (legacyFile.exists() && legacyFile.length() > 0) return legacyFile
 

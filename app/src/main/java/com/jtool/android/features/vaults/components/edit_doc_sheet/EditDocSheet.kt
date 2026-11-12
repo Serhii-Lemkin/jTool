@@ -55,23 +55,23 @@ fun getExistingFileItems(doc: VaultDocument): List<ExistingFileItem> {
         return doc.driveFileIds.indices.map { i ->
             val fullName = doc.fileNames.getOrElse(i) { doc.name }
             val ext = if (fullName.contains('.')) ".${fullName.substringAfterLast('.')}" else ""
-            val nameWithoutExt = if (fullName.contains('.')) fullName.substringBeforeLast('.') else fullName
+            val nameWithoutExt = if (ext.isNotEmpty()) fullName.removeSuffix(ext) else fullName
             ExistingFileItem(
                 driveFileId = doc.driveFileIds[i],
                 driveUrl = doc.driveUrls.getOrElse(i) { "" },
-                fileName = nameWithoutExt,
+                fileName = nameWithoutExt.removeSuffix(ext),
                 extension = ext,
                 fileType = doc.fileTypes.getOrElse(i) { doc.fileType }
             )
         }.filter { it.driveFileId.isNotEmpty() }
     } else if (doc.driveFileId.isNotEmpty()) {
         val ext = if (doc.name.contains('.')) ".${doc.name.substringAfterLast('.')}" else ""
-        val nameWithoutExt = if (doc.name.contains('.')) doc.name.substringBeforeLast('.') else doc.name
+        val nameWithoutExt = if (ext.isNotEmpty()) doc.name.removeSuffix(ext) else doc.name
         return listOf(
             ExistingFileItem(
                 driveFileId = doc.driveFileId,
                 driveUrl = doc.driveUrl,
-                fileName = nameWithoutExt,
+                fileName = nameWithoutExt.removeSuffix(ext),
                 extension = ext,
                 fileType = doc.fileType
             )
@@ -109,13 +109,23 @@ fun EditDocSheet(
 
     val tagsMap = remember {
         mapOf(
-            "#WARRANTY#" to VaultsLoc.tagWarranty,
             "#DOCUMENT#" to VaultsLoc.tagDocument,
+            "#WARRANTY#" to VaultsLoc.tagWarranty,
             "#RECEIPT#" to VaultsLoc.tagReceipt,
             "#INVOICE#" to VaultsLoc.tagInvoice,
             "#AGREEMENT#" to VaultsLoc.tagAgreement,
             "#IDENTIFICATION#" to VaultsLoc.tagId,
-            "#SLIP#" to VaultsLoc.tagSlip
+            "#SLIP#" to VaultsLoc.tagSlip,
+            "#LICENSE#" to VaultsLoc.tagLicense,
+            "#CONTRACT#" to VaultsLoc.tagContract,
+            "#INSURANCE#" to VaultsLoc.tagInsurance,
+            "#MEDICAL#" to VaultsLoc.tagMedical,
+            "#TAX#" to VaultsLoc.tagTax,
+            "#VEHICLE#" to VaultsLoc.tagVehicle,
+            "#PROPERTY#" to VaultsLoc.tagProperty,
+            "#FINANCIAL#" to VaultsLoc.tagFinancial,
+            "#CERTIFICATE#" to VaultsLoc.tagCertificate,
+            "#EDUCATION#" to VaultsLoc.tagEducation
         )
     }
 
@@ -270,7 +280,7 @@ fun EditDocSheet(
                             OutlinedTextField(
                                 value = file.fileName.removeSuffix(file.extension),
                                 onValueChange = { newName ->
-                                    val sanitized = sanitizeFileName(newName)
+                                    val sanitized = sanitizeFileName(newName).removeSuffix(file.extension)
                                     val newList = existingFiles.toMutableList()
                                     newList[index] = file.copy(fileName = sanitized)
                                     existingFiles = newList
@@ -333,7 +343,7 @@ fun EditDocSheet(
                             OutlinedTextField(
                                 value = file.fileName.removeSuffix(file.extension),
                                 onValueChange = { newName ->
-                                    val sanitized = sanitizeFileName(newName)
+                                    val sanitized = sanitizeFileName(newName).removeSuffix(file.extension)
                                     val newList = newFiles.toMutableList()
                                     newList[index] = file.copy(fileName = sanitized)
                                     newFiles = newList
@@ -494,7 +504,7 @@ fun EditDocSheet(
                     )
                 }
 
-                val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val dateFormat = remember(context) { com.jtool.android.core.utils.getPreferredSimpleDateFormat(context) }
                 OutlinedButton(
                     onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth()
@@ -520,10 +530,14 @@ fun EditDocSheet(
                                 description = description.trim(),
                                 driveFileIds = existingFiles.map { it.driveFileId },
                                 driveUrls = existingFiles.map { it.driveUrl },
-                                fileNames = existingFiles.map { "${it.fileName}${it.extension}" },
+                                fileNames = existingFiles.map {
+                                    val clean = it.fileName.removeSuffix(it.extension)
+                                    "$clean${it.extension}"
+                                },
                                 fileTypes = existingFiles.map { it.fileType }
                             )
                             onConfirm(updatedDoc, newFiles, removedDriveIds)
+                            onDismiss()
                         }
                     },
                     enabled = docName.isNotBlank() && (existingFiles.isNotEmpty() || newFiles.isNotEmpty()) && tag.isNotBlank(),

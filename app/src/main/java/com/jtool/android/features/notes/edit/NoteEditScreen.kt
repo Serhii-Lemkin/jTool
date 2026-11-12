@@ -142,7 +142,7 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                                Switch(
+                                Checkbox(
                                     checked = item.isChecked,
                                     onCheckedChange = { viewModel.onEvent(NotesEvent.ToggleChecklistItem(item.id)) }
                                 )

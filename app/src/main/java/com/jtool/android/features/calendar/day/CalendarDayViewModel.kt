@@ -77,8 +77,8 @@ class CalendarDayViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun loadEvents(date: LocalDate) {
-        val startMs = date.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val endMs = date.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val startMs = date.minusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val endMs = date.plusDays(7).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
         viewModelScope.launch {
             val calendarId = settingsManager.getGoogleCalendarId()
@@ -101,16 +101,31 @@ class CalendarDayViewModel(
                 
                 val userId = settingsManager.getUserId()
                 val groupIds = settingsManager.getGroups().keys.toList()
-                val exts = dataManager.getCalendarExtensionsForRange(userId, groupIds, startMs, endMs)
+                val exts = dataManager.getAllCalendarExtensions(userId, groupIds)
                 val mappedExtensions = mutableMapOf<String, CalendarEventExtension>()
                 allEvents.forEach { event ->
                     val ext = exts[event.id] 
                         ?: exts[event.iCalUID] 
-                        ?: exts.values.find { it.googleEventId == event.id || it.googleEventId == event.iCalUID }
+                        ?: exts.values.find { ext ->
+                            ext.googleEventId == event.id ||
+                            ext.googleEventId == event.iCalUID ||
+                            (event.iCalUID != null && ext.googleEventId == "ext_${event.iCalUID}") ||
+                            (ext.title?.trim().equals(event.title.trim(), ignoreCase = true) &&
+                             ext.dateTimestamp != 0L && event.dtStart != null &&
+                             Math.abs(ext.dateTimestamp - event.dtStart) < 300_000L)
+                        }
                     if (ext != null) {
                         mappedExtensions[event.id] = ext
                         if (event.iCalUID != null) mappedExtensions[event.iCalUID] = ext
                         mappedExtensions[ext.googleEventId] = ext
+                        
+                        val canonicalId = event.iCalUID ?: event.id
+                        if (canonicalId.isNotEmpty() && ext.googleEventId != canonicalId) {
+                            val healedExt = ext.copy(googleEventId = canonicalId)
+                            viewModelScope.launch {
+                                dataManager.saveCalendarExtension(healedExt)
+                            }
+                        }
                     }
                 }
                 exts.forEach { (k, v) ->
@@ -164,11 +179,31 @@ class CalendarDayViewModel(
                 true
             }
 
-            val existingIds = googleEvents.mapNotNull { it.iCalUID }.toSet() + googleEvents.map { it.id }.toSet()
+            val existingIds = mutableSetOf<String>()
+            googleEvents.forEach { evt ->
+                existingIds.add(evt.id)
+                existingIds.add("ext_${evt.id}")
+                if (!evt.iCalUID.isNullOrEmpty()) {
+                    existingIds.add(evt.iCalUID)
+                    existingIds.add("ext_${evt.iCalUID}")
+                }
+            }
             val extraEvents = mutableListOf<CalendarEvent>()
 
             extensions.forEach { (extId, ext) ->
-                if (!existingIds.contains(extId) && !existingIds.contains(ext.googleEventId) && ext.dateTimestamp != 0L) {
+                val cleanExtId = extId.removePrefix("ext_")
+                val cleanGoogleId = ext.googleEventId.removePrefix("ext_")
+                val isAlreadyInGoogle = existingIds.contains(extId) ||
+                        existingIds.contains(cleanExtId) ||
+                        existingIds.contains(ext.googleEventId) ||
+                        existingIds.contains(cleanGoogleId) ||
+                        googleEvents.any { gEvt ->
+                            gEvt.dtStart != null && ext.dateTimestamp != 0L &&
+                            Math.abs(gEvt.dtStart - ext.dateTimestamp) < 300_000L &&
+                            gEvt.title.trim().equals(ext.title?.trim() ?: "", ignoreCase = true)
+                        }
+
+                if (!isAlreadyInGoogle && ext.dateTimestamp != 0L) {
                     val extStatus = ext.attendeeStatuses[userEmail] ?: ext.attendeeStatuses[authEmail] ?: CalendarContract.Attendees.ATTENDEE_STATUS_INVITED
                     if (!showDeclined && extStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) {
                         // Skip
@@ -198,32 +233,42 @@ class CalendarDayViewModel(
             val displayEvents = mutableListOf<CalendarEvent>()
             
             allEvents.forEach { event ->
+                val eventDateStr = event.date
+                val targetDateStr = date.toString()
                 val startMs = event.dtStart
                 val endMs = event.dtEnd
                 
                 val eventStartLdt = if (startMs != null) {
-                    LocalDateTime.ofInstant(Instant.ofEpochMilli(startMs), ZoneId.systemDefault())
+                    if (event.allDay) {
+                        LocalDateTime.ofInstant(Instant.ofEpochMilli(startMs), ZoneOffset.UTC)
+                    } else {
+                        LocalDateTime.ofInstant(Instant.ofEpochMilli(startMs), ZoneId.systemDefault())
+                    }
                 } else {
                     LocalDateTime.now()
                 }
                 
-                val eventDate = eventStartLdt.toLocalDate()
-                
                 val eventEndLdt = if (endMs != null) {
-                    LocalDateTime.ofInstant(Instant.ofEpochMilli(endMs), ZoneId.systemDefault())
+                    if (event.allDay) {
+                        LocalDateTime.ofInstant(Instant.ofEpochMilli(endMs), ZoneOffset.UTC)
+                    } else {
+                        LocalDateTime.ofInstant(Instant.ofEpochMilli(endMs), ZoneId.systemDefault())
+                    }
                 } else {
                     eventStartLdt.plusHours(1)
                 }
                 
-                val isOvernight = eventEndLdt.toLocalDate().isAfter(eventDate)
+                val startDate = eventStartLdt.toLocalDate()
+                val endDate = eventEndLdt.toLocalDate()
 
-                if (eventDate == date) {
+                if (eventDateStr == targetDateStr || startDate == date) {
                     displayEvents.add(event)
-                } else if (eventDate == date.minusDays(1) && isOvernight) {
+                } else if (startDate.isBefore(date) && !endDate.isBefore(date)) {
+                    val contStartMs = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
                     displayEvents.add(event.copy(
-                        dtStart = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                        note = "Continued from yesterday. ${event.note}".trim(),
-                        id = "${event.id}_cont"
+                        dtStart = contStartMs,
+                        note = "(${Loc.Calendar.event} ${Loc.s("general_from", "from")} ${startDate}) ${event.note}".trim(),
+                        id = "${event.id}_cont_${date}"
                     ))
                 }
             }

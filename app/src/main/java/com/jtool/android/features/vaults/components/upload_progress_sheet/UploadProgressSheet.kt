@@ -63,7 +63,10 @@ fun UploadProgressSheet(
     }
 
     GenericSheet(
-        onDismiss = onDismiss,
+        onDismiss = {
+            FileUploadQueueManager.clearFinishedTasks()
+            onDismiss()
+        },
         title = Loc.General.uploadProgress
     ) {
         Column(

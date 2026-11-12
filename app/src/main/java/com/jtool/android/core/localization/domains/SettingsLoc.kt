@@ -43,6 +43,9 @@ object SettingsLoc {
     val playStoreUpdates get() = Loc.s("settings_playStoreUpdates", "Play Store Updates")
     val playStoreUpdatesDesc get() = Loc.s("settings_playStoreUpdatesDesc", "Updates are managed automatically by Google Play. If you encounter issues, you can check the store listing manually.")
     val viewInPlayStore get() = Loc.s("settings_viewInPlayStore", "View in Play Store")
+    val customizeTheme get() = Loc.s("settings_customizeTheme", "Customize Theme")
+    val dateFormat get() = Loc.s("settings_dateFormat", "Date Format")
+    val selectDateFormat get() = Loc.s("settings_selectDateFormat", "Select Preferred Date Format")
     val layoutDescription get() = Loc.s("settings_layoutDescription", "Change how apps are displayed on the home screen")
     val nameSaved get() = Loc.s("settings_nameSaved", "Name saved!")
     val dangerZone get() = Loc.s("settings_dangerZone", "Danger Zone")
@@ -146,7 +149,7 @@ object SettingsLoc {
 
     // Legacy settings keys
     val releaseNotes get() = Loc.s("settings_releaseNotes", "Release Notes")
-    val releaseNotesDesc get() = Loc.s("settings_releaseNotesDesc", "See all recent features, changes, and bug fixes for version 2.8.0 (Build 59)")
+    val releaseNotesDesc get() = Loc.s("settings_releaseNotesDesc", "See all recent features, changes, and bug fixes for version 2.8.4 (Build 65)")
     val viewChangelog get() = Loc.s("settings_viewChangelog", "View Release Notes")
     val notSignedIn get() = Loc.s("settings_notSignedIn", "You are not signed in.")
     val noneSelected get() = Loc.s("settings_noneSelected", "None selected")

@@ -6,6 +6,10 @@ sealed interface LinksEvent {
     data class UpdateSearchQuery(val query: String) : LinksEvent
     data class UpdateNewTitle(val title: String) : LinksEvent
     data class UpdateNewUrl(val url: String) : LinksEvent
+    data class UpdateNewTag(val tag: String) : LinksEvent
+    data class ToggleTagFilter(val tag: String) : LinksEvent
+    data class SetTagFilters(val tags: Set<String>) : LinksEvent
+    object ClearTagFilters : LinksEvent
     data class ToggleAddDialog(val show: Boolean) : LinksEvent
     data class RequestEdit(val link: LinkItem?) : LinksEvent
     data class RequestDelete(val link: LinkItem?) : LinksEvent

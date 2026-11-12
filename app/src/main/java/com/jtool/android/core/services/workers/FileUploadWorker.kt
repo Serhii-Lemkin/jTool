@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -165,36 +166,92 @@ class FileUploadWorker(
                     FileUploadQueueManager.markTaskFailed(pendingTask.id, errorMsg)
                     showFailureNotification(pendingTask.docName, errorMsg)
                 } else {
-                    val newDoc = VaultDocument(
+                    val finalDriveFileIds = pendingTask.existingDriveFileIds + uploadedFileIds
+                    val finalDriveUrls = pendingTask.existingDriveUrls + uploadedDriveUrls
+                    val finalFileNames = pendingTask.existingFileNames + fileNames
+                    val finalFileTypes = pendingTask.existingFileTypes + fileTypes
+
+                    val docToSave = VaultDocument(
+                        id = pendingTask.existingDocId ?: "",
                         vaultId = pendingTask.vault.id,
                         name = pendingTask.docName,
                         tag = pendingTask.tag,
                         uploadTimestamp = System.currentTimeMillis(),
                         documentTimestamp = pendingTask.docDate,
                         description = pendingTask.description,
-                        driveFileId = uploadedFileIds.firstOrNull() ?: "",
-                        driveUrl = uploadedDriveUrls.firstOrNull() ?: "",
-                        fileType = fileTypes.firstOrNull() ?: "",
-                        driveFileIds = uploadedFileIds,
-                        driveUrls = uploadedDriveUrls,
-                        fileNames = fileNames,
-                        fileTypes = fileTypes,
-                        folderId = docFolderId,
-                        folderUrl = docFolderUrl,
+                        driveFileId = finalDriveFileIds.firstOrNull() ?: "",
+                        driveUrl = finalDriveUrls.firstOrNull() ?: "",
+                        fileType = finalFileTypes.firstOrNull() ?: "",
+                        driveFileIds = finalDriveFileIds,
+                        driveUrls = finalDriveUrls,
+                        fileNames = finalFileNames,
+                        fileTypes = finalFileTypes,
+                        folderId = docFolderId.ifEmpty { pendingTask.createdFolderId ?: "" },
+                        folderUrl = docFolderUrl.ifEmpty { pendingTask.createdFolderUrl ?: "" },
                         lastUpdatedBy = settingsManager.getAppUserId()
                     )
 
-                    val docId = dataManager.addVaultDoc(gid, pendingTask.vault.id, newDoc)
+                    val docId = if (!pendingTask.existingDocId.isNullOrEmpty()) {
+                        dataManager.updateVaultDoc(gid, pendingTask.vault.id, docToSave)
+                        pendingTask.existingDocId
+                    } else {
+                        dataManager.addVaultDoc(gid, pendingTask.vault.id, docToSave)
+                    }
 
                     if (pendingTask.saveOffline) {
                         try {
                             val docDir = File(appContext.filesDir, "vaults/${pendingTask.vault.id}/$docId")
                             if (!docDir.exists()) docDir.mkdirs()
-                            fileNames.forEach { fileName ->
-                                val srcFile = File(appContext.filesDir, "vaults/${pendingTask.vault.id}/$fileName")
-                                if (srcFile.exists()) {
-                                    srcFile.copyTo(File(docDir, fileName), overwrite = true)
+
+                            val savedLocalPaths = mutableListOf<String>()
+
+                            pendingTask.files.forEachIndexed { index, fileProgress ->
+                                val rawName = fileNames.getOrNull(index) ?: pendingTask.docName
+                                val type = fileTypes.getOrNull(index) ?: fileProgress.extension
+                                val targetFileName = VaultDocUtils.ensureExtension(rawName, type)
+                                val targetFile = File(docDir, targetFileName)
+                                var copied = false
+
+                                if (fileProgress.uriString.isNotBlank()) {
+                                    try {
+                                        val uri = Uri.parse(fileProgress.uriString)
+                                        appContext.contentResolver.openInputStream(uri)?.use { input ->
+                                            java.io.FileOutputStream(targetFile).use { output ->
+                                                input.copyTo(output)
+                                            }
+                                        }
+                                        if (targetFile.exists() && targetFile.length() > 0) {
+                                            copied = true
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("FileUploadWorker", "Failed copying source Uri for offline cache", e)
+                                    }
                                 }
+
+                                if (!copied) {
+                                    val driveId = fileProgress.driveFileId ?: docToSave.driveFileIds.getOrNull(index) ?: docToSave.driveFileId
+                                    if (!driveId.isNullOrEmpty()) {
+                                        GoogleDriveVaultHelper.downloadDocumentToLocal(
+                                            context = appContext,
+                                            vaultId = pendingTask.vault.id,
+                                            doc = docToSave.copy(id = docId),
+                                            index = index
+                                        )
+                                    }
+                                }
+
+                                if (targetFile.exists() && targetFile.length() > 0) {
+                                    savedLocalPaths.add(targetFile.absolutePath)
+                                }
+                            }
+
+                            if (savedLocalPaths.isNotEmpty()) {
+                                val updatedDoc = docToSave.copy(
+                                    id = docId,
+                                    localPath = savedLocalPaths.first(),
+                                    localPaths = savedLocalPaths
+                                )
+                                dataManager.updateVaultDoc(gid, pendingTask.vault.id, updatedDoc)
                             }
                         } catch (e: Exception) {
                             Log.e("FileUploadWorker", "Failed local offline caching", e)

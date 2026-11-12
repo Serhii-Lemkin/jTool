@@ -6,6 +6,7 @@ import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.workday.WorktimeOptions
 import com.jtool.android.core.models.calendar.CalendarConfig
 import com.jtool.android.core.models.calendar.enums.GridEventStyleEnum
+import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.user.PublicProfile
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
@@ -109,6 +110,11 @@ class SettingsManager(context: Context) {
         prefs.edit().putBoolean("seen_vaults_info", seen).apply()
     }
 
+    fun getSelectedVaultId(): String = prefs.getString("selected_vault_id", "") ?: ""
+    fun setSelectedVaultId(id: String) {
+        prefs.edit().putString("selected_vault_id", id).apply()
+    }
+
     fun getJtoolsFolderId(): String {
         return prefs.getString("jtools_folder_id", "") ?: ""
     }
@@ -131,6 +137,41 @@ class SettingsManager(context: Context) {
 
     fun setLanguage(lang: String) {
         prefs.edit().putString("language", lang).apply()
+    }
+
+    fun getDateFormat(): String {
+        return prefs.getString("date_format", "DD/MM/YYYY") ?: "DD/MM/YYYY"
+    }
+
+    fun setDateFormat(format: String) {
+        prefs.edit().putString("date_format", format).apply()
+    }
+
+    fun getPinnedVaultIds(): List<String> {
+        val jsonStr = prefs.getString("pinned_vault_ids", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<String>>(jsonStr)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun savePinnedVaultIds(ids: List<String>) {
+        prefs.edit().putString("pinned_vault_ids", json.encodeToString(ids)).apply()
+    }
+
+    fun togglePinVault(vaultId: String) {
+        val current = getPinnedVaultIds().toMutableList()
+        if (current.contains(vaultId)) {
+            current.remove(vaultId)
+        } else {
+            current.add(vaultId)
+        }
+        savePinnedVaultIds(current)
+    }
+
+    fun isVaultPinned(vaultId: String): Boolean {
+        return getPinnedVaultIds().contains(vaultId)
     }
 
     fun getCachedWebsiteUrl(): String {
@@ -436,9 +477,23 @@ class SettingsManager(context: Context) {
         saveCalendarConfig(getCalendarConfig().copy(displayedCalendarIds = ids.toList()))
     }
 
-    fun getGridEventStyle(): GridEventStyleEnum = getCalendarConfig().gridEventStyle
-    fun setGridEventStyle(style: GridEventStyleEnum) {
-        saveCalendarConfig(getCalendarConfig().copy(gridEventStyle = style))
+    fun isCalendarGridOpened(): Boolean = prefs.getBoolean("calendar_grid_opened", false)
+    fun setCalendarGridOpened(opened: Boolean) {
+        prefs.edit().putBoolean("calendar_grid_opened", opened).apply()
+    }
+
+    fun getCustomWorkShiftTitle(): String {
+        val saved = prefs.getString("custom_work_shift_title", null)
+        return if (!saved.isNullOrBlank()) saved else Loc.s("calendar_shift", "Work Shift")
+    }
+
+    fun setCustomWorkShiftTitle(title: String) {
+        prefs.edit().putString("custom_work_shift_title", title.trim()).apply()
+    }
+
+    fun isShoppingAddBoxCompact(): Boolean = prefs.getBoolean("shopping_add_box_compact", false)
+    fun setShoppingAddBoxCompact(compact: Boolean) {
+        prefs.edit().putBoolean("shopping_add_box_compact", compact).apply()
     }
 
     fun getPublicProfiles(): Map<String, PublicProfile> {
@@ -488,6 +543,18 @@ class SettingsManager(context: Context) {
 
     fun isShowDriveButtonsEnabled(): Boolean = prefs.getBoolean("vault_show_drive_buttons", false)
     fun setShowDriveButtonsEnabled(enabled: Boolean) = prefs.edit().putBoolean("vault_show_drive_buttons", enabled).apply()
+
+    fun getCachedCustomTags(): Set<String> {
+        return prefs.getStringSet("cached_custom_tags", emptySet()) ?: emptySet()
+    }
+
+    fun saveCustomTag(tag: String) {
+        val trimmed = tag.trim()
+        if (trimmed.isBlank()) return
+        val current = getCachedCustomTags().toMutableSet()
+        current.add(trimmed)
+        prefs.edit().putStringSet("cached_custom_tags", current).apply()
+    }
 
     private val contextRef = context
 

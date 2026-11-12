@@ -2,18 +2,19 @@ package com.jtool.android.features.links
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.jtool.android.core.models.feature.links.LinkItem
 import com.jtool.android.core.backup.BackupManager
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.localization.domains.LinksLoc
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.components.layout.ActionListItem
@@ -32,6 +34,7 @@ import com.jtool.android.core.components.layout.TitleDropdownMenu
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.links.components.link_delete_confirm_sheet.LinkDeleteConfirmSheet
 import com.jtool.android.features.links.components.link_edit_sheet.LinkEditSheet
+import com.jtool.android.features.links.components.link_filter_sheet.LinkFilterSheet
 import com.jtool.android.features.links.components.link_action_sheet.LinkActionSheet
 import com.jtool.android.ui.components.common.MessageSheet
 import com.jtool.android.ui.components.common.MessageType
@@ -61,9 +64,27 @@ fun LinksScreen(
     var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
 
     var isSearchVisible by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
     var selectedLinkForAction by remember { mutableStateOf<LinkItem?>(null) }
     
+    val activeDbTagKeys = remember(uiState.links) {
+        uiState.links.map { it.tag.ifBlank { "#COMMON#" }.uppercase() }.toSet()
+    }
+
+    val availableTags = remember(activeDbTagKeys) {
+        val std = LinksLoc.allStandardLinkTags.filter { activeDbTagKeys.contains(it.first) }
+        if (std.isEmpty()) {
+            listOf("#COMMON#" to LinksLoc.tagCommon)
+        } else {
+            std
+        }
+    }
+
+    val hasActiveTagFilter = remember(uiState.selectedTags, availableTags) {
+        uiState.selectedTags.isNotEmpty() && uiState.selectedTags.size < availableTags.size
+    }
+
     LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
     BaseScreen(
@@ -84,13 +105,32 @@ fun LinksScreen(
         searchPlaceholder = Loc.Links.searchLinks,
         actions = {
             TitleActionIcon(icon = Icons.Default.Search, onClick = { isSearchVisible = true })
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(onClick = { showFilterSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Filter",
+                        tint = if (hasActiveTagFilter) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                    )
+                }
+                if (hasActiveTagFilter) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp, end = 8.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error)
+                    )
+                }
+            }
             TitleDropdownMenu {
-                DropdownMenuItem(
-                    text = { Text(Loc.General.learnMore) },
+                ActionListItem(
+                    headline = Loc.General.learnMore,
+                    supportingText = Loc.s("links_learnMoreSubtitle", "View online guide and feature documentation"),
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
                     onClick = {
                         com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "personal-hub")
-                    },
-                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                    }
                 )
             }
         },
@@ -118,6 +158,10 @@ fun LinksScreen(
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     items(uiState.filteredLinks, key = { it.id }) { link ->
+                        val localizedTag = LinksLoc.getLocalizedLinkTag(link.tag)
+                        val uName = uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy
+                        val meta = "$localizedTag • ${Loc.General.by} $uName"
+
                         ActionListItem(
                             onClick = {
                                 try {
@@ -130,7 +174,7 @@ fun LinksScreen(
                             headline = link.title,
                             supportingText = link.url,
                             supportingMaxLines = 1,
-                            metadataText = "${Loc.General.by} ${uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy}",
+                            metadataText = meta,
                             trailingContent = {
                                 IconButton(
                                     onClick = { selectedLinkForAction = link },
@@ -150,14 +194,25 @@ fun LinksScreen(
         }
     }
 
+    if (showFilterSheet) {
+        LinkFilterSheet(
+            allTags = availableTags,
+            selectedTags = uiState.selectedTags,
+            onApplyFilters = { tags -> viewModel.onEvent(LinksEvent.SetTagFilters(tags)) },
+            onDismiss = { showFilterSheet = false }
+        )
+    }
+
     if (uiState.showAddDialog) {
         LinkEditSheet(
             sheetTitle = if (uiState.editingLink != null) Loc.General.edit else Loc.Links.addLink,
             buttonText = if (uiState.editingLink != null) Loc.General.save else Loc.General.add,
             title = uiState.newTitle,
             url = uiState.newUrl,
+            tag = uiState.newTag,
             onTitleChange = { viewModel.onEvent(LinksEvent.UpdateNewTitle(it)) },
             onUrlChange = { viewModel.onEvent(LinksEvent.UpdateNewUrl(it)) },
+            onTagChange = { viewModel.onEvent(LinksEvent.UpdateNewTag(it)) },
             onDismiss = { viewModel.onEvent(LinksEvent.RequestEdit(null)); viewModel.onEvent(LinksEvent.ToggleAddDialog(false)) },
             onConfirm = { viewModel.onEvent(LinksEvent.SaveLink) }
         )

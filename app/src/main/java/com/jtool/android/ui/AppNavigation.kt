@@ -183,6 +183,117 @@ fun AppNavigation(
     )
     val vaultsUiState by vaultsViewModel.uiState.collectAsState()
 
+    val pendingSharedUris by com.jtool.android.core.sync.ImportManager.pendingSharedUris.collectAsState()
+    val pendingSharedText by com.jtool.android.core.sync.ImportManager.pendingSharedText.collectAsState()
+
+    if (pendingSharedUris.isNotEmpty()) {
+        com.jtool.android.features.vaults.components.incoming_share_wizard_sheet.IncomingShareWizardSheet(
+            sharedUris = pendingSharedUris,
+            groups = groups,
+            currentGroupId = currentGroupId,
+            dataManager = dataManager,
+            onConfirmUpload = { groupId, vault, docName, tag, docDate, desc, saveOffline, files ->
+                settingsManager.setSelectedVaultId(vault.id)
+                if (currentGroupId != groupId) {
+                    onGroupChanged(groupId)
+                }
+                com.jtool.android.core.services.FileUploadQueueManager.enqueue(
+                    context = context,
+                    vault = vault,
+                    files = files,
+                    docName = docName,
+                    tag = tag,
+                    docDate = docDate,
+                    description = desc,
+                    saveOffline = saveOffline
+                )
+                com.jtool.android.core.sync.ImportManager.clearPendingSharedUris()
+                navigateTo(AppScreenEnum.VAULT_DETAILS)
+            },
+            onDismiss = {
+                com.jtool.android.core.sync.ImportManager.clearPendingSharedUris()
+            }
+        )
+    }
+
+    if (pendingSharedText != null) {
+        com.jtool.android.features.vaults.components.incoming_share_wizard_sheet.IncomingShareTextWizardSheet(
+            sharedContent = pendingSharedText!!,
+            groups = groups,
+            currentGroupId = currentGroupId,
+            onSaveLink = { groupId, title, rawUrl, tag ->
+                if (currentGroupId != groupId) {
+                    onGroupChanged(groupId)
+                }
+                var url = rawUrl
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "https://$url"
+                }
+                val linkId = System.currentTimeMillis().toString()
+                val linkItem = com.jtool.android.core.models.feature.links.LinkItem(
+                    id = linkId,
+                    title = title,
+                    url = url,
+                    tag = tag,
+                    lastUpdatedBy = settingsManager.getAppUserId(),
+                    timestamp = System.currentTimeMillis()
+                )
+                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("groups")
+                    .document(groupId)
+                    .collection("links")
+                    .document(linkId)
+                    .set(linkItem)
+
+                com.jtool.android.core.sync.ImportManager.clearPendingSharedText()
+                navigateTo(AppScreenEnum.LINKS)
+            },
+            onSaveNote = { groupId, title, content ->
+                if (currentGroupId != groupId) {
+                    onGroupChanged(groupId)
+                }
+                val noteId = System.currentTimeMillis().toString()
+                val noteItem = com.jtool.android.core.models.feature.notes.NoteItem(
+                    id = noteId,
+                    title = title,
+                    content = content,
+                    type = com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum.TEXT,
+                    lastUpdatedBy = settingsManager.getAppUserId(),
+                    timestamp = System.currentTimeMillis()
+                )
+                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("groups")
+                    .document(groupId)
+                    .collection("notes")
+                    .document(noteId)
+                    .set(noteItem)
+
+                com.jtool.android.core.sync.ImportManager.clearPendingSharedText()
+                navigateTo(AppScreenEnum.NOTES)
+            },
+            onDismiss = {
+                com.jtool.android.core.sync.ImportManager.clearPendingSharedText()
+            }
+        )
+    }
+
+    val pendingUnsupportedShare by com.jtool.android.core.sync.ImportManager.pendingUnsupportedShare.collectAsState()
+
+    if (pendingUnsupportedShare != null) {
+        com.jtool.android.features.vaults.components.unsupported_share_format_sheet.UnsupportedShareFormatSheet(
+            content = pendingUnsupportedShare!!,
+            onRequestSupport = { mimeType, details ->
+                val templateText = "Feature Request: Support for format ($mimeType)\n\nI tried sharing content with a format that is not yet supported in jTools:\n- Format / MIME Type: $mimeType\n- Details: $details\n\nAdditional notes: "
+                com.jtool.android.core.sync.ImportManager.setPendingSupportDraft(templateText)
+                com.jtool.android.core.sync.ImportManager.clearPendingUnsupportedShare()
+                navigateTo(AppScreenEnum.SUPPORT_HUB)
+            },
+            onDismiss = {
+                com.jtool.android.core.sync.ImportManager.clearPendingUnsupportedShare()
+            }
+        )
+    }
+
     val currentProps = AppProperties.fromId(currentScreen)
     currentProps?.Content(deps)
 }

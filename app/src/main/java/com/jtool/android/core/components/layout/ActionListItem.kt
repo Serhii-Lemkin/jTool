@@ -32,7 +32,8 @@ fun ActionListItem(
     metadataColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
     supportingMaxLines: Int = Int.MAX_VALUE,
     headlineMaxLines: Int = Int.MAX_VALUE,
-    metadataMaxLines: Int = Int.MAX_VALUE
+    metadataMaxLines: Int = Int.MAX_VALUE,
+    supportingComponent: @Composable (() -> Unit)? = null
 ) {
     val alpha = if (isPending) 0.5f else 1.0f
     
@@ -55,7 +56,9 @@ fun ActionListItem(
             )
         },
         supportingContent = {
-            if (supportingText != null || metadataText != null) {
+            if (supportingComponent != null) {
+                supportingComponent()
+            } else if (supportingText != null || metadataText != null) {
                 Column {
                     if (supportingText != null) {
                         Text(

@@ -475,21 +475,63 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        intent?.data?.let { uri ->
-            if ((uri.scheme == "https" || uri.scheme == "http") && uri.host == BuildConfig.DEEP_LINK_HOST) {
-                val path = uri.path ?: ""
-                if (path.startsWith("/event/")) {
-                    val eventId = path.removePrefix("/event/")
-                    if (eventId.isNotEmpty()) {
+        if (intent == null) return
+
+        if (intent.action == Intent.ACTION_SEND) {
+            val uri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            }
+            if (uri != null) {
+                com.jtool.android.core.sync.ImportManager.setPendingSharedUris(listOf(uri))
+            } else {
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                val sharedSubject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
+                if (!sharedText.isNullOrBlank()) {
+                    com.jtool.android.core.sync.ImportManager.setPendingSharedText(sharedText, sharedSubject)
+                } else {
+                    val mimeType = intent.type ?: "unknown"
+                    com.jtool.android.core.sync.ImportManager.setPendingUnsupportedShare(
+                        mimeType = mimeType,
+                        details = "Shared intent action: ACTION_SEND"
+                    )
+                }
+            }
+        } else if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            val uris = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+            }
+            if (!uris.isNullOrEmpty()) {
+                com.jtool.android.core.sync.ImportManager.setPendingSharedUris(uris)
+            } else {
+                val mimeType = intent.type ?: "unknown"
+                com.jtool.android.core.sync.ImportManager.setPendingUnsupportedShare(
+                    mimeType = mimeType,
+                    details = "Shared intent action: ACTION_SEND_MULTIPLE"
+                )
+            }
+        } else {
+            intent.data?.let { uri ->
+                if ((uri.scheme == "https" || uri.scheme == "http") && uri.host == BuildConfig.DEEP_LINK_HOST) {
+                    val path = uri.path ?: ""
+                    if (path.startsWith("/event/")) {
+                        val eventId = path.removePrefix("/event/")
+                        if (eventId.isNotEmpty()) {
+                            settingsManager.setSelectedCalendarEventId(eventId)
+                            pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
+                        }
+                    }
+                } else if (uri.scheme == "jtool" && uri.host == "event") {
+                    val eventId = uri.lastPathSegment
+                    if (!eventId.isNullOrEmpty()) {
                         settingsManager.setSelectedCalendarEventId(eventId)
                         pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
                     }
-                }
-            } else if (uri.scheme == "jtool" && uri.host == "event") {
-                val eventId = uri.lastPathSegment
-                if (!eventId.isNullOrEmpty()) {
-                    settingsManager.setSelectedCalendarEventId(eventId)
-                    pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
                 }
             }
         }

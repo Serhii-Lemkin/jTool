@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -281,6 +282,93 @@ fun CalendarEventDetailScreen(
                         
                         DetailRow(Icons.Default.CalendarToday, Loc.Calendar.date, formattedDate)
                         DetailRow(Icons.Default.AccessTime, Loc.Calendar.time, "${event.startTime} - ${event.endTime}")
+
+                        if (!event.rrule.isNullOrEmpty()) {
+                            val frequencyLabel = when {
+                                event.rrule.contains("FREQ=DAILY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryDay
+                                event.rrule.contains("FREQ=WEEKLY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryWeek
+                                event.rrule.contains("FREQ=MONTHLY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryMonth
+                                event.rrule.contains("FREQ=YEARLY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryYear
+                                else -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEvent
+                            }
+                            DetailRow(Icons.Default.Repeat, com.jtool.android.core.localization.domains.CalendarLoc.repeatEvent, frequencyLabel)
+                        }
+
+                        if (!event.location.isNullOrEmpty()) {
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                Icon(Icons.Default.Place, null, tint = themeColor, modifier = Modifier.size(20.dp).padding(top = 2.dp))
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(Loc.s("calendar_eventLocation", "Location"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(event.location, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val uri = android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(event.location)}")
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                        val chooser = android.content.Intent.createChooser(intent, Loc.s("calendar_openLocationWith", "Open Location With"))
+                                        try {
+                                            context.startActivity(chooser)
+                                        } catch (_: Exception) {
+                                            val webUri = android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(event.location)}")
+                                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, webUri))
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Map, null, tint = themeColor)
+                                }
+                            }
+                        }
+
+                        if (!event.conferenceUrl.isNullOrEmpty()) {
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.VideoCall, null, tint = themeColor, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(Loc.s("calendar_conferenceUrl", "Video Meeting"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(event.conferenceUrl, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1)
+                                }
+                                Button(
+                                    onClick = {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(event.conferenceUrl))
+                                        try { context.startActivity(intent) } catch (_: Exception) {}
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(Loc.s("calendar_joinMeeting", "Join"))
+                                }
+                            }
+                        }
+
+                        if (!event.attachmentUrl.isNullOrEmpty()) {
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AttachFile, null, tint = themeColor, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(Loc.s("calendar_attachmentUrl", "Attachment Link"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(event.attachmentUrl, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(event.attachmentUrl))
+                                        try { context.startActivity(intent) } catch (_: Exception) {}
+                                    }
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = themeColor)
+                                }
+                            }
+                        }
+
+                        if (event.reminderMinutes != null) {
+                            DetailRow(
+                                icon = Icons.Default.Alarm,
+                                label = Loc.s("calendar_reminderLabel", "Reminder Alarm"),
+                                value = "${event.reminderMinutes} ${Loc.General.minuteSymbol} ${Loc.s("calendar_before", "before")}"
+                            )
+                        }
 
                         if (event.note.isNotEmpty()) {
                             DetailRow(Icons.Default.Notes, Loc.Calendar.note, event.note)

@@ -23,8 +23,8 @@ android {
         applicationId = "com.jtool.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 63
-        versionName = "2.8.2"
+        versionCode = 65
+        versionName = "2.8.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

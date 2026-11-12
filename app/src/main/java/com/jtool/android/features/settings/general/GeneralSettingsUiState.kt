@@ -9,5 +9,6 @@ data class GeneralSettingsUiState(
     val lightBg: String = "0xFFF0FDF4",
     val darkPrimary: String = "0xFF10B981",
     val darkBg: String = "0xFF09090B",
-    val weeklyStartDay: DayOfWeek = DayOfWeek.MONDAY
+    val weeklyStartDay: DayOfWeek = DayOfWeek.MONDAY,
+    val dateFormat: String = "DD/MM/YYYY"
 )

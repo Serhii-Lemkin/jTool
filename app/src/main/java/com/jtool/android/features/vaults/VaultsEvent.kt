@@ -38,6 +38,7 @@ sealed interface VaultsEvent {
     data class SaveToDownloads(val doc: VaultDocument, val fileIndex: Int? = null, val onComplete: (Boolean) -> Unit = {}) : VaultsEvent
     data class DeleteDocOffline(val doc: VaultDocument, val fileIndex: Int = 0) : VaultsEvent
     data class SetFilterType(val filter: VaultDocFilterEnum) : VaultsEvent
+    data class SetSortType(val sortType: VaultSortEnum) : VaultsEvent
     data class UpdateSearchQuery(val query: String) : VaultsEvent
     data class SetAdvancedFilters(
         val name: String,

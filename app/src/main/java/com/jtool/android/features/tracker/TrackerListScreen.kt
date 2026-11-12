@@ -48,13 +48,14 @@ fun TrackerListScreen(
         onRefresh = { viewModel.onEvent(TrackerEvent.Refresh) },
         actions = {
             com.jtool.android.core.components.layout.TitleDropdownMenu {
-                DropdownMenuItem(
-                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
+                com.jtool.android.core.components.layout.ActionListItem(
+                    headline = com.jtool.android.core.localization.domains.GeneralLoc.learnMore,
+                    supportingText = Loc.s("trendify_learnMoreSubtitle", "View online guide and feature documentation"),
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
                     onClick = {
                         val settingsManager = com.jtool.android.core.settings.SettingsManager(context)
                         com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "trendify")
-                    },
-                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                    }
                 )
             }
         },

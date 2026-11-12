@@ -20,6 +20,13 @@ data class PendingDocUpload(
     val description: String
 )
 
+enum class VaultSortEnum {
+    UPLOAD_DATE_DESC,
+    NAME_ASC,
+    DOC_DATE_DESC,
+    TAG_ASC
+}
+
 data class VaultsUiState(
     val vaults: List<Vault> = emptyList(),
     val selectedVault: Vault? = null,
@@ -32,6 +39,7 @@ data class VaultsUiState(
     val isSearchVisible: Boolean = false,
     val pagingLimit: Int = 15,
     val filterType: VaultDocFilterEnum = VaultDocFilterEnum.ALL,
+    val sortType: VaultSortEnum = VaultSortEnum.UPLOAD_DATE_DESC,
     val searchQuery: String = "",
     val nameFilter: String = "",
     val descFilter: String = "",
@@ -46,6 +54,7 @@ data class VaultsUiState(
     val missingFileIds: Set<String> = emptySet(),
     val downloadingDocIds: Set<String> = emptySet(),
     val deletingDocIds: Set<String> = emptySet(),
+    val updatingDocIds: Set<String> = emptySet(),
     val savingToDownloadsDocIds: Set<String> = emptySet(),
     val offlineVersion: Long = 0L
 ) {
@@ -78,6 +87,17 @@ data class VaultsUiState(
                 val matchesUpDate = (uploadDateFrom == null || upDate >= uploadDateFrom) && (uploadDateTo == null || upDate <= uploadDateTo)
 
                 matchesName && matchesDesc && matchesTag && matchesDownloaded && matchesDocDate && matchesUpDate
+            }
+        }
+
+    val sortedAndFilteredDocs: List<VaultDocument>
+        get() {
+            val baseList = filteredDocs
+            return when (sortType) {
+                VaultSortEnum.UPLOAD_DATE_DESC -> baseList.sortedByDescending { it.uploadTimestamp }
+                VaultSortEnum.NAME_ASC -> baseList.sortedBy { it.name.lowercase() }
+                VaultSortEnum.DOC_DATE_DESC -> baseList.sortedByDescending { it.documentTimestamp }
+                VaultSortEnum.TAG_ASC -> baseList.sortedBy { it.tag.lowercase() }
             }
         }
 }

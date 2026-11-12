@@ -140,4 +140,13 @@ object CalendarLoc {
     val allowAppLinks get() = Loc.s("calendar_allowAppLinks", "Allow App Links")
     val allowAppLinksSubtitle get() = Loc.s("calendar_allowAppLinksSubtitle", "Enable jTools to open links directly without a browser")
     val appLinksVerified get() = Loc.s("calendar_appLinksVerified", "App Links Verified")
+
+    val repeatEvent get() = Loc.s("calendar_repeatEvent", "Repeat Event")
+    val repeatFrequency get() = Loc.s("calendar_repeatFrequency", "Repeat Frequency")
+    val repeatEveryDay get() = Loc.s("calendar_repeatEveryDay", "Every Day")
+    val repeatEveryWeek get() = Loc.s("calendar_repeatEveryWeek", "Every Week")
+    val repeatEveryMonth get() = Loc.s("calendar_repeatEveryMonth", "Every Month")
+    val repeatEveryYear get() = Loc.s("calendar_repeatEveryYear", "Every Year")
+    val repeatCustom get() = Loc.s("calendar_repeatCustom", "Custom...")
+    val doesNotRepeat get() = Loc.s("calendar_doesNotRepeat", "Does not repeat")
 }

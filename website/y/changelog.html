@@ -11,52 +11,20 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles/main.css?v=3">
+    <script src="/scripts/components.js"></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <nav class="navbar navbar-expand-lg top-nav fixed-top">
-        <div class="container">
-            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
-                <img src="/512.png" alt="JTools" class="nav-logo-img">
-                <span><span class="text-info">J</span>Tools</span>
-            </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
-                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
-                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
-                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
-                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
-                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
-                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
-                            🌐 English
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
-                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <jtool-navbar></jtool-navbar>
 
     <main class="container flex-grow-1" style="padding-top: 100px;">
         <header class="custom-card p-4 text-center my-4 shadow-sm">
             <h1 class="display-5 fw-bold mb-2"><span class="text-info">J</span>Tools Release Notes</h1>
-            <p class="lead text-secondary mx-auto mb-0" style="max-width: 650px;" data-i18n="changelog_subtitle">
+            <p class="lead text-secondary mx-auto mb-3" style="max-width: 650px;" data-i18n="changelog_subtitle">
                 Stay up to date with the latest features, improvements, and bug fixes in JTools.
             </p>
+            <a href="/historical-changelogs" class="btn btn-outline-info rounded-pill px-4 py-2 d-inline-flex align-items-center gap-2">
+                <span class="material-icons">history</span> <span data-i18n="nav_historical_changelogs">Historical Release Notes</span> ➜
+            </a>
         </header>
 
         <section class="my-4">
@@ -70,14 +38,7 @@
         </section>
     </main>
 
-    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
-        <div class="container text-center text-secondary">
-            <div class="mb-3">
-                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
-            </div>
-            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong class="strong-text">Serhii Lemkin</strong> for the Android ecosystem.</div>
-        </div>
-    </footer>
+    <jtool-footer></jtool-footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/scripts/i18n.js?v=3"></script>
@@ -85,7 +46,17 @@
         async function loadChangelogData() {
             const container = document.getElementById('changelogContainer');
             try {
-                const response = await fetch('/changelogs/changelog.txt');
+                const lang = document.documentElement.lang || 'en';
+                let url = '/changelogs/changelog.txt';
+                if (lang !== 'en') {
+                    url = `/changelogs/changelog_${lang}.txt`;
+                }
+
+                let response = await fetch(url);
+                if (!response.ok && lang !== 'en') {
+                    response = await fetch('/changelogs/changelog.txt');
+                }
+
                 if (!response.ok) throw new Error('Failed to load changelog text');
                 const text = await response.text();
 

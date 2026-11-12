@@ -76,22 +76,32 @@ class LinksViewModel(
             is LinksEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
             is LinksEvent.UpdateNewTitle -> _uiState.update { it.copy(newTitle = event.title) }
             is LinksEvent.UpdateNewUrl -> _uiState.update { it.copy(newUrl = event.url) }
+            is LinksEvent.UpdateNewTag -> _uiState.update { it.copy(newTag = event.tag) }
+            is LinksEvent.ToggleTagFilter -> {
+                val current = _uiState.value.selectedTags
+                val updated = if (current.contains(event.tag)) current - event.tag else current + event.tag
+                _uiState.update { it.copy(selectedTags = updated) }
+            }
+            is LinksEvent.SetTagFilters -> _uiState.update { it.copy(selectedTags = event.tags) }
+            LinksEvent.ClearTagFilters -> _uiState.update { it.copy(selectedTags = emptySet()) }
             is LinksEvent.ToggleAddDialog -> {
                 _uiState.update { 
                     it.copy(
                         showAddDialog = event.show, 
                         editingLink = if (!event.show) null else it.editingLink,
                         newTitle = if (!event.show) "" else it.newTitle,
-                        newUrl = if (!event.show) "" else it.newUrl
+                        newUrl = if (!event.show) "" else it.newUrl,
+                        newTag = if (!event.show) "#COMMON#" else it.newTag
                     ) 
                 }
             }
             is LinksEvent.RequestEdit -> {
                 val link = event.link
                 if (link != null) {
-                    _uiState.update { it.copy(editingLink = link, newTitle = link.title, newUrl = link.url, showAddDialog = true) }
+                    val tagVal = link.tag.ifBlank { "#COMMON#" }
+                    _uiState.update { it.copy(editingLink = link, newTitle = link.title, newUrl = link.url, newTag = tagVal, showAddDialog = true) }
                 } else {
-                    _uiState.update { it.copy(editingLink = null, newTitle = "", newUrl = "", showAddDialog = false) }
+                    _uiState.update { it.copy(editingLink = null, newTitle = "", newUrl = "", newTag = "#COMMON#", showAddDialog = false) }
                 }
             }
             is LinksEvent.RequestDelete -> _uiState.update { it.copy(linkToDelete = event.link) }
@@ -142,6 +152,7 @@ class LinksViewModel(
                 id = id,
                 title = title,
                 url = url,
+                tag = state.newTag.ifBlank { "#COMMON#" },
                 lastUpdatedBy = settingsManager.getAppUserId(),
                 timestamp = editing?.timestamp ?: System.currentTimeMillis()
             )

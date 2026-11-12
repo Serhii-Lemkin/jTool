@@ -77,10 +77,11 @@ fun CleaningScreen(
                 tint = if (uiState.showDisabledView) MaterialTheme.colorScheme.primary else LocalContentColor.current
             )
             com.jtool.android.core.components.layout.TitleDropdownMenu {
-                DropdownMenuItem(
-                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
-                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "cleaning") },
-                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                com.jtool.android.core.components.layout.ActionListItem(
+                    headline = com.jtool.android.core.localization.domains.GeneralLoc.learnMore,
+                    supportingText = Loc.s("cleaning_learnMoreSubtitle", "View online guide and feature documentation"),
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "cleaning") }
                 )
             }
         },

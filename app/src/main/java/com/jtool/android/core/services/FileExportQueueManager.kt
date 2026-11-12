@@ -178,11 +178,11 @@ object FileExportQueueManager {
     fun clearCompletedTasks() {
         _exportState.update { state ->
             val remainingTasks = state.tasks.filter { task ->
-                task.isFailed || task.files.any { f -> f.status != ExportFileStatus.COMPLETED }
+                !task.isFailed && task.files.any { f -> f.status == ExportFileStatus.PENDING || f.status == ExportFileStatus.EXPORTING }
             }
             state.copy(
                 tasks = remainingTasks,
-                isExporting = remainingTasks.any { !it.isFailed && it.files.any { f -> f.status != ExportFileStatus.COMPLETED } }
+                isExporting = remainingTasks.isNotEmpty()
             )
         }
         saveState()

@@ -48,17 +48,40 @@ object CalendarAddEdit : AppProperties(AppScreenEnum.CALENDAR_ADD_EDIT) {
             }
         }
 
-        CalendarAddEditScreen(
-            event = uiState.editingEvent,
-            extension = extension,
-            selectedDate = uiState.selectedDate,
-            onBack = { deps.onBack() },
-            onConfirm = { event, ext ->
-                viewModel.addEvent(context, event, ext)
-                deps.onBack()
-            },
-            settingsManager = deps.settingsManager,
-            groups = deps.groups
-        )
+        val isReminder = editingEvent != null && editingEvent.reminderMinutes != null
+
+        if (isReminder) {
+            com.jtool.android.features.calendar.edit.CalendarReminderAddEditScreen(
+                event = editingEvent,
+                selectedDate = uiState.selectedDate,
+                onBack = {
+                    viewModel.clearEditingEvent()
+                    deps.onBack()
+                },
+                onConfirm = { event, ext ->
+                    viewModel.addEvent(context, event, ext)
+                    viewModel.clearEditingEvent()
+                    deps.onBack()
+                },
+                settingsManager = deps.settingsManager
+            )
+        } else {
+            CalendarAddEditScreen(
+                event = editingEvent,
+                extension = extension,
+                selectedDate = uiState.selectedDate,
+                onBack = {
+                    viewModel.clearEditingEvent()
+                    deps.onBack()
+                },
+                onConfirm = { event, ext ->
+                    viewModel.addEvent(context, event, ext)
+                    viewModel.clearEditingEvent()
+                    deps.onBack()
+                },
+                settingsManager = deps.settingsManager,
+                groups = deps.groups
+            )
+        }
     }
 }

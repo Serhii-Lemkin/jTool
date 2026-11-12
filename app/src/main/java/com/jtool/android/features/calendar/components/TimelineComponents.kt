@@ -58,6 +58,7 @@ fun TimelineEventCard(
     event: CalendarEvent,
     groups: Map<String, GroupInfo>,
     modifier: Modifier = Modifier,
+    extension: com.jtool.android.core.models.calendar.CalendarEventExtension? = null,
     onClick: () -> Unit
 ) {
     val isVirtual = event.id.startsWith("virtual_")
@@ -74,8 +75,10 @@ fun TimelineEventCard(
     val isSmall = durationMinutes <= 30
 
     val themeColor = getEventColor(event.colorKey)
-    val containerColor = if (isInvited) Color.Transparent else themeColor.copy(alpha = if (isVirtual) 0.15f else 0.25f)
-    val contentColor = themeColor
+    val containerColor = if (isInvited) Color.Transparent else (if (isVirtual) themeColor.copy(alpha = 0.7f) else themeColor)
+    val contentColor = Color.White
+
+    val sharedGroupIds = extension?.sharedGroupIds ?: emptyList()
 
     Card(
         modifier = modifier
@@ -87,48 +90,119 @@ fun TimelineEventCard(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        border = if (isVirtual || isInvited) BorderStroke(1.dp, contentColor.copy(alpha = 0.3f)) else null
+        border = if (isVirtual || isInvited) BorderStroke(1.dp, themeColor) else null
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = if (isSmall) 0.dp else 4.dp),
-            verticalArrangement = if (isSmall) Arrangement.Center else Arrangement.Top
-        ) {
-            if (isSmall) {
+        if (event.allDay) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = if (isContinuation) "00:00" else event.startTime,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
+                    Icon(
+                        imageVector = Icons.Default.Event,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = contentColor
                     )
                     Text(
                         text = event.title.ifEmpty { Loc.Calendar.calendar },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textDecoration = if (event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) TextDecoration.LineThrough else null,
                         modifier = Modifier.weight(1f)
                     )
+                    if (sharedGroupIds.isNotEmpty()) {
+                        val groupNames = sharedGroupIds.map { gid ->
+                            val group = groups[gid]
+                            if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
+                        }
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.25f),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = groupNames.joinToString(", "),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
-            } else {
-                Text(
-                    text = if (isContinuation) "00:00" else event.startTime,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = event.title.ifEmpty { Loc.Calendar.calendar },
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textDecoration = if (event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) TextDecoration.LineThrough else null
-                )
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = if (isSmall) 0.dp else 4.dp),
+                verticalArrangement = if (isSmall) Arrangement.Center else Arrangement.Top
+            ) {
+                if (isSmall) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (isContinuation) "00:00" else event.startTime,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = event.title.ifEmpty { Loc.Calendar.calendar },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textDecoration = if (event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) TextDecoration.LineThrough else null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = if (isContinuation) "00:00" else event.startTime,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = event.title.ifEmpty { Loc.Calendar.calendar },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textDecoration = if (event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) TextDecoration.LineThrough else null
+                    )
+                }
+
+                if (sharedGroupIds.isNotEmpty()) {
+                    val groupNames = sharedGroupIds.map { gid ->
+                        val group = groups[gid]
+                        if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
+                    }
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.25f),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp),
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text(
+                            text = groupNames.joinToString(", "),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }

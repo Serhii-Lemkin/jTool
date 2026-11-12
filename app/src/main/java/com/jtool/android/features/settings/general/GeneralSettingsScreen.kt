@@ -48,6 +48,7 @@ fun GeneralSettingsScreen(
     var showLangSheet by remember { mutableStateOf(false) }
     var showColorSheet by remember { mutableStateOf(false) }
     var showDayPicker by remember { mutableStateOf(false) }
+    var showDateFormatPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val languages = remember(context) { Loc.getAvailableLanguages(context) }
@@ -104,6 +105,46 @@ fun GeneralSettingsScreen(
                         onClick = { 
                             viewModel.onEvent(GeneralSettingsEvent.SetWeeklyStartDay(day))
                             showDayPicker = false
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+        }
+    }
+
+    if (showDateFormatPicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showDateFormatPicker = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Text(
+                    text = SettingsLoc.selectDateFormat, 
+                    style = MaterialTheme.typography.titleLarge, 
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                val formats = listOf("DD/MM/YYYY", "MM/DD/YYYY", "YYYY/MM/DD")
+                formats.forEach { fmt ->
+                    val isSelected = uiState.dateFormat == fmt
+                    ActionListItem(
+                        headline = fmt,
+                        supportingText = when (fmt) {
+                            "DD/MM/YYYY" -> "31/12/2026 (${Loc.s("settings_dayMonthYear", "Day/Month/Year")})"
+                            "MM/DD/YYYY" -> "12/31/2026 (${Loc.s("settings_monthDayYear", "Month/Day/Year")})"
+                            else -> "2026/12/31 (${Loc.s("settings_yearMonthDay", "Year/Month/Day")})"
+                        },
+                        trailingContent = if (isSelected) {
+                            { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                        } else null,
+                        onClick = { 
+                            viewModel.onEvent(GeneralSettingsEvent.SetDateFormat(fmt))
+                            showDateFormatPicker = false
                         }
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -196,10 +237,10 @@ fun GeneralSettingsScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.width(12.dp))
-                Text("Customize Theme", style = MaterialTheme.typography.bodyLarge)
+                Text(SettingsLoc.customizeTheme, style = MaterialTheme.typography.bodyLarge)
             }
             Text(
-                text = "Configure",
+                text = Loc.s("general_configure", "Configure"),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -227,6 +268,34 @@ fun GeneralSettingsScreen(
             }
             Text(
                 text = Loc.getDayOfWeekName(uiState.weeklyStartDay),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showDateFormatPicker = true }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(SettingsLoc.dateFormat, style = MaterialTheme.typography.bodyLarge)
+            }
+            Text(
+                text = uiState.dateFormat,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 8.dp)

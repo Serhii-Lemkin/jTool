@@ -22,24 +22,52 @@ fun NewNoteSheet(
 ) {
     GenericSheet(
         onDismiss = onDismiss,
-        title = Loc.General.add
+        title = null,
+        showCloseButton = false
     ) {
-        ActionListItem(
-            headline = Loc.Notes.textNote,
-            leadingContent = { Icon(Icons.AutoMirrored.Filled.Notes, null, tint = MaterialTheme.colorScheme.primary) },
-            onClick = { 
-                onTypeSelected(NoteTypeEnum.TEXT)
-                onDismiss()
-            }
-        )
-        
-        ActionListItem(
-            headline = Loc.Notes.checklistNote,
-            leadingContent = { Icon(Icons.Default.Checklist, null, tint = MaterialTheme.colorScheme.primary) },
-            onClick = { 
-                onTypeSelected(NoteTypeEnum.CHECKLIST)
-                onDismiss()
-            }
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ActionListItem(
+                headline = Loc.Notes.textNote,
+                supportingText = Loc.s("notes_textNoteDesc", "Create a text note with rich content and comments"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Notes,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                onClick = { 
+                    onTypeSelected(NoteTypeEnum.TEXT)
+                    onDismiss()
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+            ActionListItem(
+                headline = Loc.Notes.checklistNote,
+                supportingText = Loc.s("notes_checklistNoteDesc", "Create a note with checkable todo items"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Checklist,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                onClick = { 
+                    onTypeSelected(NoteTypeEnum.CHECKLIST)
+                    onDismiss()
+                }
+            )
+
+            Spacer(Modifier.height(8.dp))
+        }
     }
 }

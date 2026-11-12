@@ -32,6 +32,22 @@ class VaultsViewModel(
     private var vaultsJob: Job? = null
     private var docsJob: Job? = null
 
+    private val _allGroupDocs = MutableStateFlow<List<VaultDocument>>(emptyList())
+    val allGroupDocs: StateFlow<List<VaultDocument>> = _allGroupDocs.asStateFlow()
+
+    private fun loadAllGroupDocs(gid: String) {
+        viewModelScope.launch {
+            dataManager.getVaultsFlow(gid).collect { vaultsList ->
+                val docsList = mutableListOf<VaultDocument>()
+                vaultsList.forEach { v ->
+                    val docs = dataManager.getVaultDocsDirect(gid, v.id)
+                    docsList.addAll(docs)
+                }
+                _allGroupDocs.value = docsList
+            }
+        }
+    }
+
     init {
         dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
@@ -66,6 +82,7 @@ class VaultsViewModel(
 
     private fun observeVaults() {
         val gid = groupId ?: return
+        loadAllGroupDocs(gid)
         vaultsJob?.cancel()
         vaultsJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -225,7 +242,17 @@ class VaultsViewModel(
                             VaultsLoc.tagInvoice to "#INVOICE#",
                             VaultsLoc.tagAgreement to "#AGREEMENT#",
                             VaultsLoc.tagId to "#IDENTIFICATION#",
-                            VaultsLoc.tagSlip to "#SLIP#"
+                            VaultsLoc.tagSlip to "#SLIP#",
+                            VaultsLoc.tagLicense to "#LICENSE#",
+                            VaultsLoc.tagContract to "#CONTRACT#",
+                            VaultsLoc.tagInsurance to "#INSURANCE#",
+                            VaultsLoc.tagMedical to "#MEDICAL#",
+                            VaultsLoc.tagTax to "#TAX#",
+                            VaultsLoc.tagVehicle to "#VEHICLE#",
+                            VaultsLoc.tagProperty to "#PROPERTY#",
+                            VaultsLoc.tagFinancial to "#FINANCIAL#",
+                            VaultsLoc.tagCertificate to "#CERTIFICATE#",
+                            VaultsLoc.tagEducation to "#EDUCATION#"
                         )
                         val storedTag = standardTagsMap[event.tag.trim()] ?: event.tag.trim()
                         
@@ -323,6 +350,7 @@ class VaultsViewModel(
             }
             is VaultsEvent.UpdateDoc -> {
                 viewModelScope.launch {
+                    _uiState.update { it.copy(updatingDocIds = it.updatingDocIds + event.doc.id) }
                     try {
                         val memberEmails = dataManager.getGroupMemberEmails(gid)
 
@@ -385,7 +413,17 @@ class VaultsViewModel(
                             VaultsLoc.tagInvoice to "#INVOICE#",
                             VaultsLoc.tagAgreement to "#AGREEMENT#",
                             VaultsLoc.tagId to "#IDENTIFICATION#",
-                            VaultsLoc.tagSlip to "#SLIP#"
+                            VaultsLoc.tagSlip to "#SLIP#",
+                            VaultsLoc.tagLicense to "#LICENSE#",
+                            VaultsLoc.tagContract to "#CONTRACT#",
+                            VaultsLoc.tagInsurance to "#INSURANCE#",
+                            VaultsLoc.tagMedical to "#MEDICAL#",
+                            VaultsLoc.tagTax to "#TAX#",
+                            VaultsLoc.tagVehicle to "#VEHICLE#",
+                            VaultsLoc.tagProperty to "#PROPERTY#",
+                            VaultsLoc.tagFinancial to "#FINANCIAL#",
+                            VaultsLoc.tagCertificate to "#CERTIFICATE#",
+                            VaultsLoc.tagEducation to "#EDUCATION#"
                         )
                         val storedTag = standardTagsMap[event.doc.tag.trim()] ?: event.doc.tag.trim()
 
@@ -418,6 +456,8 @@ class VaultsViewModel(
                         event.onComplete(true, null)
                     } catch (e: Exception) {
                         event.onComplete(false, e.message ?: "Failed to update document.")
+                    } finally {
+                        _uiState.update { it.copy(updatingDocIds = it.updatingDocIds - event.doc.id) }
                     }
                 }
             }
@@ -510,6 +550,7 @@ class VaultsViewModel(
                 }
             }
             is VaultsEvent.SetFilterType -> _uiState.update { it.copy(filterType = event.filter) }
+            is VaultsEvent.SetSortType -> _uiState.update { it.copy(sortType = event.sortType) }
             is VaultsEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
             is VaultsEvent.SetAdvancedFilters -> {
                 _uiState.update {

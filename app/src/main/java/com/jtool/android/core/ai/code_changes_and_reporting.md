@@ -27,18 +27,18 @@ Use this guide for code generation standards, localization rules, build verifica
 ---
 
 ## 4. Single Website Changelog & Version Reporting
-* **Single Official Changelog**: Maintain ONLY ONE changelog file located at [`website/y/changelogs/changelog.txt`](file:///var/home/serhii/AndroidStudioProjects/jTool/website/y/changelogs/changelog.txt). Never create or update duplicate changelog files in `app/`.
+* **Single Official Changelog**: Maintain ONLY ONE active changelog file located at [`website/y/changelogs/changelog.txt`](file:///var/home/serhii/AndroidStudioProjects/jTool/website/y/changelogs/changelog.txt). When starting a new version, move the previous version's changelog to `website/y/changelogs/history/{version}.txt` and update historical notes. Never create or update duplicate changelog files in `app/`.
 * **Always Include Version Header**: Every changelog update MUST include the version header section at the very top:
   ```text
   [Version]
-  v2.8.0 (Build 59)
+  v2.8.3
   ```
   Ensure the version name and build code match `versionName` and `versionCode` in `app/build.gradle.kts`.
 * **Release Notes Format**: The changelog MUST be 100% copy-paste ready for Google Play Console release notes (concise, user-friendly language, plain text bullet points, free of developer jargon or code paths).
   Organize updates into distinct sections:
   1. `[Version]` — Current version name and build number
-  2. `[Big Changes]` — Major features
-  3. `[Minor Changes]` — UI tweaks and minor enhancements
-  4. `[Bug Fixes]` — Resolved issues
+  2. `[Big Changes]` — Major new features or fundamental shifts in functionality/architecture
+  3. `[Minor Changes]` — Small features, secondary settings, UI options (e.g. Pinning vaults, Date format settings)
+  4. `[Bug Fixes]` — Specifically for resolving crashes, broken behavior, double loaders, or regressions
 * **Post-Release Purging**: The developer will purge historical entries in `website/y/changelogs/changelog.txt` after a new version release.
 * **Technical Summaries**: End chat responses with a clear summary of modifications, including technical implementation details and an assessment of potential risks introduced by the changes.

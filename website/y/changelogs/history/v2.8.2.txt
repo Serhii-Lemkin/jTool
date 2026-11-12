@@ -1,0 +1,53 @@
+[Version]
+v2.8.2
+
+[Big Changes]
+- WorkManager Migration: Replaced legacy foreground data sync services with Android WorkManager for guaranteed background file uploads, downloads, and exports, fully removing FOREGROUND_SERVICE_DATA_SYNC permissions.
+- In-App & Web "Learn More" Feature Guides: Added comprehensive "Learn More" feature guides and dynamic web routing across all primary app screens (Calendar, Vaults, Cleaning, Shopping List, Tracker, Workday, Support Hub) connecting directly to detailed feature documentation and web pages.
+- Google Drive Powered Vaults: Integrated secure Google Drive cloud folder sync for Vaults with background file uploads, downloads, and exports.
+- New Gestures System: Custom launcher gestures (Swipe Left, Swipe Right) to instantly trigger quick actions, open apps, or toggle tools.
+- Flexible Menu Layout System: Redesigned menu layout system allowing seamless toggling between Grid and List views with drag-and-drop reordering, app visibility controls, and personalized arrangement.
+- Support Hub Reviewer Role: Reviewer role now has full management permissions—view all user support requests, change ticket statuses and types, delete requests, and leave comments.
+- Group Invite-Only Setting: Group owners and members can set groups to "Invite Only" to disallow join requests, automatically hiding the option to copy the Group ID.
+- Main Menu & Red Container Floating Buttons Sync: Redesigned floating action buttons and Launcher app bar icons for real-time progress tracking of background file uploads (Blue), downloads (Green), public exports (Orange), and notifications (Red).
+
+[Minor Changes]
+- Drive Upload Subfolder Deduplication: Prevented duplicate Google Drive subfolder creation when resuming interrupted multi-file uploads, persisting subfolder IDs across restarts and cleaning up empty folders on task cancellation.
+- Resumable Upload Task Recovery: Upload progress now preserves completed file IDs and Google Drive URLs across app restarts, allowing interrupted tasks to resume from remaining files rather than starting over from scratch.
+- Queue State Persistence & App Restart Relatch: Queue managers for file uploads, offline downloads, and exports now persist state locally, allowing the app to instantly relatch to active background operations and show tracking buttons upon restart.
+- Developer Contact Email Update: Updated all developer contact and support emails across the website to the new Yahoo address (jtools.app@yahoo.com).
+- Links Screen "Learn More" Menu: Added the 3-dots actions menu with a "Learn More" option to the Links screen pointing to the Personal Hub guide.
+- Workday Settings Menu & Event Icon: Moved Workday Settings into the 3-dots dropdown menu and replaced the generic info icon with a calendar event icon for clearer navigation.
+- Support Hub Reviewer Button Placement: Moved the Reviewer Status button from the top app bar into the 3-dots dropdown menu for a cleaner interface.
+- General Settings Week Start: Added "Work Week Starts On" setting to General Settings (alongside language and theme), giving you a second convenient place to configure your preferred starting day of the week.
+- Cleaning Screen Disabled Tasks Title: Shortened the title displayed when viewing disabled cleaning tasks to simply "Disabled Tasks".
+- Work Tracker Website Pro Tips: Removed the misleading second pro tip from the Work Tracker feature page on the website.
+- Shopping List Edit Sheet Redesign: Removed redundant Cancel button and expanded the Save button to full width at the bottom of the edit sheet.
+- Shopping List Unit Suggestions & Amounts: Added decimal amount inputs and dynamic unit suggestions when adding or editing items.
+- Group Creation Options: Added option to set a new group as "Invite Only" directly during group creation.
+- Support Request Details: Displaying author display name and submission timestamp on support request detail cards.
+- Custom App Themes: Added app theme creation and dynamic color palette choices.
+- Workday Event Tracking Status: Displaying "Event Ended" status indicator and label when tracked events or shifts reach their scheduled end time.
+- Support Ticket Notifications: Added real-time notifications for status updates and new comments on support tickets, sent to the ticket author whenever another user updates or comments on their ticket.
+- Notification Badges: Added unread notification badges displaying the active count on the Red Container notification FAB and Launcher menu app bar.
+
+[Bug Fixes]
+- Cold Launch Crash & ANR Fix: Resolved false ANR interceptor triggers on app cold launch and added fail-safe error handling for local queue state restoration after app updates.
+- Transfer Progress Notification Dismissal: Fixed bug where file upload, download, and export ongoing progress notifications remained in the status bar after queue completion; notifications now cancel automatically when processing completes.
+- Calendar Notification Auto-Dismiss: Fixed bug where clicking a calendar notification opened the event without marking the notification as read.
+- RSVP Progress Feedback Loader: Added progress loaders when accepting or declining shared calendar invitations.
+- Group Tag Display Consistency: Fixed extension ID lookups so group tags appear consistently for both event creators and invited members across day, grid, and detail views.
+- Calendar Action Sheet Layout: Removed redundant "Details" header from the Calendar 3-dots action sheet.
+- Shared Calendar Events Visibility & Sync: Fixed bug where shared calendar events and RSVP acceptances were not visible to other group members due to unfiltered database queries; extension lookups are now properly scoped by user and group memberships.
+- Month Grid Clean Event Display: Removed group tag chips from event items on the calendar month grid view while keeping group labels intact in day and detail views.
+- Workday Auto-Start Current & Upcoming Events: Workday tracker now prioritizes active events happening right now or counts down to the next upcoming scheduled event today, instantly autostarting the clock upon entering the screen without waiting for manual action.
+- Workday Declared Hours & Calendar Event Duration: Fixed bug where Workday sessions and quick start shift creation defaulted to 8.5 hours instead of correctly respecting today's specific scheduled hours (such as 8 hours on Thursday) from log schedule or weekly settings.
+- Support Hub Notification Navigation: Fixed bug where tapping on a Support Hub notification dismissed the notification without navigating to the Support Hub and opening the target support ticket.
+- Workday & Settings Bottom Sheets Height: Fixed bug where workday and settings bottom sheets (such as the week start day picker) expanded to 90% screen height unnecessarily; they now wrap their content to accommodate data properly.
+- Calendar Event RSVP Response Sync: Fixed bug in calendar events where pressing "Accept" or changing RSVP status only refreshed the local UI without sending the response update or syncing the accepted status and notification to other group members.
+- Date Pickers & Calendars Week Start: Fixed the bug that made the day of the week in pickers and calendar grids to always start on Monday; it is now based on the week start day configured in settings.
+- Shopping List Edit Sheet Scrolling: Fixed sheet twitching and layout jumping when scrolling to the bottom of the item edit sheet.
+- Group Join Requests Security: Fixed join request checks and Firestore rules to strictly block unauthorized join requests on private and invite-only groups.
+- Red Container Gestures & Edge Collapsing: Fixed side-switching drag persistence and edge pill collapsing transitions.
+- Support Hub Data Loading & Reviewer Permissions: Fixed issue where data loaded partially or stalled when opening Support Hub, ensured ticket lists load immediately without blocking UI rendering, and resolved auth initialization flow bug where reviewer permissions were not consistently recognized.
+- Support Hub Auto-Refresh Ticket List Bug: Fixed issue where launching Support Hub loaded all tickets but auto-refresh replaced them with only a subset of tickets, by evaluating admin/reviewer permission flows synchronously during server fetch queries.

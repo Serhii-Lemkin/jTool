@@ -22,43 +22,72 @@ fun LinkActionSheet(
 ) {
     GenericSheet(
         onDismiss = onDismiss,
-        title = Loc.Links.links,
+        title = null,
         showCloseButton = false
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             ActionListItem(
-                headline = Loc.Links.copy,
-                leadingContent = { Icon(Icons.Default.ContentCopy, null) },
+                headline = Loc.s("links_copyLink", "Copy Link"),
+                supportingText = Loc.s("links_copyLinkDesc", "Copy web URL to clipboard"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
                 onClick = {
                     onCopy()
                     onDismiss()
                 }
             )
+
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
             ActionListItem(
                 headline = Loc.General.edit,
-                leadingContent = { Icon(Icons.Default.Edit, null) },
+                supportingText = Loc.s("links_editLinkDesc", "Edit link title, URL, or category"),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
                 onClick = {
                     onEdit()
                     onDismiss()
                 }
             )
+
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
             ActionListItem(
                 headline = Loc.General.delete,
+                supportingText = Loc.s("links_deleteLinkDesc", "Remove link permanently"),
                 headlineColor = MaterialTheme.colorScheme.error,
-                leadingContent = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
                 onClick = {
                     onDelete()
                     onDismiss()
                 }
             )
+
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

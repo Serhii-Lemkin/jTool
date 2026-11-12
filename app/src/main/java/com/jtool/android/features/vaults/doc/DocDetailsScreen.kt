@@ -74,13 +74,46 @@ fun DocDetailsScreen(
     var selectedFileIndexForSheet by remember { mutableStateOf<Int?>(null) }
     var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
 
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val dateFormat = remember(context) { com.jtool.android.core.utils.getPreferredSimpleDateFormat(context) }
     val downloadState by FileDownloadQueueManager.downloadState.collectAsState()
-    val uploadDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val uploadState by com.jtool.android.core.services.FileUploadQueueManager.uploadState.collectAsState()
+    val isUpdating = remember(doc.id, uiState.updatingDocIds, uploadState) {
+        uiState.updatingDocIds.contains(doc.id) ||
+        uploadState.tasks.any { !it.isFailed && it.existingDocId == doc.id && it.files.any { f -> f.status != com.jtool.android.core.services.UploadFileStatus.COMPLETED } }
+    }
+    val datePattern = remember(context) { com.jtool.android.core.utils.getPreferredDateFormatPattern(context) }
+    val uploadDateFormat = remember(datePattern) { SimpleDateFormat("$datePattern HH:mm", Locale.getDefault()) }
     val isDownloaded = remember(doc.id, uiState.offlineVersion, downloadState) {
         VaultDocUtils.isDocumentDownloadedLocally(context, doc)
     }
     val localFile = remember(isDownloaded) { VaultDocUtils.getOfflineLocalFile(context, doc) }
+
+    if (isUpdating) {
+        BaseScreen(
+            title = doc.name,
+            onBack = onBack
+        ) { padding ->
+            Box(
+                modifier = Modifier.padding(padding).fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = Loc.s("vaults_docUpdatingMessage", "Record is being updated. Please wait for the background update to finish."),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
+                }
+            }
+        }
+        return
+    }
 
     BaseScreen(
         title = Loc.Vaults.document,
@@ -186,11 +219,6 @@ fun DocDetailsScreen(
                             }
                         )
                     }
-                    val currentUserId = remember { settingsManager.getAppUserId() }
-    val authUid = remember { authManager.getCurrentUser()?.uid ?: "" }
-    val isVaultOwner = uiState.selectedVault?.createdBy == currentUserId || uiState.selectedVault?.createdBy == authUid || isAdmin
-                    val isDocOwner = doc.lastUpdatedBy == currentUserId || doc.lastUpdatedBy == authUid || isVaultOwner
-
                     val displayFiles = if (doc.fileNames.isNotEmpty()) {
                         doc.fileNames.indices.toList()
                     } else if (doc.driveFileId.isNotEmpty() || doc.driveFileIds.isNotEmpty()) {
@@ -204,7 +232,7 @@ fun DocDetailsScreen(
                             text = Loc.Vaults.document,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 8.dp)
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
                         )
 
                         displayFiles.forEach { index ->

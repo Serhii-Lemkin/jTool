@@ -38,8 +38,6 @@ object GeneralLoc {
     val refreshing get() = Loc.s("general_refreshing", "Refreshing...")
     val pullToRefresh get() = Loc.s("general_pullToRefresh", "Pull to refresh")
     val seeAll get() = Loc.s("general_seeAll", "See All")
-    val item get() = Loc.s("general_item", "item")
-    val items get() = Loc.s("general_items", "items")
     val gotIt get() = Loc.s("general_gotIt", "Got it")
     val stranger get() = Loc.s("general_stranger", "Stranger")
     val aboutApp get() = Loc.s("general_aboutApp", "About App")

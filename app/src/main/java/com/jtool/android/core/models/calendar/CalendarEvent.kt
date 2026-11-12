@@ -22,7 +22,13 @@ data class CalendarEvent(
     val iCalUID: String? = null,
     val organizer: String? = null,
     val attendeeStatuses: Map<String, Int> = emptyMap(),
-    val colorKey: String? = null
+    val colorKey: String? = null,
+    val rrule: String? = null,
+    val duration: String? = null,
+    val location: String? = null,
+    val conferenceUrl: String? = null,
+    val attachmentUrl: String? = null,
+    val reminderMinutes: Int? = null
 ) {
     val date: String get() = dtStart?.let { 
         if (allDay) {

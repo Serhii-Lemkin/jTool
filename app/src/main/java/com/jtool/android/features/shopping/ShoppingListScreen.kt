@@ -13,10 +13,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -37,6 +43,7 @@ import com.jtool.android.features.shopping.components.aisle_selection_sheet.Aisl
 import com.jtool.android.features.shopping.components.filter_selection_sheet.FilterSelectionSheet
 import com.jtool.android.features.shopping.components.item_delete_confirm_sheet.ItemDeleteConfirmSheet
 import com.jtool.android.features.shopping.components.item_edit_sheet.ItemEditSheet
+import com.jtool.android.features.shopping.components.shopping_item_action_sheet.ShoppingItemActionSheet
 import com.jtool.android.ui.components.common.MessageSheet
 import com.jtool.android.ui.components.common.MessageType
 
@@ -80,6 +87,27 @@ fun ShoppingListScreen(
     var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
     var amountInputText by remember { mutableStateOf("") }
     var isUnitFocused by remember { mutableStateOf(false) }
+
+    var isCompactAddBox by remember { mutableStateOf(settingsManager.isShoppingAddBoxCompact()) }
+    val setCompactAddBox: (Boolean) -> Unit = { compact ->
+        if (isCompactAddBox != compact) {
+            isCompactAddBox = compact
+            settingsManager.setShoppingAddBoxCompact(compact)
+        }
+    }
+
+    val addBoxGestureModifier = Modifier.pointerInput(Unit) {
+        detectVerticalDragGestures(
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                if (dragAmount > 15f) {
+                    setCompactAddBox(true)
+                } else if (dragAmount < -15f) {
+                    setCompactAddBox(false)
+                }
+            }
+        )
+    }
 
     if (uiState.showAislePicker) {
         AisleSelectionSheet(
@@ -148,10 +176,11 @@ fun ShoppingListScreen(
                 Icon(filterIcon, contentDescription = "Filter")
             }
             com.jtool.android.core.components.layout.TitleDropdownMenu {
-                DropdownMenuItem(
-                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
-                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "shopping-list") },
-                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                com.jtool.android.core.components.layout.ActionListItem(
+                    headline = com.jtool.android.core.localization.domains.GeneralLoc.learnMore,
+                    supportingText = Loc.s("shopping_learnMoreSubtitle", "View online guide and feature documentation"),
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "shopping-list") }
                 )
             }
         }
@@ -217,12 +246,15 @@ fun ShoppingListScreen(
                         }
                     }
 
+                    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+                    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    val extraImePadding = (imeBottom - navBottom).coerceAtLeast(0.dp)
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
-                            .navigationBarsPadding()
-                            .imePadding()
+                            .padding(bottom = extraImePadding)
                     ) {
                         val unitSuggestions = remember(uiState.newItemUnit) {
                             measurementManager.getSuggestions(uiState.newItemUnit)
@@ -307,115 +339,149 @@ fun ShoppingListScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .then(addBoxGestureModifier)
                                 .padding(bottom = 4.dp),
                             shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .padding(horizontal = 6.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                IconButton(
-                                    onClick = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true)) },
-                                    modifier = Modifier.size(44.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { setCompactAddBox(!isCompactAddBox) }
+                                        .padding(top = 6.dp, bottom = 2.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        AisleIcons[uiState.selectedAisle] ?: Icons.AutoMirrored.Filled.Label,
-                                        contentDescription = "Select Aisle",
-                                        tint = MaterialTheme.colorScheme.primary
+                                    Box(
+                                        modifier = Modifier
+                                            .width(32.dp)
+                                            .height(4.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                                     )
                                 }
-                                
-                                Column(
+
+                                Row(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 4.dp),
-                                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                                        .padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TextField(
-                                        value = uiState.newItemText,
-                                        onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
-                                        placeholder = { Text(Loc.ShopList.addItem) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = Color.Transparent,
-                                            unfocusedContainerColor = Color.Transparent,
-                                            focusedIndicatorColor = Color.Transparent,
-                                            unfocusedIndicatorColor = Color.Transparent
-                                        )
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    IconButton(
+                                        onClick = { viewModel.onEvent(ShoppingEvent.ToggleAislePicker(true)) },
+                                        modifier = Modifier.size(44.dp)
                                     ) {
-                                        TextField(
-                                            value = amountInputText,
-                                            onValueChange = { text ->
-                                                amountInputText = text
-                                                val amt = text.toDoubleOrNull()
-                                                viewModel.onEvent(ShoppingEvent.UpdateNewItemAmount(amt))
-                                            },
-                                            placeholder = { Text(Loc.ShopList.amount, fontSize = 12.sp) },
-                                            modifier = Modifier.weight(1f),
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                            colors = TextFieldDefaults.colors(
-                                                focusedContainerColor = Color.Transparent,
-                                                unfocusedContainerColor = Color.Transparent,
-                                                focusedIndicatorColor = Color.Transparent,
-                                                unfocusedIndicatorColor = Color.Transparent
-                                            )
-                                        )
-
-                                        TextField(
-                                            value = uiState.newItemUnit,
-                                            onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemUnit(it)) },
-                                            placeholder = { Text(Loc.ShopList.unit, fontSize = 12.sp) },
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .onFocusChanged { isUnitFocused = it.isFocused },
-                                            singleLine = true,
-                                            colors = TextFieldDefaults.colors(
-                                                focusedContainerColor = Color.Transparent,
-                                                unfocusedContainerColor = Color.Transparent,
-                                                focusedIndicatorColor = Color.Transparent,
-                                                unfocusedIndicatorColor = Color.Transparent
-                                            )
+                                        Icon(
+                                            AisleIcons[uiState.selectedAisle] ?: Icons.AutoMirrored.Filled.Label,
+                                            contentDescription = "Select Aisle",
+                                            tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
-                                }
+                                    
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                                    ) {
+                                        TextField(
+                                            value = uiState.newItemText,
+                                            onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemText(it)) },
+                                            placeholder = { Text(Loc.ShopList.addItem) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true,
+                                            colors = TextFieldDefaults.colors(
+                                                focusedContainerColor = Color.Transparent,
+                                                unfocusedContainerColor = Color.Transparent,
+                                                focusedIndicatorColor = Color.Transparent,
+                                                unfocusedIndicatorColor = Color.Transparent
+                                            )
+                                        )
 
-                                IconButton(
-                                    onClick = {
-                                        if (uiState.newItemText.isNotBlank()) {
-                                            val trimmedText = uiState.newItemText.trim()
-                                            val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
-                                            
-                                            if (existingItem != null && !existingItem.isChecked) {
-                                                infoMessage = Loc.ShopList.itemAlreadyInList to MessageType.INFO
-                                            } else {
-                                                viewModel.onEvent(ShoppingEvent.AddItem)
-                                                amountInputText = ""
-                                                if (existingItem != null) {
-                                                    infoMessage = Loc.ShopList.restoredExisting to MessageType.SUCCESS
-                                                }
+                                        if (!isCompactAddBox) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                TextField(
+                                                    value = amountInputText,
+                                                    onValueChange = { text ->
+                                                        amountInputText = text
+                                                        val amt = text.toDoubleOrNull()
+                                                        viewModel.onEvent(ShoppingEvent.UpdateNewItemAmount(amt))
+                                                    },
+                                                    placeholder = { Text(Loc.ShopList.amount, fontSize = 12.sp) },
+                                                    modifier = Modifier.weight(1f),
+                                                    singleLine = true,
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                                    colors = TextFieldDefaults.colors(
+                                                        focusedContainerColor = Color.Transparent,
+                                                        unfocusedContainerColor = Color.Transparent,
+                                                        focusedIndicatorColor = Color.Transparent,
+                                                        unfocusedIndicatorColor = Color.Transparent
+                                                    )
+                                                )
+
+                                                TextField(
+                                                    value = uiState.newItemUnit,
+                                                    onValueChange = { viewModel.onEvent(ShoppingEvent.UpdateNewItemUnit(it)) },
+                                                    placeholder = { Text(Loc.ShopList.unit, fontSize = 12.sp) },
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .onFocusChanged { isUnitFocused = it.isFocused },
+                                                    singleLine = true,
+                                                    colors = TextFieldDefaults.colors(
+                                                        focusedContainerColor = Color.Transparent,
+                                                        unfocusedContainerColor = Color.Transparent,
+                                                        focusedIndicatorColor = Color.Transparent,
+                                                        unfocusedIndicatorColor = Color.Transparent
+                                                    )
+                                                )
                                             }
                                         }
-                                    },
-                                    enabled = uiState.newItemText.isNotBlank(),
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    ),
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = "Add")
+                                    }
+
+                                    IconButton(
+                                        onClick = { setCompactAddBox(!isCompactAddBox) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isCompactAddBox) Icons.Default.UnfoldMore else Icons.Default.UnfoldLess,
+                                            contentDescription = "Toggle Amount Fields",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(4.dp))
+
+                                    IconButton(
+                                        onClick = {
+                                            if (uiState.newItemText.isNotBlank()) {
+                                                val trimmedText = uiState.newItemText.trim()
+                                                val existingItem = uiState.items.find { it.text.equals(trimmedText, ignoreCase = true) }
+                                                
+                                                if (existingItem != null && !existingItem.isChecked) {
+                                                    infoMessage = Loc.ShopList.itemAlreadyInList to MessageType.INFO
+                                                } else {
+                                                    viewModel.onEvent(ShoppingEvent.AddItem)
+                                                    amountInputText = ""
+                                                }
+                                            }
+                                        },
+                                        enabled = uiState.newItemText.isNotBlank(),
+                                        colors = IconButtonDefaults.iconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ),
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add")
+                                    }
+                                    Spacer(Modifier.width(2.dp))
                                 }
-                                Spacer(Modifier.width(2.dp))
                             }
                         }
                     }
@@ -432,7 +498,7 @@ fun ShoppingItemRow(
     onEdit: () -> Unit,
     userName: String
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
+    var showActionSheet by remember { mutableStateOf(false) }
 
     val formattedAmount = remember(item.amount, item.unit) {
         if (item.amount != null && item.amount > 0) {
@@ -444,6 +510,14 @@ fun ShoppingItemRow(
         } else {
             ""
         }
+    }
+
+    if (showActionSheet) {
+        ShoppingItemActionSheet(
+            onEdit = onEdit,
+            onDelete = onDelete,
+            onDismiss = { showActionSheet = false }
+        )
     }
 
     CompactActionListItem(
@@ -489,35 +563,12 @@ fun ShoppingItemRow(
                     }
                 }
 
-                Box {
-                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                        IconButton(
-                            onClick = { menuExpanded = true },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(Icons.Default.MoreVert, null, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    IconButton(
+                        onClick = { showActionSheet = true },
+                        modifier = Modifier.size(24.dp)
                     ) {
-                        DropdownMenuItem(
-                            leadingIcon = { Icon(Icons.Default.Edit, null) },
-                            text = { Text(Loc.ShopList.editItem) },
-                            onClick = {
-                                onEdit()
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                            text = { Text(Loc.General.delete, color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                onDelete()
-                                menuExpanded = false
-                            }
-                        )
+                        Icon(Icons.Default.MoreVert, null, modifier = Modifier.size(20.dp))
                     }
                 }
             }

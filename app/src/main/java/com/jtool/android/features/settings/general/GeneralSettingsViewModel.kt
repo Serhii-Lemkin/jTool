@@ -29,7 +29,8 @@ class GeneralSettingsViewModel(
             lightBg = settingsManager.getLightBgColor(),
             darkPrimary = settingsManager.getDarkPrimaryColor(),
             darkBg = settingsManager.getDarkBgColor(),
-            weeklyStartDay = startDay
+            weeklyStartDay = startDay,
+            dateFormat = settingsManager.getDateFormat()
         ) }
     }
 
@@ -63,6 +64,11 @@ class GeneralSettingsViewModel(
                 val newOptions = currentOptions.copy(weeklyStartDay = event.day.name)
                 settingsManager.saveWorktimeOptions(newOptions)
                 _uiState.update { it.copy(weeklyStartDay = event.day) }
+                viewModelScope.launch { dataManager.pushUserSettings() }
+            }
+            is GeneralSettingsEvent.SetDateFormat -> {
+                settingsManager.setDateFormat(event.format)
+                _uiState.update { it.copy(dateFormat = event.format) }
                 viewModelScope.launch { dataManager.pushUserSettings() }
             }
         }

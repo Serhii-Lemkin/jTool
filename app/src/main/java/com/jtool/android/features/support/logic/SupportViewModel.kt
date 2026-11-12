@@ -438,6 +438,16 @@ class SupportViewModel(
         }
     }
 
+    fun prepareFeatureRequestDraft(text: String) {
+        _uiState.update {
+            it.copy(
+                newRequestType = SupportTypeEnum.FEATURE,
+                requestText = text,
+                currentSubScreen = SupportScreenTypeEnum.NEW_FORM
+            )
+        }
+    }
+
     fun getAppUserId(): String = settings.getAppUserId()
     fun getAuthUserId(): String = settings.getUserId()
 

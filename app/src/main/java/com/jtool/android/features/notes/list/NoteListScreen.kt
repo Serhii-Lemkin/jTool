@@ -81,13 +81,14 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
             }
 
             com.jtool.android.core.components.layout.TitleDropdownMenu {
-                DropdownMenuItem(
-                    text = { Text(com.jtool.android.core.localization.domains.GeneralLoc.learnMore) },
+                com.jtool.android.core.components.layout.ActionListItem(
+                    headline = com.jtool.android.core.localization.domains.GeneralLoc.learnMore,
+                    supportingText = Loc.s("notes_learnMoreSubtitle", "View online guide and feature documentation"),
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
                     onClick = {
                         val settingsManager = com.jtool.android.core.settings.SettingsManager(context)
                         com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "personal-hub")
-                    },
-                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                    }
                 )
             }
         },
@@ -129,7 +130,7 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
     val contentPreview = if (note.type == NoteTypeEnum.TEXT) {
         note.content
     } else {
-        "$count ${if (count == 1) Loc.General.item else Loc.General.items}"
+        "$count ☑"
     }
 
     val authorName = userNames[note.lastUpdatedBy] ?: note.lastUpdatedBy

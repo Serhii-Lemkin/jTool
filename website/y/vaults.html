@@ -11,46 +11,10 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles/main.css?v=3">
+    <script src="/scripts/components.js"></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <nav class="navbar navbar-expand-lg top-nav fixed-top">
-        <div class="container">
-            <a class="navbar-brand nav-logo d-flex align-items-center gap-2 fw-bold" href="/">
-                <img src="/512.png" alt="JTools" class="nav-logo-img">
-                <span><span class="text-info">J</span>Tools</span>
-            </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link px-3" href="/" data-i18n="nav_home">Home</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="/changelog" data-i18n="nav_changelog">Changelog</a></li>
-                    <li class="nav-item"><a class="nav-link px-3" href="/privacy" data-i18n="nav_privacy">Privacy</a></li>
-                    
-                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
-                        <a class="nav-link dropdown-toggle" href="#" id="themeDropdown" role="button" data-bs-toggle="dropdown">
-                            <span class="theme-icon">🌙</span> <span data-i18n="nav_theme">Theme</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
-                            <li><a class="dropdown-item" href="#" onclick="switchTheme('dark'); return false;">🌙 <span data-i18n="theme_dark">Dark</span></a></li>
-                            <li><a class="dropdown-item" href="#" onclick="switchTheme('light'); return false;">☀️ <span data-i18n="theme_light">Light</span></a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
-                        <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-bs-toggle="dropdown">
-                            🌐 English
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
-                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('en'); return false;">English</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('uk'); return false;">Українська</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="switchLanguage('he'); return false;">עברית</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <jtool-navbar></jtool-navbar>
 
     <main class="container flex-grow-1" style="padding-top: 100px; padding-bottom: 50px;">
         <div class="row justify-content-center">
@@ -90,7 +54,7 @@
                                     <span class="material-icons fs-5 text-info">search</span>
                                     <span>Search Vaults...</span>
                                 </div>
-                                <span class="material-icons text-info fs-5">filter_list</span>
+                                <span class="material-icons text-info fs-5">more_vert</span>
                             </div>
 
                             <!-- Vault Item 1 -->
@@ -101,10 +65,7 @@
                                     </div>
                                     <div>
                                         <strong class="strong-text d-block fs-6">Home Documents</strong>
-                                        <div class="d-flex gap-1 mt-1">
-                                            <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">12 Files</span>
-                                            <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">Group Shared</span>
-                                        </div>
+                                        <div class="text-secondary mt-1" style="font-size: 12px;">By John Doe</div>
                                     </div>
                                 </div>
                                 <span class="material-icons text-secondary fs-5">chevron_right</span>
@@ -118,16 +79,24 @@
                                     </div>
                                     <div>
                                         <strong class="strong-text d-block fs-6">Tax 2026</strong>
-                                        <div class="d-flex gap-1 mt-1">
-                                            <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">4 Files</span>
-                                            <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">Private</span>
-                                        </div>
+                                        <div class="text-secondary mt-1" style="font-size: 12px;">By Jane Smith</div>
                                     </div>
                                 </div>
                                 <span class="material-icons text-secondary fs-5">chevron_right</span>
                             </div>
+
+                            <!-- Floating Action Buttons -->
+                            <div class="d-flex flex-column align-items-end gap-3 mt-4">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center bg-info text-white shadow" style="width: 48px; height: 48px; position: relative;">
+                                    <span class="material-icons">find_in_page</span>
+                                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle" style="width: 12px; height: 12px;"></span>
+                                </div>
+                                <div class="rounded-circle d-flex align-items-center justify-content-center bg-info text-white shadow" style="width: 56px; height: 56px;">
+                                    <span class="material-icons fs-4">add</span>
+                                </div>
+                            </div>
                         </div>
-                        <p class="text-secondary small mt-3 mb-0 text-center">Shows your main list of Vaults. You can have Private vaults and Group Shared vaults.</p>
+                        <p class="text-secondary small mt-3 mb-0 text-center" data-i18n="vaults_replica_1_desc">Shows your main list of Vaults. The floating magnifying glass (FindInPage FAB) searches specific files across all your group's vaults via the <strong class="strong-text" data-i18n="vaults_dualTabFilterTitle">Unified Dual-Tab Filter & Sort Sheet</strong>.</p>
                     </div>
 
                     <!-- App Screen Visualization: Specific Vault Screen -->
@@ -156,13 +125,17 @@
                                     </div>
                                     <div>
                                         <strong class="strong-text d-block fs-6">Apartment Lease 2026</strong>
-                                        <div class="d-flex gap-1 mt-1">
-                                            <span class="badge bg-primary text-dark rounded-pill px-2 py-1" style="font-size: 10px;">#Lease</span>
-                                            <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">2.4 MB</span>
+                                        <div class="d-flex align-items-center gap-1 mt-1 text-secondary" style="font-size: 12px;">
+                                            <span>Lease &bull; 1</span>
+                                            <span class="material-icons" style="font-size: 14px; margin-top: -1px;">description</span>
                                         </div>
+                                        <div class="text-secondary mt-1" style="font-size: 12px;">10/12/2025</div>
                                     </div>
                                 </div>
-                                <span class="material-icons text-info fs-5" title="Google Drive Link">cloud_done</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">Downloaded</span>
+                                    <span class="material-icons text-secondary fs-5">info</span>
+                                </div>
                             </div>
 
                             <!-- Document 2 -->
@@ -173,16 +146,27 @@
                                     </div>
                                     <div>
                                         <strong class="strong-text d-block fs-6">Shared Budget Planner</strong>
-                                        <div class="d-flex gap-1 mt-1">
-                                            <span class="badge bg-primary text-dark rounded-pill px-2 py-1" style="font-size: 10px;">#Finance</span>
-                                            <span class="badge bg-secondary text-light rounded-pill px-2 py-1" style="font-size: 10px;">Google Sheets</span>
+                                        <div class="d-flex align-items-center gap-1 mt-1 text-secondary" style="font-size: 12px;">
+                                            <span>Financial &bull; 2</span>
+                                            <span class="material-icons" style="font-size: 14px; margin-top: -1px;">description</span>
                                         </div>
+                                        <div class="text-secondary mt-1" style="font-size: 12px;">15/12/2025</div>
                                     </div>
                                 </div>
                                 <span class="material-icons text-info fs-5" title="Google Drive Link">cloud_done</span>
                             </div>
+
+                            <!-- Floating Action Buttons -->
+                            <div class="d-flex flex-column align-items-end gap-3 mt-4">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center bg-info text-white shadow" style="width: 48px; height: 48px; position: relative;">
+                                    <span class="material-icons">find_in_page</span>
+                                </div>
+                                <div class="rounded-circle d-flex align-items-center justify-content-center bg-info text-white shadow" style="width: 56px; height: 56px;">
+                                    <span class="material-icons fs-4">add</span>
+                                </div>
+                            </div>
                         </div>
-                        <p class="text-secondary small mt-3 mb-0 text-center">Inside a Vault, you can view, add, or download the files attached to it directly from Google Drive.</p>
+                        <p class="text-secondary small mt-3 mb-0 text-center" data-i18n="vaults_replica_2_desc">Inside a Vault, you can view, add, or download the files attached to it directly from Google Drive. Both the Vaults list and specific Vault screens feature the floating FindInPage search button for quick cross-vault document access.</p>
                     </div>
 
                     <!-- App Screen Visualization: Document Details -->
@@ -275,12 +259,25 @@
                         <p class="text-secondary small mt-3 mb-0 text-center">The Document Details screen allows you to manage the specific files attached, view metadata, and download for offline use.</p>
                     </div>
 
+                    <!-- System Share Import Wizard -->
+                    <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">share</span><span data-i18n="vaults_shareWizardTitle">System Share Target & Guided Import Wizard</span></h2>
+                    <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.05); border: 1px solid var(--border);">
+                        <p class="text-secondary small mb-3" data-i18n="vaults_shareWizardDesc">Share files directly from any app via Android's share menu. jTools will launch a guided 4-step wizard to import your files:</p>
+                        <ol class="text-secondary small mb-0 ps-3">
+                            <li class="mb-2"><strong class="strong-text">Select Group:</strong> Choose the target collaboration group.</li>
+                            <li class="mb-2"><strong class="strong-text">Select Feature App:</strong> Pick Vaults as your destination.</li>
+                            <li class="mb-2"><strong class="strong-text">Select Target Vault:</strong> Choose an existing vault or instantly create a new one.</li>
+                            <li class="mb-0"><strong class="strong-text">Upload Shared Files:</strong> The native upload sheet opens pre-filled with the shared file's name.</li>
+                        </ol>
+                    </div>
+
                     <!-- Module Settings Explanation Section -->
                     <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">settings</span> Vaults Settings Options</h2>
                     <div class="p-4 rounded-3 mb-5" style="background: var(--surface); border: 1px solid var(--border);">
                         <ul class="feature-list mb-0">
                             <li class="mb-3"><strong class="strong-text">Default Google Drive Destination:</strong> Select the default Google Drive folder where new group document links and attachments are stored.</li>
-                            <li class="mb-3"><strong class="strong-text">Tag Manager:</strong> Create and color-code custom document tags (e.g. #Tax, #Contracts, #Warranties) shared across your group.</li>
+                            <li class="mb-3"><strong class="strong-text">Tag Manager:</strong> Create and color-code custom document tags shared across your group. Includes 10+ standard tags out-of-the-box: License, Contract, Insurance, Medical, Tax, Vehicle, Property, Financial, Certificate, and Education.</li>
+                            <li class="mb-3"><strong class="strong-text" data-i18n="vaults_pinVaultTitle">Local Vault Pinning:</strong> <span data-i18n="vaults_pinVaultDesc">Pin important vaults to the top of your list for instant access.</span></li>
                             <li class="mb-0"><strong class="strong-text">Offline Cache Settings:</strong> Configure local cache size limits for downloaded Google Drive documents for offline viewing.</li>
                         </ul>
                     </div>
@@ -311,7 +308,8 @@
                     <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
                         <ul class="mb-0 text-secondary" style="padding-left: 20px;">
                             <li class="mb-2" data-i18n="vaults_protip_1"><strong class="strong-text">Consistent Tagging:</strong> Establish standardized tags across your group (e.g. "Tax 2026", "Apartment Lease") so any member can filter documents in one tap.</li>
-                            <li data-i18n="vaults_protip_2"><strong class="strong-text">Offline Caching:</strong> Use the cache option on important documents to keep copies accessible on your phone even when offline.</li>
+                            <li class="mb-2" data-i18n="vaults_protip_2"><strong class="strong-text">Offline Caching:</strong> Use the cache option on important documents to keep copies accessible on your phone even when offline.</li>
+                            <li data-i18n="vaults_protip_3"><strong class="strong-text">Local Custom Tag Caching:</strong> Custom tags created on upload automatically persist locally for future quick selection in the filters.</li>
                         </ul>
                     </div>
 
@@ -326,12 +324,16 @@
                             <strong class="strong-text d-block mb-1" data-i18n="vaults_faq_q2">What happens if a group member leaves?</strong>
                             <p class="text-secondary small mb-0" data-i18n="vaults_faq_a2">Document references added to shared vaults remain in the group for other members to access, while the original file in Google Drive remains under the owner's full control.</p>
                         </div>
+                        <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <strong class="strong-text d-block mb-1" data-i18n="vaults_faq_q3">How does search isolation work?</strong>
+                            <p class="text-secondary small mb-0" data-i18n="vaults_faq_a3">The top search bar strictly filters Vault names and descriptions. To search specific files across all your group's vaults, tap the floating magnifying glass icon (FindInPage FAB) to open the Cross-Vault Document Search.</p>
+                        </div>
                     </div>
 
                     <!-- Red Container Link Banner -->
                     <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
                         <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title">🔴 Red Container: Primary Actions & Background Hub</h3>
-                        <p class="text-secondary small mb-3" data-i18n="vaults_rc_banner_desc">Primary Action: Houses the Plus FAB to instantly create new vaults and attach Google Drive documents. Secondary: Tracks active Google Drive background uploads, offline downloads, public exports, and notifications.</p>
+                        <p class="text-secondary small mb-3" data-i18n="vaults_rc_banner_desc">Primary Action: Houses the Plus FAB to instantly create new vaults and attach Google Drive documents. Secondary: Tracks active Google Drive background uploads via FileUploadWorker, popping up a progress FAB during document edits.</p>
                         <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
                     </div>
                 </div>
@@ -339,37 +341,11 @@
         </div>
 
         <!-- Visualization Disclaimer Modal -->
-        <div class="modal fade" id="vizDisclaimerModal" tabindex="-1" aria-labelledby="vizDisclaimerModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content custom-card p-3" style="background-color: var(--dropdown-bg); backdrop-filter: blur(20px);">
-                    <div class="modal-header border-0 pb-0">
-                        <h5 class="modal-title fw-bold text-info d-flex align-items-center gap-2" id="vizDisclaimerModalLabel">
-                            <span class="material-icons text-info">help_outline</span>
-                            <span data-i18n="viz_disclaimer_title">Visualization Disclaimer</span>
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body text-start py-3">
-                        <p class="text-secondary mb-0 fs-6" data-i18n="viz_disclaimer_body">
-                            Note: This visualization provides a feel and understanding of the app's layout rather than representing a 100% pixel-perfect snapshot of every screen state.
-                        </p>
-                    </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-outline-info rounded-pill px-4" data-bs-dismiss="modal" data-i18n="viz_disclaimer_close">Got it</button>
-                    </div>
-                </div>
-            </div>
+        <jtool-viz-modal></jtool-viz-modal>
         </div>
     </main>
 
-    <footer class="mt-auto py-4 border-top" style="border-color: var(--border) !important;">
-        <div class="container text-center text-secondary fs-6">
-            <div class="mb-2">
-                <a href="/privacy" class="text-info text-decoration-none fw-semibold" data-i18n="footer_privacy">Privacy Policy</a>
-            </div>
-            <div data-i18n="footer_copy">&copy; 2026 JTools App. Built by <strong>Serhii Lemkin</strong> for the Android ecosystem.</div>
-        </div>
-    </footer>
+    <jtool-footer></jtool-footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/scripts/i18n.js?v=3"></script>

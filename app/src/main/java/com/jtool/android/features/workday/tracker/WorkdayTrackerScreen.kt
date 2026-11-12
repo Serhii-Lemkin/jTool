@@ -169,15 +169,17 @@ fun WorkdayTrackerScreen(
         onBack = onBack,
         actions = {
             com.jtool.android.core.components.layout.TitleDropdownMenu {
-                DropdownMenuItem(
-                    text = { Text(Loc.Launcher.settings) },
-                    onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) },
-                    leadingIcon = { Icon(Icons.Default.Settings, null) }
+                com.jtool.android.core.components.layout.ActionListItem(
+                    headline = Loc.Launcher.settings,
+                    supportingText = Loc.s("workday_settingsSubtitle", "Configure start day, hours, schedule, and shift settings"),
+                    leadingContent = { Icon(Icons.Default.Settings, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { onNavigate(AppScreenEnum.WORK_TIME_SETTINGS_MAIN) }
                 )
-                DropdownMenuItem(
-                    text = { Text(Loc.General.learnMore) },
-                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "work-tracker") },
-                    leadingIcon = { Icon(Icons.Default.Language, null) }
+                com.jtool.android.core.components.layout.ActionListItem(
+                    headline = Loc.General.learnMore,
+                    supportingText = Loc.s("workday_learnMoreSubtitle", "View online guide and feature documentation"),
+                    leadingContent = { Icon(Icons.Default.Language, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, dataManager, "work-tracker") }
                 )
             }
         }

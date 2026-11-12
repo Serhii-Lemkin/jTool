@@ -27,8 +27,6 @@ import com.jtool.android.core.models.calendar.CalendarConfig
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.calendar.common.GoogleCalendarSyncHelper
 import com.jtool.android.core.localization.domains.CalendarLoc
-import com.jtool.android.core.models.calendar.enums.GridEventStyleEnum
-import com.jtool.android.features.calendar.settings.components.grid_style_picker_sheet.GridStylePickerSheet
 import com.jtool.android.features.calendar.settings.components.multi_calendar_picker_sheet.MultiCalendarPickerSheet
 import kotlinx.coroutines.launch
 
@@ -46,7 +44,6 @@ fun CalendarSettingsScreen(
     var availableCalendars by remember { mutableStateOf<List<Triple<String, String, String>>>(emptyList()) }
     var showCalendarPicker by remember { mutableStateOf(false) }
     var showMultiCalendarPicker by remember { mutableStateOf(false) }
-    var showGridStylePicker by remember { mutableStateOf(false) }
     var showSharedCalendarPicker by remember { mutableStateOf(false) }
     var showPermissionSheet by remember { mutableStateOf(false) }
     var showResetConfirmSheet by remember { mutableStateOf(false) }
@@ -82,18 +79,6 @@ fun CalendarSettingsScreen(
                 scope.launch { dataManager.pushUserSettings() }
             },
             onDismiss = { showMultiCalendarPicker = false }
-        )
-    }
-
-    if (showGridStylePicker) {
-        GridStylePickerSheet(
-            selectedStyle = calendarConfig.gridEventStyle,
-            onSelectStyle = { style ->
-                settings.setGridEventStyle(style)
-                calendarConfig = settings.getCalendarConfig()
-                scope.launch { dataManager.pushUserSettings() }
-            },
-            onDismiss = { showGridStylePicker = false }
         )
     }
 
@@ -207,19 +192,6 @@ fun CalendarSettingsScreen(
                         showPermissionSheet = true
                     }
                 }
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            val currentGridStyle = remember(calendarConfig) { settings.getGridEventStyle() }
-            val gridStyleLabel = if (currentGridStyle == GridEventStyleEnum.DOTS) CalendarLoc.gridEventStyleDots else CalendarLoc.gridEventStyleChips
-
-            ActionListItem(
-                headline = CalendarLoc.gridEventStyle,
-                supportingText = gridStyleLabel,
-                leadingContent = { Icon(Icons.Default.GridOn, null) },
-                onClick = { showGridStylePicker = true },
-                supportingMaxLines = Int.MAX_VALUE
             )
 
             Spacer(modifier = Modifier.weight(1f))

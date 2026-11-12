@@ -12,13 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +42,8 @@ import java.util.*
 fun UploadDocSheet(
     vault: Vault,
     isUploading: Boolean = false,
+    initialFiles: List<AttachedFile> = emptyList(),
+    initialRecordName: String = "",
     onDismiss: () -> Unit,
     onUpload: (List<AttachedFile>, String, String, Long, String, Boolean) -> Unit
 ) {
@@ -56,8 +52,18 @@ fun UploadDocSheet(
     val isLargeWarningEnabled = remember { settingsManager.isLargeFileWarningEnabled() }
     val maxFileSizeMb = remember { settingsManager.getMaxFileSizeWithoutWarningMb() }
 
-    var attachedFiles by remember { mutableStateOf<List<AttachedFile>>(emptyList()) }
-    var recordName by remember { mutableStateOf("") }
+    fun sanitizeFileName(input: String): String {
+        return input.replace(Regex("[/\\\\:*?\"<>|]"), "")
+    }
+
+    fun stripFileExtension(fullName: String): String {
+        val sanitized = sanitizeFileName(fullName)
+        return if (sanitized.contains('.')) sanitized.substringBeforeLast('.') else sanitized
+    }
+
+    var attachedFiles by remember { mutableStateOf(initialFiles) }
+    val cleanInitial = remember(initialRecordName) { stripFileExtension(initialRecordName) }
+    var recordName by remember { mutableStateOf(cleanInitial) }
     var tag by remember { mutableStateOf("") }
     var docDateMs by remember { mutableStateOf(System.currentTimeMillis()) }
     var description by remember { mutableStateOf("") }
@@ -67,20 +73,33 @@ fun UploadDocSheet(
 
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
-    fun sanitizeFileName(input: String): String {
-        return input.replace(Regex("[/\\\\:*?\"<>|]"), "")
-    }
-
-    val tagsMap = remember {
-        mapOf(
-            "#WARRANTY#" to VaultsLoc.tagWarranty,
+    val cachedCustomTags = remember { settingsManager.getCachedCustomTags() }
+    val tagsMap = remember(cachedCustomTags) {
+        val map = mutableMapOf(
             "#DOCUMENT#" to VaultsLoc.tagDocument,
+            "#WARRANTY#" to VaultsLoc.tagWarranty,
             "#RECEIPT#" to VaultsLoc.tagReceipt,
             "#INVOICE#" to VaultsLoc.tagInvoice,
             "#AGREEMENT#" to VaultsLoc.tagAgreement,
             "#IDENTIFICATION#" to VaultsLoc.tagId,
-            "#SLIP#" to VaultsLoc.tagSlip
+            "#SLIP#" to VaultsLoc.tagSlip,
+            "#LICENSE#" to VaultsLoc.tagLicense,
+            "#CONTRACT#" to VaultsLoc.tagContract,
+            "#INSURANCE#" to VaultsLoc.tagInsurance,
+            "#MEDICAL#" to VaultsLoc.tagMedical,
+            "#TAX#" to VaultsLoc.tagTax,
+            "#VEHICLE#" to VaultsLoc.tagVehicle,
+            "#PROPERTY#" to VaultsLoc.tagProperty,
+            "#FINANCIAL#" to VaultsLoc.tagFinancial,
+            "#CERTIFICATE#" to VaultsLoc.tagCertificate,
+            "#EDUCATION#" to VaultsLoc.tagEducation
         )
+        cachedCustomTags.forEach { custom ->
+            if (custom.isNotBlank() && !map.containsKey(custom)) {
+                map[custom] = if (custom.startsWith("#") && custom.endsWith("#")) custom.removeSurrounding("#") else custom
+            }
+        }
+        map
     }
 
     // Default tag logic
@@ -90,7 +109,7 @@ fun UploadDocSheet(
 
     LaunchedEffect(attachedFiles) {
         if (recordName.isBlank() && attachedFiles.isNotEmpty()) {
-            recordName = sanitizeFileName(attachedFiles.first().fileName)
+            recordName = stripFileExtension(attachedFiles.first().fileName)
         }
     }
 
@@ -222,7 +241,15 @@ fun UploadDocSheet(
                         onValueChange = { recordName = sanitizeFileName(it) },
                         label = { Text(Loc.Vaults.docName) },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
+                        trailingIcon = {
+                            if (recordName.isNotBlank()) {
+                                IconButton(onClick = { recordName = "" }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                }
+                            }
+                        }
                     )
 
                     Text(
@@ -258,10 +285,11 @@ fun UploadDocSheet(
                             }
                             
                             val fileSize = VaultDocUtils.getFileSizeFromUri(context, file.uri)
-                            
+                            val rawName = file.fileName.removeSuffix(file.extension).removeSuffix(".")
+
                             Column(modifier = Modifier.weight(1f)) {
                                 OutlinedTextField(
-                                    value = file.fileName.removeSuffix(file.extension),
+                                    value = rawName,
                                     onValueChange = { newName ->
                                         val sanitized = sanitizeFileName(newName)
                                         val newList = attachedFiles.toMutableList()
@@ -270,14 +298,26 @@ fun UploadDocSheet(
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
                                     trailingIcon = {
-                                        Text(
-                                            text = file.extension.lowercase(),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(end = 12.dp)
-                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = if (file.extension.startsWith(".")) file.extension.lowercase() else ".${file.extension.lowercase()}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(end = 4.dp)
+                                            )
+                                            if (rawName.isNotBlank()) {
+                                                IconButton(onClick = {
+                                                    val newList = attachedFiles.toMutableList()
+                                                    newList[index] = file.copy(fileName = "")
+                                                    attachedFiles = newList
+                                                }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                                                }
+                                            }
+                                        }
                                     },
                                     textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
                                 )
@@ -438,11 +478,22 @@ fun UploadDocSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .onFocusChanged { isTagFocused = it.isFocused },
-                            singleLine = true
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
+                            trailingIcon = {
+                                if (tagInput.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        tagInput = ""
+                                        tag = ""
+                                    }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                            }
                         )
                     }
 
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    val dateFormat = remember(context) { com.jtool.android.core.utils.getPreferredSimpleDateFormat(context) }
                     OutlinedButton(
                         onClick = { showDatePicker = true },
                         modifier = Modifier.fillMaxWidth()
@@ -455,7 +506,15 @@ fun UploadDocSheet(
                         onValueChange = { description = it },
                         label = { Text(Loc.Vaults.description) },
                         modifier = Modifier.fillMaxWidth(),
-                        minLines = 2
+                        minLines = 2,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
+                        trailingIcon = {
+                            if (description.isNotBlank()) {
+                                IconButton(onClick = { description = "" }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                }
+                            }
+                        }
                     )
 
                     Row(
@@ -490,6 +549,9 @@ fun UploadDocSheet(
                                 if (largeFiles.isNotEmpty()) {
                                     largeFilesToWarn = largeFiles
                                 } else {
+                                    if (tag.isNotBlank()) {
+                                        settingsManager.saveCustomTag(tag)
+                                    }
                                     onUpload(attachedFiles, recordName.trim(), tag, docDateMs, description.trim(), saveOffline)
                                 }
                             }

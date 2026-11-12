@@ -42,7 +42,6 @@ import com.jtool.android.features.calendar.common.CalendarEventHelper
 import com.jtool.android.features.calendar.components.TimelineEventCard
 import com.jtool.android.features.calendar.components.TimelineHourMarkers
 import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getEventColor
-import com.jtool.android.features.calendar.grid.components.CalendarGridActionSheet
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
@@ -92,18 +91,47 @@ fun CalendarDayScreen(
     if (uiState.showAddEditDialog) {
         SideEffect {
             onNavigate(AppScreenEnum.CALENDAR_ADD_EDIT)
-            viewModel.toggleAddEditDialog(false, uiState.editingEvent)
+            viewModel.toggleAddEditDialog(false)
         }
     }
 
-    var showDayActionSheet by remember { mutableStateOf(false) }
+    var showTypeSelectionSheet by remember { mutableStateOf(false) }
 
-    if (showDayActionSheet) {
-        CalendarGridActionSheet(
-            showDeclinedEvents = uiState.showDeclinedEvents,
-            onToggleShowDeclined = { viewModel.toggleShowDeclinedEvents() },
-            onSettings = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) },
-            onDismiss = { showDayActionSheet = false }
+    if (showTypeSelectionSheet) {
+        com.jtool.android.features.calendar.components.event_type_selection_sheet.EventTypeSelectionSheet(
+            onSelectType = { type ->
+                when (type) {
+                    com.jtool.android.features.calendar.components.event_type_selection_sheet.CalendarCreationType.WORK_SHIFT -> {
+                        val shiftTitle = settingsManager.getCustomWorkShiftTitle()
+                        val shiftColor = settingsManager.getWorkShiftColorKey()
+                        val options = settingsManager.getWorktimeOptions()
+                        val defaultStart = options.scheduleStart ?: "09:00"
+                        val defaultEnd = options.scheduleEnd ?: "17:00"
+                        val nowLdt = java.time.LocalDateTime.of(uiState.selectedDate, java.time.LocalTime.parse(defaultStart))
+                        val startMs = nowLdt.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val endMs = java.time.LocalDateTime.of(uiState.selectedDate, java.time.LocalTime.parse(defaultEnd)).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                        val preset = CalendarEvent(
+                            title = shiftTitle,
+                            colorKey = shiftColor,
+                            dtStart = startMs,
+                            dtEnd = endMs
+                        )
+                        viewModel.toggleAddEditDialog(true, preset)
+                    }
+                    com.jtool.android.features.calendar.components.event_type_selection_sheet.CalendarCreationType.REMINDER -> {
+                        val preset = CalendarEvent(
+                            reminderMinutes = 15
+                        )
+                        viewModel.toggleAddEditDialog(true, preset)
+                    }
+                    com.jtool.android.features.calendar.components.event_type_selection_sheet.CalendarCreationType.EVENT -> {
+                        viewModel.toggleAddEditDialog(true, null)
+                    }
+                }
+                showTypeSelectionSheet = false
+            },
+            onDismiss = { showTypeSelectionSheet = false }
         )
     }
 
@@ -119,9 +147,6 @@ fun CalendarDayScreen(
                     contentDescription = null
                 )
             }
-            IconButton(onClick = { showDayActionSheet = true }) {
-                Icon(Icons.Default.MoreVert, null)
-            }
             IconButton(onClick = { viewModel.navigateDay(-1) }) {
                 Icon(Icons.Default.ChevronLeft, null)
             }
@@ -132,7 +157,7 @@ fun CalendarDayScreen(
         floatingActionButton = {
             UnifiedFAB(
                 icon = Icons.Default.Add,
-                onClick = { viewModel.toggleAddEditDialog(true) }
+                onClick = { showTypeSelectionSheet = true }
             )
         }
     ) { _ ->
@@ -185,9 +210,14 @@ private fun TimelineView(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 allDayEvents.forEach { event ->
+                    val extension = uiState.extensions[event.id]
+                        ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
+                        ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
+                        ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
                     TimelineEventCard(
                         event = event,
                         groups = groups,
+                        extension = extension,
                         onClick = { onEventClick(event) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -203,30 +233,41 @@ private fun TimelineView(
 
             val overlapGroups = remember(timedEvents) { CalendarEventHelper.calculateOverlapGroups(timedEvents) }
 
-            timedEvents.forEach { event ->
-                val groupInfo = overlapGroups[event.id] ?: Pair(0, 1)
-                val widthPercent = 1f / groupInfo.second
-                val leftOffset = groupInfo.first * widthPercent
+            BoxWithConstraints(
+                modifier = Modifier
+                    .padding(start = 60.dp)
+                    .fillMaxWidth()
+            ) {
+                val totalWidth = maxWidth
+                timedEvents.forEachIndexed { index, event ->
+                    val key = CalendarEventHelper.getEventUniqueKey(event, index)
+                    val groupInfo = overlapGroups[key] ?: Pair(0, 1)
+                    val colWidth = totalWidth / groupInfo.second
+                    val xOffset = colWidth * groupInfo.first
 
-                val eventTop = CalendarEventHelper.getEventTop(event.startTime, hourHeight)
-                val eventHeight = CalendarEventHelper.getEventHeight(event.startTime, event.endTime, hourHeight)
+                    val eventTop = CalendarEventHelper.getEventTop(event.startTime, hourHeight)
+                    val eventHeight = CalendarEventHelper.getEventHeight(event.startTime, event.endTime, hourHeight)
 
-                Box(
-                    modifier = Modifier
-                        .padding(start = 60.dp) // Offset for hour markers
-                        .fillMaxWidth()
-                        .height(eventHeight.dp)
-                        .offset(y = eventTop.dp)
-                        .padding(horizontal = 2.dp)
-                ) {
-                    TimelineEventCard(
-                        event = event,
-                        groups = groups,
-                        onClick = { onEventClick(event) },
+                    val extension = uiState.extensions[event.id]
+                        ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
+                        ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
+                        ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth(widthPercent)
-                            .offset(x = (leftOffset * 100).dp)
-                    )
+                            .width(colWidth)
+                            .height(eventHeight.dp)
+                            .offset(x = xOffset, y = eventTop.dp)
+                            .padding(horizontal = 2.dp)
+                    ) {
+                        TimelineEventCard(
+                            event = event,
+                            groups = groups,
+                            extension = extension,
+                            onClick = { onEventClick(event) },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
 

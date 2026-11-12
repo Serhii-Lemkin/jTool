@@ -217,6 +217,19 @@ object FileDownloadQueueManager {
         saveState()
     }
 
+    fun clearFinishedTasks() {
+        _downloadState.update { state ->
+            val activeTasks = state.tasks.filter { task ->
+                !task.isFailed && task.files.any { f -> f.status == DownloadFileStatus.PENDING || f.status == DownloadFileStatus.DOWNLOADING }
+            }
+            state.copy(
+                tasks = activeTasks,
+                isDownloading = activeTasks.isNotEmpty()
+            )
+        }
+        saveState()
+    }
+
     fun markQueueFinished() {
         _downloadState.update { it.copy(isDownloading = false) }
         saveState()

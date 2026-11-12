@@ -308,6 +308,37 @@ object GoogleCalendarSyncHelper {
         return null
     }
 
+    private fun getEventReminderMinutes(context: Context, eventId: String): Int? {
+        if (eventId.isEmpty()) return null
+        val uri = CalendarContract.Reminders.CONTENT_URI
+        val projection = arrayOf(CalendarContract.Reminders.MINUTES)
+        val selection = "${CalendarContract.Reminders.EVENT_ID} = ?"
+        try {
+            context.contentResolver.query(uri, projection, selection, arrayOf(eventId), null)?.use { c ->
+                if (c.moveToFirst()) {
+                    return c.getInt(0)
+                }
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
+    private fun updateEventReminder(context: Context, localEventId: String, minutes: Int?) {
+        if (localEventId.isEmpty()) return
+        val uri = CalendarContract.Reminders.CONTENT_URI
+        try {
+            context.contentResolver.delete(uri, "${CalendarContract.Reminders.EVENT_ID} = ?", arrayOf(localEventId))
+            if (minutes != null && minutes >= 0) {
+                val values = ContentValues().apply {
+                    put(CalendarContract.Reminders.EVENT_ID, localEventId)
+                    put(CalendarContract.Reminders.MINUTES, minutes)
+                    put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+                }
+                context.contentResolver.insert(uri, values)
+            }
+        } catch (_: Exception) {}
+    }
+
     private fun parseEvent(context: Context, c: Cursor, userEmail: String?, calendarId: String): CalendarEvent {
         val gId = c.safeGetLong(CalendarContract.Events._ID)
         val title = c.safeGetString(CalendarContract.Events.TITLE) ?: ""
@@ -318,6 +349,10 @@ object GoogleCalendarSyncHelper {
         val iCalUID = c.safeGetString("sync_data1")
         val organizer = c.safeGetString(CalendarContract.Events.ORGANIZER)
         val colorKey = c.safeGetString(CalendarContract.Events.EVENT_COLOR_KEY)
+        val rrule = c.safeGetString(CalendarContract.Events.RRULE)
+        val duration = c.safeGetString(CalendarContract.Events.DURATION)
+        val location = c.safeGetString(CalendarContract.Events.EVENT_LOCATION)
+        val reminderMinutes = getEventReminderMinutes(context, gId.toString())
 
         val (attendees, status, statuses) = getAttendeesAndStatus(context, gId.toString(), userEmail)
 
@@ -334,7 +369,11 @@ object GoogleCalendarSyncHelper {
             iCalUID = iCalUID,
             organizer = organizer,
             attendeeStatuses = statuses,
-            colorKey = colorKey
+            colorKey = colorKey,
+            rrule = rrule,
+            duration = duration,
+            location = location,
+            reminderMinutes = reminderMinutes
         )
     }
 
@@ -348,7 +387,6 @@ object GoogleCalendarSyncHelper {
 
         val values = ContentValues().apply {
             put(CalendarContract.Events.DTSTART, event.dtStart)
-            put(CalendarContract.Events.DTEND, event.dtEnd)
             put(CalendarContract.Events.TITLE, event.title)
             put(CalendarContract.Events.DESCRIPTION, event.note)
             put(CalendarContract.Events.CALENDAR_ID, targetCalendarId)
@@ -357,10 +395,31 @@ object GoogleCalendarSyncHelper {
             if (!event.colorKey.isNullOrEmpty()) {
                 put(CalendarContract.Events.EVENT_COLOR_KEY, event.colorKey)
             }
+            if (!event.location.isNullOrEmpty()) {
+                put(CalendarContract.Events.EVENT_LOCATION, event.location)
+            }
+
+            if (!event.rrule.isNullOrEmpty()) {
+                put(CalendarContract.Events.RRULE, event.rrule)
+                val computedDuration = event.duration ?: calculateRfcDuration(event.dtStart, event.dtEnd, event.allDay)
+                put(CalendarContract.Events.DURATION, computedDuration)
+                putNull(CalendarContract.Events.DTEND)
+            } else {
+                put(CalendarContract.Events.DTEND, event.dtEnd)
+                putNull(CalendarContract.Events.RRULE)
+                putNull(CalendarContract.Events.DURATION)
+            }
         }
 
         val cleanId = event.id.removePrefix("ext_").removePrefix("virtual_")
-        val resolvedLocalId = if (cleanId.isNotEmpty() && cleanId.all { it.isDigit() }) cleanId else resolveLocalEventId(context, cleanId)
+        val cleanICalUID = event.iCalUID?.removePrefix("ext_")?.removePrefix("virtual_")
+
+        val resolvedLocalId = if (cleanId.isNotEmpty() && cleanId.all { it.isDigit() }) {
+            cleanId
+        } else {
+            resolveLocalEventId(context, cleanId)
+                ?: (if (!cleanICalUID.isNullOrEmpty()) resolveLocalEventId(context, cleanICalUID) else null)
+        }
 
         val localId = if (resolvedLocalId != null) {
             val updateUri = Uri.withAppendedPath(baseUri, resolvedLocalId)
@@ -393,7 +452,8 @@ object GoogleCalendarSyncHelper {
         }
 
         if (localId != null) {
-            val globalId = fetchGlobalId(context, localId, targetCalendarId) ?: localId
+            updateEventReminder(context, localId, event.reminderMinutes)
+            val globalId = fetchGlobalId(context, localId, targetCalendarId) ?: cleanICalUID ?: localId
             val linkText = DeepLinkService.createEventNoteLinkText(globalId)
             
             val descUri = Uri.withAppendedPath(baseUri, localId)
@@ -525,6 +585,16 @@ object GoogleCalendarSyncHelper {
             while (cursor.moveToNext()) calendars.add(Triple(cursor.getString(idIdx), cursor.getString(nameIdx), cursor.getString(accountIdx)))
         }
         return calendars
+    }
+
+    fun calculateRfcDuration(startMs: Long?, endMs: Long?, allDay: Boolean): String {
+        if (allDay) return "P1D"
+        val diffSeconds = if (startMs != null && endMs != null && endMs > startMs) {
+            (endMs - startMs) / 1000L
+        } else {
+            3600L
+        }
+        return "P${diffSeconds}S"
     }
 
     fun getColorPalette(context: Context): List<Pair<Int, String>> {

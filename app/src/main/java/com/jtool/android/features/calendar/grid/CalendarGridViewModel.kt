@@ -91,11 +91,31 @@ class CalendarGridViewModel(
                 true
             }
 
-            val existingIds = googleEvents.mapNotNull { it.iCalUID }.toSet() + googleEvents.map { it.id }.toSet()
+            val existingIds = mutableSetOf<String>()
+            googleEvents.forEach { evt ->
+                existingIds.add(evt.id)
+                existingIds.add("ext_${evt.id}")
+                if (!evt.iCalUID.isNullOrEmpty()) {
+                    existingIds.add(evt.iCalUID)
+                    existingIds.add("ext_${evt.iCalUID}")
+                }
+            }
             val extraEvents = mutableListOf<CalendarEvent>()
 
             extensions.forEach { (extId, ext) ->
-                if (!existingIds.contains(extId) && !existingIds.contains(ext.googleEventId) && ext.dateTimestamp != 0L) {
+                val cleanExtId = extId.removePrefix("ext_")
+                val cleanGoogleId = ext.googleEventId.removePrefix("ext_")
+                val isAlreadyInGoogle = existingIds.contains(extId) ||
+                        existingIds.contains(cleanExtId) ||
+                        existingIds.contains(ext.googleEventId) ||
+                        existingIds.contains(cleanGoogleId) ||
+                        googleEvents.any { gEvt ->
+                            gEvt.dtStart != null && ext.dateTimestamp != 0L &&
+                            Math.abs(gEvt.dtStart - ext.dateTimestamp) < 300_000L &&
+                            gEvt.title.trim().equals(ext.title?.trim() ?: "", ignoreCase = true)
+                        }
+
+                if (!isAlreadyInGoogle && ext.dateTimestamp != 0L) {
                     val extStatus = ext.attendeeStatuses[userEmail] ?: ext.attendeeStatuses[authEmail] ?: CalendarContract.Attendees.ATTENDEE_STATUS_INVITED
                     if (!showDeclined && extStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) {
                         // Skip
@@ -122,18 +142,27 @@ class CalendarGridViewModel(
 
             (filtered + extraEvents) to extensions
         }.onEach { (mergedEvents, extensions) ->
+            val groups = settingsManager.getGroups()
             val summaries = mergedEvents.groupBy { it.date }.mapValues { (_, dayEvents) ->
                 DayEventSummary(
                     hasEvents = dayEvents.isNotEmpty(),
                     eventCount = dayEvents.size,
                     eventColorKeys = dayEvents.map { it.colorKey }.take(4),
-                    eventPreviews = dayEvents.take(2).map { evt ->
+                    eventPreviews = dayEvents.map { evt ->
+                        val ext = extensions[evt.id]
+                            ?: extensions[evt.iCalUID]
+                            ?: (if (evt.id.startsWith("ext_")) extensions[evt.id.removePrefix("ext_")] else null)
+                            ?: extensions.values.find { it.googleEventId == evt.id || (evt.iCalUID != null && it.googleEventId == evt.iCalUID) }
+                        val groupTag = ext?.sharedGroupIds?.firstOrNull()?.let { gid ->
+                            val g = groups[gid]
+                            if (g?.isPrivate == true) Loc.Calendar.private else g?.name ?: gid
+                        }
                         EventPreview(
                             id = evt.id,
                             title = evt.title,
                             colorKey = evt.colorKey,
                             isDeclined = evt.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED,
-                            groupTagName = null
+                            groupTagName = groupTag
                         )
                     }
                 )
@@ -190,11 +219,26 @@ class CalendarGridViewModel(
             allEvents.forEach { event ->
                 val ext = extensions[event.id] 
                     ?: extensions[event.iCalUID] 
-                    ?: extensions.values.find { it.googleEventId == event.id || it.googleEventId == event.iCalUID }
+                    ?: extensions.values.find { ext ->
+                        ext.googleEventId == event.id ||
+                        ext.googleEventId == event.iCalUID ||
+                        (event.iCalUID != null && ext.googleEventId == "ext_${event.iCalUID}") ||
+                        (ext.title?.trim().equals(event.title.trim(), ignoreCase = true) &&
+                         ext.dateTimestamp != 0L && event.dtStart != null &&
+                         Math.abs(ext.dateTimestamp - event.dtStart) < 300_000L)
+                    }
                 if (ext != null) {
                     mappedExtensions[event.id] = ext
                     if (event.iCalUID != null) mappedExtensions[event.iCalUID] = ext
                     mappedExtensions[ext.googleEventId] = ext
+
+                    val canonicalId = event.iCalUID ?: event.id
+                    if (canonicalId.isNotEmpty() && ext.googleEventId != canonicalId) {
+                        val healedExt = ext.copy(googleEventId = canonicalId)
+                        viewModelScope.launch {
+                            dataManager.saveCalendarExtension(healedExt)
+                        }
+                    }
                 }
             }
             // Also include extensions that might not have matching google events yet (invited / extra events)
@@ -223,10 +267,19 @@ class CalendarGridViewModel(
     }
 
     fun toggleAddEditDialog(show: Boolean, event: CalendarEvent? = null) {
-        if (show && event == null) {
-            settingsManager.setSelectedCalendarEventId(null)
+        if (show) {
+            if (event == null) {
+                settingsManager.setSelectedCalendarEventId(null)
+            }
+            _uiState.update { it.copy(showAddEditDialog = true, editingEvent = event) }
+        } else {
+            _uiState.update { it.copy(showAddEditDialog = false) }
         }
-        _uiState.update { it.copy(showAddEditDialog = show, editingEvent = event) }
+    }
+
+    fun clearEditingEvent() {
+        settingsManager.setSelectedCalendarEventId(null)
+        _uiState.update { it.copy(editingEvent = null, showAddEditDialog = false) }
     }
 
     fun prepareEdit(eventId: String) {

@@ -1,9 +1,12 @@
 package com.jtool.android.features.calendar.grid
 
 import android.provider.CalendarContract
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -12,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +71,28 @@ fun CalendarGridScreen(
     val settingsManager = remember { SettingsManager(context) }
     val workShiftColorKey = settingsManager.getWorkShiftColorKey()
     var showActionSheet by remember { mutableStateOf(false) }
+    var showTypeSelectionSheet by remember { mutableStateOf(false) }
+    var isFullScreenGrid by remember { mutableStateOf(settingsManager.isCalendarGridOpened()) }
+
+    val setGridOpened: (Boolean) -> Unit = { opened ->
+        if (isFullScreenGrid != opened) {
+            isFullScreenGrid = opened
+            settingsManager.setCalendarGridOpened(opened)
+        }
+    }
+
+    val gridGestureModifier = Modifier.pointerInput(Unit) {
+        detectVerticalDragGestures(
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                if (dragAmount > 20f) {
+                    setGridOpened(true)
+                } else if (dragAmount < -20f) {
+                    setGridOpened(false)
+                }
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -75,7 +101,7 @@ fun CalendarGridScreen(
     if (uiState.showAddEditDialog) {
         SideEffect {
             onNavigate(AppScreenEnum.CALENDAR_ADD_EDIT)
-            viewModel.toggleAddEditDialog(false, uiState.editingEvent)
+            viewModel.toggleAddEditDialog(false)
         }
     }
 
@@ -83,9 +109,47 @@ fun CalendarGridScreen(
         CalendarGridActionSheet(
             showDeclinedEvents = uiState.showDeclinedEvents,
             onToggleShowDeclined = { viewModel.toggleShowDeclinedEvents() },
-            onSettings = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) },
+            onRefreshData = { viewModel.refresh() },
             onLearnMore = { com.jtool.android.core.utils.WebUtils.openAppPage(context, settingsManager, null, "calendar") },
             onDismiss = { showActionSheet = false }
+        )
+    }
+
+    if (showTypeSelectionSheet) {
+        com.jtool.android.features.calendar.components.event_type_selection_sheet.EventTypeSelectionSheet(
+            onSelectType = { type ->
+                when (type) {
+                    com.jtool.android.features.calendar.components.event_type_selection_sheet.CalendarCreationType.WORK_SHIFT -> {
+                        val shiftTitle = settingsManager.getCustomWorkShiftTitle()
+                        val shiftColor = settingsManager.getWorkShiftColorKey()
+                        val options = settingsManager.getWorktimeOptions()
+                        val defaultStart = options.scheduleStart ?: "09:00"
+                        val defaultEnd = options.scheduleEnd ?: "17:00"
+                        val nowLdt = java.time.LocalDateTime.of(uiState.selectedDate, java.time.LocalTime.parse(defaultStart))
+                        val startMs = nowLdt.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val endMs = java.time.LocalDateTime.of(uiState.selectedDate, java.time.LocalTime.parse(defaultEnd)).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                        val preset = CalendarEvent(
+                            title = shiftTitle,
+                            colorKey = shiftColor,
+                            dtStart = startMs,
+                            dtEnd = endMs
+                        )
+                        viewModel.toggleAddEditDialog(true, preset)
+                    }
+                    com.jtool.android.features.calendar.components.event_type_selection_sheet.CalendarCreationType.REMINDER -> {
+                        val preset = CalendarEvent(
+                            reminderMinutes = 15
+                        )
+                        viewModel.toggleAddEditDialog(true, preset)
+                    }
+                    com.jtool.android.features.calendar.components.event_type_selection_sheet.CalendarCreationType.EVENT -> {
+                        viewModel.toggleAddEditDialog(true, null)
+                    }
+                }
+                showTypeSelectionSheet = false
+            },
+            onDismiss = { showTypeSelectionSheet = false }
         )
     }
 
@@ -106,7 +170,7 @@ fun CalendarGridScreen(
         },
         floatingActionButton = {
             UnifiedFAB(
-                onClick = { viewModel.toggleAddEditDialog(true) },
+                onClick = { showTypeSelectionSheet = true },
                 contentDescription = Loc.Calendar.addEvent
             )
         }
@@ -119,7 +183,7 @@ fun CalendarGridScreen(
                     Spacer(Modifier.height(16.dp))
                     Text(Loc.Calendar.selectCalendarSubtitle, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(24.dp))
-                    Button(onClick = { onNavigate(AppScreenEnum.CALENDAR_SETTINGS) }) {
+                    Button(onClick = { showActionSheet = true }) {
                         Text(Loc.Calendar.selectCalendar)
                     }
                 }
@@ -132,130 +196,188 @@ fun CalendarGridScreen(
             onRefresh = { viewModel.refresh() },
             modifier = Modifier.fillMaxSize()
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    val initialMonth = remember { uiState.selectedMonth }
-                    val pagerState = rememberPagerState(
-                        initialPage = 1000,
-                        pageCount = { 2000 }
-                    )
-                    val coroutineScope = rememberCoroutineScope()
+            val initialMonth = remember { uiState.selectedMonth }
+            val pagerState = rememberPagerState(
+                initialPage = 1000,
+                pageCount = { 2000 }
+            )
+            val coroutineScope = rememberCoroutineScope()
 
-                    LaunchedEffect(pagerState) {
-                        snapshotFlow { pagerState.settledPage }.collect { settledPage ->
-                            val monthOffset = settledPage - 1000
-                            val targetMonth = initialMonth.plusMonths(monthOffset.toLong())
-                            if (targetMonth != uiState.selectedMonth) {
-                                viewModel.onMonthChange(targetMonth)
-                            }
-                        }
-                    }
-
-                    LaunchedEffect(uiState.selectedMonth) {
-                        val expectedPage = 1000 + (uiState.selectedMonth.year * 12 + uiState.selectedMonth.monthValue) - (initialMonth.year * 12 + initialMonth.monthValue)
-                        if (pagerState.currentPage != expectedPage) {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(expectedPage)
-                            }
-                        }
-                    }
-
-                    MonthHeader(
-                        currentMonth = uiState.selectedMonth,
-                        onPrev = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                            }
-                        },
-                        onNext = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                            }
-                        }
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    val gridStyle = remember(uiState) { settingsManager.getGridEventStyle() }
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxWidth()
-                    ) { page ->
-                        val monthOffset = page - 1000
-                        val pageMonth = initialMonth.plusMonths(monthOffset.toLong())
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            DaysOfWeekHeader()
-                            Spacer(Modifier.height(8.dp))
-                            CalendarGrid(
-                                selectedMonth = pageMonth,
-                                selectedDate = uiState.selectedDate,
-                                eventSummaries = uiState.eventSummaries,
-                                gridStyle = gridStyle,
-                                onDateSelected = {
-                                    viewModel.onDateSelected(it)
-                                }
-                            )
-                        }
+            LaunchedEffect(pagerState) {
+                snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+                    val monthOffset = settledPage - 1000
+                    val targetMonth = initialMonth.plusMonths(monthOffset.toLong())
+                    if (targetMonth != uiState.selectedMonth) {
+                        viewModel.onMonthChange(targetMonth)
                     }
                 }
+            }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            LaunchedEffect(uiState.selectedMonth) {
+                val expectedPage = 1000 + (uiState.selectedMonth.year * 12 + uiState.selectedMonth.monthValue) - (initialMonth.year * 12 + initialMonth.monthValue)
+                if (pagerState.currentPage != expectedPage) {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(expectedPage)
+                    }
+                }
+            }
 
-                val selectedDateEvents = uiState.privateEvents.filter { it.date == uiState.selectedDate.toString() }
+            AnimatedContent(
+                targetState = isFullScreenGrid,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(180)) togetherWith fadeOut(animationSpec = tween(150))
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(gridGestureModifier),
+                label = "calendarGridStateTransition"
+            ) { fullScreen ->
+                if (fullScreen) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        MonthHeader(
+                            currentMonth = uiState.selectedMonth,
+                            onPrev = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                }
+                            },
+                            onNext = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            }
+                        )
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        val formattedSelectedDate = remember(uiState.selectedDate) {
-                            uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = Loc.Calendar.eventsFor.format(formattedSelectedDate),
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                        Spacer(Modifier.height(12.dp))
 
-                            TextButton(onClick = { onNavigate(AppScreenEnum.CALENDAR_DAY) }) {
-                                Icon(Icons.Default.CalendarViewDay, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(Loc.Calendar.goToDayView, style = MaterialTheme.typography.labelMedium)
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.weight(1f).fillMaxWidth()
+                        ) { page ->
+                            val monthOffset = page - 1000
+                            val pageMonth = initialMonth.plusMonths(monthOffset.toLong())
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                DaysOfWeekHeader()
+                                Spacer(Modifier.height(8.dp))
+                                CalendarGrid(
+                                    selectedMonth = pageMonth,
+                                    selectedDate = uiState.selectedDate,
+                                    eventSummaries = uiState.eventSummaries,
+                                    isFullScreenGrid = true,
+                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    onDateSelected = { date ->
+                                        viewModel.onDateSelected(date)
+                                        onNavigate(AppScreenEnum.CALENDAR_DAY)
+                                    }
+                                )
                             }
                         }
                     }
-
-                    if (selectedDateEvents.isEmpty()) {
-                        item {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text(Loc.Calendar.noEvents, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    } else {
-                        items(selectedDateEvents, key = { it.id }) { event ->
-                            val extension = uiState.extensions[event.id]
-                                ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
-                                ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
-                                ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
-                            EventItem(
-                                event = event,
-                                extension = extension,
-                                groups = groups,
-                                workShiftColorKey = workShiftColorKey,
-                                onClick = {
-                                    viewModel.onEventClicked(event)
-                                    onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
+                } else {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            MonthHeader(
+                                currentMonth = uiState.selectedMonth,
+                                onPrev = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                    }
+                                },
+                                onNext = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                    }
                                 }
                             )
+
+                            Spacer(Modifier.height(12.dp))
+
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { page ->
+                                val monthOffset = page - 1000
+                                val pageMonth = initialMonth.plusMonths(monthOffset.toLong())
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    DaysOfWeekHeader()
+                                    Spacer(Modifier.height(8.dp))
+                                    CalendarGrid(
+                                        selectedMonth = pageMonth,
+                                        selectedDate = uiState.selectedDate,
+                                        eventSummaries = uiState.eventSummaries,
+                                        isFullScreenGrid = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onDateSelected = { date ->
+                                            viewModel.onDateSelected(date)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        val selectedDateEvents = uiState.privateEvents.filter { it.date == uiState.selectedDate.toString() }
+
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            item {
+                                val formattedSelectedDate = remember(uiState.selectedDate) {
+                                    uiState.selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = Loc.Calendar.eventsFor.format(formattedSelectedDate),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+
+                                    TextButton(onClick = { onNavigate(AppScreenEnum.CALENDAR_DAY) }) {
+                                        Icon(Icons.Default.CalendarViewDay, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(Loc.Calendar.goToDayView, style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
+
+                            if (selectedDateEvents.isEmpty()) {
+                                item {
+                                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                        Text(Loc.Calendar.noEvents, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            } else {
+                                items(selectedDateEvents, key = { it.id }) { event ->
+                                    val extension = uiState.extensions[event.id]
+                                        ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
+                                        ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
+                                        ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
+                                    EventItem(
+                                        event = event,
+                                        extension = extension,
+                                        groups = groups,
+                                        workShiftColorKey = workShiftColorKey,
+                                        onClick = {
+                                            viewModel.onEventClicked(event)
+                                            onNavigate(AppScreenEnum.CALENDAR_EVENT_DETAIL)
+                                        }
+                                    )
+                                }
+                            }
+
+                            item { Spacer(Modifier.height(80.dp)) }
                         }
                     }
-
-                    item { Spacer(Modifier.height(80.dp)) }
                 }
             }
         }
@@ -397,7 +519,8 @@ private fun CalendarGrid(
     selectedMonth: YearMonth,
     selectedDate: LocalDate,
     eventSummaries: Map<String, DayEventSummary>,
-    gridStyle: GridEventStyleEnum,
+    isFullScreenGrid: Boolean,
+    modifier: Modifier = Modifier,
     onDateSelected: (LocalDate) -> Unit
 ) {
     val context = LocalContext.current
@@ -414,19 +537,19 @@ private fun CalendarGrid(
     val rows = (totalCells + 6) / 7
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(if (gridStyle == GridEventStyleEnum.CHIPS) 2.dp else 4.dp)
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         for (row in 0 until rows) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = if (isFullScreenGrid) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 for (col in 0 until 7) {
                     val index = row * 7 + col
                     val dayOfMonth = index - firstDayOfWeek + 1
                     Box(
-                        modifier = Modifier.weight(1f)
+                        modifier = if (isFullScreenGrid) Modifier.weight(1f).fillMaxHeight() else Modifier.weight(1f)
                     ) {
                         if (dayOfMonth in 1..daysInMonth) {
                             val date = selectedMonth.atDay(dayOfMonth)
@@ -434,11 +557,11 @@ private fun CalendarGrid(
                                 date = date,
                                 summary = eventSummaries[date.toString()],
                                 isSelected = date == selectedDate,
-                                gridStyle = gridStyle,
+                                isFullScreenGrid = isFullScreenGrid,
                                 onClick = { onDateSelected(date) }
                             )
                         } else {
-                            Box(modifier = Modifier.height(if (gridStyle == GridEventStyleEnum.CHIPS) 76.dp else 40.dp))
+                            Box(modifier = if (isFullScreenGrid) Modifier.fillMaxSize() else Modifier.aspectRatio(1f))
                         }
                     }
                 }
@@ -452,14 +575,13 @@ private fun DayCell(
     date: LocalDate,
     summary: DayEventSummary?,
     isSelected: Boolean,
-    gridStyle: GridEventStyleEnum,
+    isFullScreenGrid: Boolean,
     onClick: () -> Unit
 ) {
     val isToday = date == LocalDate.now()
-    val cellModifier = if (gridStyle == GridEventStyleEnum.CHIPS) {
+    val cellModifier = if (isFullScreenGrid) {
         Modifier
-            .fillMaxWidth()
-            .height(76.dp)
+            .fillMaxSize()
             .padding(1.dp)
             .clip(MaterialTheme.shapes.small)
     } else {
@@ -492,7 +614,7 @@ private fun DayCell(
             )
 
             if (summary != null && summary.hasEvents) {
-                if (gridStyle == GridEventStyleEnum.DOTS) {
+                if (!isFullScreenGrid) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -508,13 +630,14 @@ private fun DayCell(
                         }
                     }
                 } else {
+                    val maxShow = if (summary.eventCount <= 3) 3 else 2
                     Column(
                         verticalArrangement = Arrangement.spacedBy(1.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 1.dp, start = 1.dp, end = 1.dp)
                     ) {
-                        summary.eventPreviews.take(2).forEach { preview ->
+                        summary.eventPreviews.take(maxShow).forEach { preview ->
                             val eventColor = getEventColor(preview.colorKey)
                             Surface(
                                 color = eventColor,
@@ -523,12 +646,11 @@ private fun DayCell(
                                     .fillMaxWidth()
                                     .height(13.dp)
                             ) {
-                                Row(
+                                Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(horizontal = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
                                         text = preview.title.ifEmpty { "Shared Event" },
@@ -539,31 +661,16 @@ private fun DayCell(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         textDecoration = if (preview.isDeclined) TextDecoration.LineThrough else null,
-                                        modifier = Modifier.weight(1f),
                                         style = ComposeTextStyle(
                                             platformStyle = PlatformTextStyle(
                                                 includeFontPadding = false
                                             )
                                         )
                                     )
-                                    if (!preview.groupTagName.isNullOrEmpty()) {
-                                        Surface(
-                                            color = Color.Black.copy(alpha = 0.3f),
-                                            shape = RoundedCornerShape(2.dp)
-                                        ) {
-                                            Text(
-                                                text = preview.groupTagName,
-                                                fontSize = 6.sp,
-                                                color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.5.dp),
-                                                maxLines = 1
-                                            )
-                                        }
-                                    }
                                 }
                             }
                         }
-                        if (summary.eventCount > 2) {
+                        if (summary.eventCount > maxShow) {
                             Surface(
                                 color = MaterialTheme.colorScheme.primaryContainer,
                                 shape = RoundedCornerShape(2.dp),

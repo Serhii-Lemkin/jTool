@@ -54,7 +54,12 @@ data class UploadTask(
     val createdFolderId: String? = null,
     val createdFolderUrl: String? = null,
     val isFailed: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val existingDocId: String? = null,
+    val existingDriveFileIds: List<String> = emptyList(),
+    val existingDriveUrls: List<String> = emptyList(),
+    val existingFileNames: List<String> = emptyList(),
+    val existingFileTypes: List<String> = emptyList()
 )
 
 @Serializable
@@ -143,14 +148,22 @@ object FileUploadQueueManager {
         tag: String,
         docDate: Long,
         description: String,
-        saveOffline: Boolean
+        saveOffline: Boolean,
+        existingDocId: String? = null,
+        existingDriveFileIds: List<String> = emptyList(),
+        existingDriveUrls: List<String> = emptyList(),
+        existingFileNames: List<String> = emptyList(),
+        existingFileTypes: List<String> = emptyList(),
+        folderId: String? = null,
+        folderUrl: String? = null
     ) {
         appContext = context.applicationContext
         val fileProgressList = files.map { file ->
             val size = VaultDocUtils.getFileSizeFromUri(context, file.uri)
+            val cleanName = file.fileName.removeSuffix(file.extension)
             UploadFileProgress(
                 uriString = file.uri.toString(),
-                fileName = file.fileName,
+                fileName = cleanName,
                 extension = file.extension,
                 fileSize = size
             )
@@ -163,7 +176,14 @@ object FileUploadQueueManager {
             docDate = docDate,
             description = description,
             saveOffline = saveOffline,
-            files = fileProgressList
+            files = fileProgressList,
+            createdFolderId = folderId,
+            createdFolderUrl = folderUrl,
+            existingDocId = existingDocId,
+            existingDriveFileIds = existingDriveFileIds,
+            existingDriveUrls = existingDriveUrls,
+            existingFileNames = existingFileNames,
+            existingFileTypes = existingFileTypes
         )
 
         _uploadState.update { current ->
@@ -299,6 +319,19 @@ object FileUploadQueueManager {
             state.copy(
                 tasks = updatedTasks,
                 isUploading = updatedTasks.any { !it.isFailed && it.files.any { f -> f.status != UploadFileStatus.COMPLETED } }
+            )
+        }
+        saveState()
+    }
+
+    fun clearFinishedTasks() {
+        _uploadState.update { state ->
+            val activeTasks = state.tasks.filter { task ->
+                !task.isFailed && task.files.any { f -> f.status == UploadFileStatus.PENDING || f.status == UploadFileStatus.UPLOADING }
+            }
+            state.copy(
+                tasks = activeTasks,
+                isUploading = activeTasks.isNotEmpty()
             )
         }
         saveState()

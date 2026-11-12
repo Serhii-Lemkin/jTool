@@ -147,6 +147,52 @@ fun WorkdaySettingsMainScreen(
                 )
             }
 
+            var showCustomShiftTitleDialog by remember { mutableStateOf(false) }
+            var customShiftTitleInput by remember { mutableStateOf(settingsManager.getCustomWorkShiftTitle()) }
+
+            ActionListItem(
+                headline = Loc.s("calendar_defaultShiftName", "Default Work Shift Name"),
+                supportingText = settingsManager.getCustomWorkShiftTitle(),
+                leadingContent = { Icon(Icons.Default.Work, null) },
+                onClick = {
+                    customShiftTitleInput = settingsManager.getCustomWorkShiftTitle()
+                    showCustomShiftTitleDialog = true
+                }
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            if (showCustomShiftTitleDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCustomShiftTitleDialog = false },
+                    title = { Text(Loc.s("calendar_defaultShiftName", "Default Work Shift Name")) },
+                    text = {
+                        OutlinedTextField(
+                            value = customShiftTitleInput,
+                            onValueChange = { customShiftTitleInput = it },
+                            singleLine = true,
+                            label = { Text(Loc.s("calendar_shiftNameLabel", "Shift Title")) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (customShiftTitleInput.isNotBlank()) {
+                                    settingsManager.setCustomWorkShiftTitle(customShiftTitleInput.trim())
+                                    scope.launch { dataManager.pushUserSettings() }
+                                }
+                                showCustomShiftTitleDialog = false
+                            }
+                        ) { Text(Loc.General.save) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCustomShiftTitleDialog = false }) {
+                            Text(Loc.General.cancel)
+                        }
+                    }
+                )
+            }
+
             Spacer(Modifier.weight(1f))
             
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

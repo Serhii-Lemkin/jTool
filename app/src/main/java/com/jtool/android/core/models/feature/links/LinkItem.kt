@@ -9,6 +9,7 @@ data class LinkItem(
     var id: String = "",
     val title: String = "",
     val url: String = "",
+    val tag: String = "#COMMON#",
     val timestamp: Long = System.currentTimeMillis(),
     val lastUpdatedBy: String = ""
 )

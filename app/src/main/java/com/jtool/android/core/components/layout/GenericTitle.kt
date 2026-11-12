@@ -138,6 +138,7 @@ fun TitleActionIcon(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TitleDropdownMenu(
     icon: ImageVector = Icons.Default.MoreVert,
@@ -145,16 +146,25 @@ fun TitleDropdownMenu(
     content: @Composable ColumnScope.() -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(imageVector = icon, contentDescription = contentDescription)
-        }
-        DropdownMenu(
-            expanded = expanded,
+
+    IconButton(onClick = { expanded = true }) {
+        Icon(imageVector = icon, contentDescription = contentDescription)
+    }
+
+    if (expanded) {
+        ModalBottomSheet(
             onDismissRequest = { expanded = false },
-            content = {
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 content()
+                Spacer(Modifier.height(24.dp))
             }
-        )
+        }
     }
 }
