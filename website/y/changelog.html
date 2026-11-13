@@ -65,9 +65,10 @@
 
                 sections.forEach(sec => {
                     if (sec.title === 'Version') {
+                        if (sec.items.length === 0) return;
                         const verBanner = document.createElement('div');
                         verBanner.className = 'custom-card card-highlight p-4 text-center mb-4';
-                        const verText = sec.items.length > 0 ? sec.items[0].replace(/^-\s*/, '') : 'v2.8.0';
+                        const verText = sec.items[0].replace(/^-\s*/, '');
                         verBanner.innerHTML = `<h2 class="h4 fw-bold text-info mb-0 d-flex align-items-center justify-content-center gap-2"><span class="material-icons text-info fs-4">sell</span> Version ${verText}</h2>`;
                         container.appendChild(verBanner);
                         return;

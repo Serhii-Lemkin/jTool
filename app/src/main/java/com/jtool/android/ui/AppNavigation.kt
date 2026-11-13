@@ -121,15 +121,20 @@ fun AppNavigation(
         }
     }
 
-    val allGroupIds = groups.keys.toList()
+    val allGroupIds = remember(groups, userGroupIds, currentGroupId) {
+        (groups.keys + userGroupIds + listOfNotNull(currentGroupId)).distinct()
+    }
     val liveGroups by remember(allGroupIds) { 
         dataManager.groupInfoFlow(allGroupIds) 
     }.collectAsState(initial = emptyMap<String, GroupInfo>())
     
     LaunchedEffect(liveGroups) {
-        if (liveGroups.isNotEmpty() && liveGroups != groups) {
-            onGroupsUpdated(liveGroups)
-            settingsManager.saveGroups(liveGroups)
+        if (liveGroups.isNotEmpty()) {
+            val merged = groups + liveGroups
+            if (merged != groups) {
+                onGroupsUpdated(merged)
+                settingsManager.saveGroups(merged)
+            }
         }
     }
 

@@ -35,7 +35,10 @@ fun GenericTitle(
     searchPlaceholder: String = Loc.General.search,
     actions: @Composable RowScope.() -> Unit = {},
     customTitle: @Composable (() -> Unit)? = null,
-    navigationIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack
+    navigationIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
+    isTitleEditable: Boolean = false,
+    onTitleChange: (String) -> Unit = {},
+    titlePlaceholder: String = ""
 ) {
     Column {
         if (isSearchVisible) {
@@ -90,6 +93,30 @@ fun GenericTitle(
                 title = {
                     if (customTitle != null) {
                         customTitle()
+                    } else if (isTitleEditable) {
+                        TextField(
+                            value = title,
+                            onValueChange = onTitleChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = {
+                                Text(
+                                    text = titlePlaceholder,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            },
+                            textStyle = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            ),
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
                     } else {
                         Text(
                             text = title,

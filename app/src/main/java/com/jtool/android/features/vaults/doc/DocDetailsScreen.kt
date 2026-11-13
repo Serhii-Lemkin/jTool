@@ -1,7 +1,5 @@
 package com.jtool.android.features.vaults.doc
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +19,7 @@ import com.jtool.android.core.services.FileDownloadQueueManager
 import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.vaults.VaultDocument
+import com.jtool.android.core.models.vaults.enums.FileOpenErrorReasonEnum
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.vaults.VaultsEvent
@@ -32,6 +31,7 @@ import com.jtool.android.features.vaults.components.delete_local_file_confirm_sh
 import com.jtool.android.features.vaults.components.download_confirm_sheet.DownloadConfirmSheet
 import com.jtool.android.features.vaults.components.doc_delete_confirm_sheet.DocDeleteConfirmSheet
 import com.jtool.android.features.vaults.components.file_action_sheet.FileActionSheet
+import com.jtool.android.features.vaults.components.file_open_error_sheet.FileOpenErrorSheet
 import com.jtool.android.features.vaults.components.edit_doc_sheet.EditDocSheet
 import com.jtool.android.features.vaults.components.save_to_downloads_info_sheet.SaveToDownloadsInfoSheet
 import com.jtool.android.features.vaults.components.share_doc_sheet.ShareDocSheet
@@ -73,6 +73,7 @@ fun DocDetailsScreen(
     var showShareSheet by remember { mutableStateOf(false) }
     var selectedFileIndexForSheet by remember { mutableStateOf<Int?>(null) }
     var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
+    var openErrorReason by remember { mutableStateOf<FileOpenErrorReasonEnum?>(null) }
 
     val dateFormat = remember(context) { com.jtool.android.core.utils.getPreferredSimpleDateFormat(context) }
     val downloadState by FileDownloadQueueManager.downloadState.collectAsState()
@@ -117,30 +118,28 @@ fun DocDetailsScreen(
 
     BaseScreen(
         title = Loc.Vaults.document,
-        isLoading = false,
+        isLoading = uiState.isLoading,
         onBack = onBack,
         onRefresh = { viewModel.onEvent(VaultsEvent.Refresh) },
         actions = {
             IconButton(onClick = { showEditSheet = true }) {
                 Icon(Icons.Default.Edit, null)
             }
-            IconButton(onClick = { showDeleteSheet = true }) {
-                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+            if (isDocOwner) {
+                IconButton(onClick = { showDeleteSheet = true }) {
+                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                }
             }
         }
     ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.onEvent(VaultsEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -237,11 +236,21 @@ fun DocDetailsScreen(
 
                         displayFiles.forEach { index ->
                             val fileName = doc.fileNames.getOrNull(index) ?: doc.name
-                            val driveUrl = doc.driveUrls.getOrNull(index) ?: doc.effectiveDriveUrl
-                            val isFileDownloaded = remember(doc.id, index, uiState.offlineVersion) {
+                            val driveUrl = doc.getFileDriveUrl(index)
+                            val isFileDownloaded = remember(doc.id, index, uiState.offlineVersion, downloadState) {
                                 VaultDocUtils.isDownloadedLocally(context, doc, index)
                             }
-                            val isFileDownloading = uiState.downloadingDocIds.contains(doc.id)
+                            val isFileDownloading = remember(doc.id, index, uiState.downloadingDocIds, downloadState) {
+                                uiState.downloadingDocIds.contains(doc.id) ||
+                                    downloadState.tasks.any {
+                                        !it.isFailed && it.doc.id == doc.id && it.files.any { f ->
+                                            f.fileIndex == index && (
+                                                f.status == com.jtool.android.core.services.DownloadFileStatus.PENDING ||
+                                                    f.status == com.jtool.android.core.services.DownloadFileStatus.DOWNLOADING
+                                                )
+                                        }
+                                    }
+                            }
 
                             ActionListItem(
                                 headline = fileName,
@@ -257,11 +266,10 @@ fun DocDetailsScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         IconButton(
                                             onClick = {
-                                                if (isFileDownloaded) {
-                                                    VaultDocUtils.openLocalFile(context, doc, index)
+                                                openErrorReason = if (isFileDownloaded) {
+                                                    VaultDocUtils.openLocalFileWithReason(context, doc, index)
                                                 } else {
-                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(driveUrl))
-                                                    context.startActivity(intent)
+                                                    VaultDocUtils.openExternalUrlWithReason(context, driveUrl)
                                                 }
                                             }
                                         ) {
@@ -283,12 +291,11 @@ fun DocDetailsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val shareUrl = if (doc.driveFileIds.size > 1 && doc.folderUrl.isNotEmpty()) doc.folderUrl else doc.effectiveDriveUrl
-                    
+                    val shareUrl = if (doc.driveFileIds.size > 1 && doc.effectiveFolderUrl.isNotEmpty()) doc.effectiveFolderUrl else doc.effectiveDriveUrl
+
                     FilledTonalIconButton(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(shareUrl))
-                            context.startActivity(intent)
+                            openErrorReason = VaultDocUtils.openExternalUrlWithReason(context, shareUrl)
                         },
                         modifier = Modifier.weight(1f).height(48.dp)
                     ) {
@@ -301,11 +308,9 @@ fun DocDetailsScreen(
 
                     FilledTonalIconButton(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "${doc.name}\n$shareUrl")
+                            if (!VaultDocUtils.shareText(context, "${doc.name}\n$shareUrl", Loc.General.share)) {
+                                infoMessage = Loc.Vaults.shareError to MessageType.ERROR
                             }
-                            context.startActivity(Intent.createChooser(intent, Loc.General.share))
                         },
                         modifier = Modifier.weight(1f).height(48.dp)
                     ) {
@@ -318,13 +323,13 @@ fun DocDetailsScreen(
                 }
             }
         }
-    }
 
     if (showEditSheet && uiState.selectedVault != null) {
         EditDocSheet(
             vault = uiState.selectedVault!!,
             doc = doc,
             isUploading = uiState.isUploading,
+            canEditFiles = isDocOwner,
             onDismiss = { showEditSheet = false },
             onConfirm = { updatedDoc, newFiles, removedIds ->
                 viewModel.onEvent(
@@ -382,7 +387,7 @@ fun DocDetailsScreen(
     if (selectedFileIndexForSheet != null) {
         val fIndex = selectedFileIndexForSheet!!
         val fName = doc.fileNames.getOrNull(fIndex) ?: doc.name
-        val fDriveUrl = doc.driveUrls.getOrNull(fIndex) ?: doc.effectiveDriveUrl
+        val fDriveUrl = doc.getFileDriveUrl(fIndex)
         val isFileCached = VaultDocUtils.isDownloadedLocally(context, doc, fIndex)
         FileActionSheet(
             fileName = fName,
@@ -390,11 +395,10 @@ fun DocDetailsScreen(
             isDocOwner = isDocOwner,
             canDeleteFile = doc.fileNames.size > 1,
             onOpenFile = {
-                if (isFileCached) {
-                    VaultDocUtils.openLocalFile(context, doc, fIndex)
+                openErrorReason = if (isFileCached) {
+                    VaultDocUtils.openLocalFileWithReason(context, doc, fIndex)
                 } else {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fDriveUrl))
-                    context.startActivity(intent)
+                    VaultDocUtils.openExternalUrlWithReason(context, fDriveUrl)
                 }
             },
             onSaveToDownloads = {
@@ -414,15 +418,12 @@ fun DocDetailsScreen(
                 }
             },
             onOpenDrive = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fDriveUrl))
-                context.startActivity(intent)
+                openErrorReason = VaultDocUtils.openExternalUrlWithReason(context, fDriveUrl)
             },
             onShare = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "$fName\n$fDriveUrl")
+                if (!VaultDocUtils.shareText(context, "$fName\n$fDriveUrl", Loc.General.share)) {
+                    infoMessage = Loc.Vaults.shareError to MessageType.ERROR
                 }
-                context.startActivity(Intent.createChooser(intent, Loc.General.share))
             },
             onDeleteFile = {
                 viewModel.onEvent(VaultsEvent.DeleteSpecificFile(doc, fIndex))
@@ -461,6 +462,13 @@ fun DocDetailsScreen(
             message = infoMessage!!.first,
             type = infoMessage!!.second,
             onDismiss = { infoMessage = null }
+        )
+    }
+
+    if (openErrorReason != null) {
+        FileOpenErrorSheet(
+            reason = openErrorReason!!,
+            onDismiss = { openErrorReason = null }
         )
     }
 }

@@ -30,13 +30,28 @@ data class VaultDocument(
     val fileTypes: List<String> = emptyList()
 ) {
     val effectiveDriveFileId: String
-        get() = driveFileIds.firstOrNull() ?: driveFileId
+        get() = driveFileIds.firstOrNull { it.isNotBlank() } ?: driveFileId
+
+    val effectiveFolderUrl: String
+        get() = folderUrl.ifBlank {
+            if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else ""
+        }
 
     val effectiveDriveUrl: String
-        get() = if (folderUrl.isNotEmpty() && (fileNames.size > 1 || driveFileIds.size > 1)) folderUrl
-                else if (driveUrls.firstOrNull()?.isNotEmpty() == true) driveUrls.first()
-                else if (driveUrl.isNotEmpty()) driveUrl
-                else folderUrl
+        get() = if (effectiveFolderUrl.isNotEmpty() && (fileNames.size > 1 || driveFileIds.size > 1)) effectiveFolderUrl
+                else if (driveUrls.firstOrNull()?.isNotBlank() == true) driveUrls.first()
+                else if (driveUrl.isNotBlank()) driveUrl
+                else if (effectiveDriveFileId.isNotBlank()) "https://drive.google.com/file/d/$effectiveDriveFileId/view"
+                else effectiveFolderUrl
+
+    fun getFileDriveUrl(index: Int): String {
+        val explicitUrl = driveUrls.getOrNull(index)
+        if (!explicitUrl.isNullOrBlank()) return explicitUrl
+        val fileId = driveFileIds.getOrNull(index)?.takeIf { it.isNotBlank() }
+            ?: if (index == 0) driveFileId.takeIf { it.isNotBlank() } else null
+        if (!fileId.isNullOrBlank()) return "https://drive.google.com/file/d/$fileId/view"
+        return effectiveDriveUrl
+    }
 
     val effectiveLocalPath: String
         get() = localPaths.firstOrNull { it.isNotEmpty() } ?: localPath

@@ -74,4 +74,10 @@ object VaultsLoc {
     val validateVaults get() = Loc.s("vaults_validateVaults", "Validate Cached Data")
     val validateVaultsSuccess get() = Loc.s("vaults_validateVaultsSuccess", "Cache validation completed. Irrelevant files removed.")
     val allFilesDownloaded get() = Loc.s("vaults_allFilesDownloaded", "All files downloaded")
+    val openFileError get() = Loc.s("vaults_openFileError", "Unable to open file. No compatible application found or link is unavailable.")
+    val shareError get() = Loc.s("vaults_shareError", "Unable to share file link.")
+    val openErrorMissingDriveLink get() = Loc.s("vaults_openErrorMissingDriveLink", "No Google Drive link is attached to this item. Download the file or check its details on Google Drive.")
+    val openErrorLocalMissing get() = Loc.s("vaults_openErrorLocalMissing", "The offline cached file could not be found on the device. Download it again before opening locally.")
+    val openErrorInvalidUrl get() = Loc.s("vaults_openErrorInvalidUrl", "The attached link has an invalid format and cannot be opened.")
+    val openErrorNoApp get() = Loc.s("vaults_openErrorNoApp", "No compatible application was found on this device to open this file or link.")
 }

@@ -22,12 +22,14 @@ import com.jtool.android.core.models.feature.notes.enums.NoteTypeEnum
 import com.jtool.android.features.notes.NotesEvent
 import com.jtool.android.features.notes.NotesUiState
 import com.jtool.android.features.notes.NotesViewModel
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.components.layout.BaseScreen
 import com.jtool.android.core.components.layout.UnifiedFAB
 import com.jtool.android.features.notes.components.new_note_sheet.NewNoteSheet
 import com.jtool.android.features.notes.components.note_filter_sheet.NoteFilterSheet
+import com.jtool.android.features.notes.components.note_action_sheet.NoteActionSheet
+import com.jtool.android.features.notes.components.note_preview_length_sheet.NotePreviewLengthSheet
+import com.jtool.android.features.notes.components.note_preview_length_sheet.notePreviewLinesLabel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,6 +40,8 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
     var showNewNoteSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showPreviewLengthSheet by remember { mutableStateOf(false) }
+    var noteForActionSheet by remember { mutableStateOf<NoteItem?>(null) }
 
     LaunchedEffect(uiState.searchQuery) { draftSearchQuery = uiState.searchQuery }
 
@@ -56,9 +60,26 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
         )
     }
 
+    if (showPreviewLengthSheet) {
+        NotePreviewLengthSheet(
+            currentMaxLines = uiState.previewMaxLines,
+            onSelect = { viewModel.onEvent(NotesEvent.SetPreviewMaxLines(it)) },
+            onDismiss = { showPreviewLengthSheet = false }
+        )
+    }
+
+    noteForActionSheet?.let { selectedNote ->
+        NoteActionSheet(
+            note = selectedNote,
+            onEdit = { viewModel.onEvent(NotesEvent.OpenNote(selectedNote, true)) },
+            onDelete = { viewModel.onEvent(NotesEvent.RequestDelete(selectedNote)) },
+            onDismiss = { noteForActionSheet = null }
+        )
+    }
+
     BaseScreen(
         title = Loc.Notes.notes,
-        isLoading = false,
+        isLoading = uiState.isLoading || uiState.isRefreshing,
         onBack = onBack,
         onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
         isSearchVisible = uiState.isSearchVisible,
@@ -81,6 +102,12 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
             }
 
             com.jtool.android.core.components.layout.TitleDropdownMenu {
+                ActionListItem(
+                    headline = Loc.Notes.previewLength,
+                    supportingText = notePreviewLinesLabel(uiState.previewMaxLines),
+                    leadingContent = { Icon(Icons.Default.FormatLineSpacing, null, tint = MaterialTheme.colorScheme.primary) },
+                    onClick = { showPreviewLengthSheet = true }
+                )
                 com.jtool.android.core.components.layout.ActionListItem(
                     headline = com.jtool.android.core.localization.domains.GeneralLoc.learnMore,
                     supportingText = Loc.s("notes_learnMoreSubtitle", "View online guide and feature documentation"),
@@ -99,31 +126,36 @@ fun NoteListScreen(uiState: NotesUiState, viewModel: NotesViewModel, onBack: () 
             )
         }
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = uiState.isLoading || uiState.isRefreshing,
-            onRefresh = { viewModel.onEvent(NotesEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
+        LazyColumn(
+            modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                items(uiState.filteredNotes, key = { it.id }) { note ->
-                    NoteListItem(note, uiState.userNames, viewModel)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                }
-                
-                item {
-                    Spacer(Modifier.height(100.dp))
-                }
+            items(uiState.filteredNotes, key = { it.id }) { note ->
+                NoteListItem(
+                    note = note,
+                    userNames = uiState.userNames,
+                    previewMaxLines = uiState.previewMaxLines,
+                    onOpen = { viewModel.onEvent(NotesEvent.OpenNote(note, false)) },
+                    onMore = { noteForActionSheet = note }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+            }
+
+            item {
+                Spacer(Modifier.height(100.dp))
             }
         }
     }
 }
 
 @Composable
-fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: NotesViewModel) {
-    var menuExpanded by remember { mutableStateOf(false) }
+fun NoteListItem(
+    note: NoteItem,
+    userNames: Map<String, String>,
+    previewMaxLines: Int,
+    onOpen: () -> Unit,
+    onMore: () -> Unit
+) {
     val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
     val count = if (note.checklist.isNotEmpty()) note.checklist.size else note.checklistCount
@@ -138,9 +170,10 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
     val metadataText = "${Loc.General.by} $authorName • $dateStr"
 
     ActionListItem(
-        onClick = { viewModel.onEvent(NotesEvent.OpenNote(note, false)) },
+        onClick = onOpen,
         headline = note.title.ifBlank { Loc.Notes.untitledNote },
-        supportingText = contentPreview,
+        supportingText = contentPreview.ifBlank { null },
+        supportingMaxLines = if (previewMaxLines <= 0) Int.MAX_VALUE else previewMaxLines,
         metadataText = metadataText,
         leadingContent = {
             Icon(
@@ -151,28 +184,8 @@ fun NoteListItem(note: NoteItem, userNames: Map<String, String>, viewModel: Note
             )
         },
         trailingContent = {
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Default.MoreVert, null)
-                }
-                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                    DropdownMenuItem(
-                        text = { Text(Loc.General.edit) },
-                        onClick = { 
-                            viewModel.onEvent(NotesEvent.OpenNote(note, true))
-                            menuExpanded = false
-                        },
-                        leadingIcon = { Icon(Icons.Default.Edit, null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(Loc.General.delete) },
-                        onClick = { 
-                            viewModel.onEvent(NotesEvent.RequestDelete(note))
-                            menuExpanded = false
-                        },
-                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
-                    )
-                }
+            IconButton(onClick = onMore) {
+                Icon(Icons.Default.MoreVert, null)
             }
         }
     )

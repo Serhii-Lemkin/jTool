@@ -35,6 +35,7 @@ class NotesViewModel(
     val comments = commentController.comments
 
     init {
+        _uiState.update { it.copy(previewMaxLines = settingsManager.getNotesConfig().previewMaxLines) }
         observeGroupId()
         observeUserNames()
         observeCommentsState()
@@ -201,6 +202,7 @@ class NotesViewModel(
             NotesEvent.ToggleSearch -> _uiState.update { it.copy(isSearchVisible = !it.isSearchVisible, searchQuery = "") }
             is NotesEvent.UpdateSearchQuery -> _uiState.update { it.copy(searchQuery = event.query) }
             is NotesEvent.SetFilterType -> _uiState.update { it.copy(filterType = event.type) }
+            is NotesEvent.SetPreviewMaxLines -> setPreviewMaxLines(event.lines)
         }
     }
 
@@ -287,13 +289,55 @@ class NotesViewModel(
     }
 
     private fun toggleChecklistItem(id: String) {
+        val now = System.currentTimeMillis()
+        val userId = settingsManager.getAppUserId()
+        var toggledItem: ChecklistItem? = null
+        var savedNoteId = ""
+
         _uiState.update { state ->
             val editingNote = state.editingNote ?: return@update state
-            val updatedChecklist = editingNote.checklist.map { 
-                if (it.id == id) it.copy(isChecked = !it.isChecked, timestamp = System.currentTimeMillis()) else it 
+            val updatedChecklist = editingNote.checklist.map {
+                if (it.id == id) {
+                    val toggled = it.copy(isChecked = !it.isChecked, timestamp = now)
+                    toggledItem = toggled
+                    toggled
+                } else it
             }
-            val updatedNote = editingNote.copy(checklist = updatedChecklist)
-            state.copy(editingNote = updatedNote)
+            val updatedNote = editingNote.copy(
+                checklist = updatedChecklist,
+                timestamp = now,
+                lastUpdatedBy = userId
+            )
+            savedNoteId = updatedNote.id
+            val updatedNotes = if (savedNoteId.isNotEmpty()) {
+                state.notes.map { if (it.id == savedNoteId) updatedNote else it }
+            } else {
+                state.notes
+            }
+            state.copy(editingNote = updatedNote, notes = updatedNotes)
+        }
+
+        val state = _uiState.value
+        val gid = settingsManager.getCurrentGroupId()
+        val itemToSave = toggledItem
+        if (state.creatingNoteType == null && savedNoteId.isNotEmpty() && itemToSave != null) {
+            manager.save(state.notes, gid)
+            if (gid != null) {
+                viewModelScope.launch {
+                    try {
+                        val noteRef = getNotesColl(gid).document(savedNoteId)
+                        noteRef.collection("checklist").document(id).set(itemToSave).await()
+                        noteRef.update(
+                            mapOf(
+                                "timestamp" to now,
+                                "lastUpdatedBy" to userId
+                            )
+                        ).await()
+                    } catch (e: Exception) {
+                        Log.e("NotesVM", "Error saving checklist toggle", e)
+                    }
+                }
+            }
         }
     }
 
@@ -371,6 +415,12 @@ class NotesViewModel(
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    private fun setPreviewMaxLines(lines: Int) {
+        settingsManager.saveNotesConfig(settingsManager.getNotesConfig().copy(previewMaxLines = lines))
+        _uiState.update { it.copy(previewMaxLines = lines) }
+        viewModelScope.launch { dataManager.pushUserSettings() }
     }
 
     fun getAppUserId(): String = settingsManager.getAppUserId()

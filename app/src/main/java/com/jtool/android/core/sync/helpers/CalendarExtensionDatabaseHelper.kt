@@ -15,9 +15,8 @@ class CalendarExtensionDatabaseHelper(
 ) {
     private fun getExtensionsColl() = firestore.collection("calendar_event_extensions")
     
-    // Sanitize document ID to prevent slashes from breaking Firestore collection structure
     private fun sanitizeId(id: String) = id.replace("/", "_").replace(".", "_")
-    
+
     private fun getCommentsColl(eventId: String) = getExtensionsColl().document(sanitizeId(eventId)).collection("comments")
 
     suspend fun saveExtension(extension: CalendarEventExtension) {
@@ -27,8 +26,15 @@ class CalendarExtensionDatabaseHelper(
 
     suspend fun getExtension(googleEventId: String): CalendarEventExtension? {
         if (googleEventId.isEmpty()) return null
+        val clean = googleEventId.removePrefix("ext_")
         return try {
-            getExtensionsColl().document(sanitizeId(googleEventId)).get().await().toObject(CalendarEventExtension::class.java)
+            val direct = getExtensionsColl().document(sanitizeId(clean)).get().await().toObject(CalendarEventExtension::class.java)
+            if (direct != null) return direct
+            val byGoogle = getExtensionsColl().whereEqualTo("googleEventId", clean).limit(1).get().await()
+                .documents.firstOrNull()?.toObject(CalendarEventExtension::class.java)
+            if (byGoogle != null) return byGoogle
+            getExtensionsColl().whereEqualTo("localEventId", clean).limit(1).get().await()
+                .documents.firstOrNull()?.toObject(CalendarEventExtension::class.java)
         } catch (e: Exception) { null }
     }
 
@@ -52,7 +58,19 @@ class CalendarExtensionDatabaseHelper(
 
     suspend fun deleteExtension(googleEventId: String) {
         if (googleEventId.isEmpty()) return
-        getExtensionsColl().document(sanitizeId(googleEventId)).delete().await()
+        val clean = googleEventId.removePrefix("ext_")
+        try {
+            getExtensionsColl().document(sanitizeId(googleEventId)).delete().await()
+            if (clean != googleEventId) {
+                getExtensionsColl().document(sanitizeId(clean)).delete().await()
+            }
+            getExtensionsColl().whereEqualTo("googleEventId", clean).get().await().documents.forEach {
+                it.reference.delete().await()
+            }
+            getExtensionsColl().whereEqualTo("localEventId", clean).get().await().documents.forEach {
+                it.reference.delete().await()
+            }
+        } catch (_: Exception) {}
     }
 
     suspend fun addComment(googleEventId: String, comment: Comment) {
@@ -62,29 +80,57 @@ class CalendarExtensionDatabaseHelper(
 
     fun getCommentsCollection(googleEventId: String) = getCommentsColl(googleEventId)
 
+    private fun indexExtension(
+        map: MutableMap<String, CalendarEventExtension>,
+        docId: String,
+        ext: CalendarEventExtension
+    ) {
+        val primary = ext.googleEventId.ifEmpty { docId }
+        val clean = primary.removePrefix("ext_")
+        map[docId] = ext
+        map[primary] = ext
+        if (clean.isNotEmpty()) {
+            map[clean] = ext
+            map["ext_$clean"] = ext
+        }
+        if (ext.googleEventId.isNotEmpty()) {
+            val cleanGoogle = ext.googleEventId.removePrefix("ext_")
+            map[ext.googleEventId] = ext
+            if (cleanGoogle.isNotEmpty()) {
+                map[cleanGoogle] = ext
+                map["ext_$cleanGoogle"] = ext
+            }
+        }
+        if (ext.localEventId.isNotEmpty()) {
+            val cleanLocal = ext.localEventId.removePrefix("ext_")
+            map[ext.localEventId] = ext
+            if (cleanLocal.isNotEmpty()) {
+                map[cleanLocal] = ext
+                map["ext_$cleanLocal"] = ext
+            }
+        }
+    }
+
     suspend fun getExtensionsForUser(userId: String, groupIds: List<String>, startMs: Long? = null, endMs: Long? = null): Map<String, CalendarEventExtension> {
         val map = mutableMapOf<String, CalendarEventExtension>()
-        try {
-            var ownerQuery: Query = getExtensionsColl()
-            if (userId.isNotEmpty()) {
-                ownerQuery = ownerQuery.whereEqualTo("ownerUid", userId)
-            }
-            if (startMs != null && endMs != null) {
-                ownerQuery = ownerQuery.whereGreaterThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, startMs)
-                    .whereLessThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, endMs)
-            }
-            val ownerSnapshot = ownerQuery.get().await()
-            ownerSnapshot.documents.forEach { doc ->
-                val ext = doc.toObject(CalendarEventExtension::class.java)
-                if (ext != null) {
-                    val id = ext.googleEventId.ifEmpty { doc.id }
-                    map[id] = ext
-                    if (ext.googleEventId.isNotEmpty()) map[ext.googleEventId] = ext
+        if (userId.isNotEmpty()) {
+            try {
+                var ownerQuery: Query = getExtensionsColl().whereEqualTo("ownerUid", userId)
+                if (startMs != null && endMs != null) {
+                    ownerQuery = ownerQuery.whereGreaterThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, startMs)
+                        .whereLessThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, endMs)
                 }
-            }
+                val ownerSnapshot = ownerQuery.get().await()
+                ownerSnapshot.documents.forEach { doc ->
+                    val ext = doc.toObject(CalendarEventExtension::class.java)
+                    if (ext != null) indexExtension(map, doc.id, ext)
+                }
+            } catch (_: Exception) {}
+        }
 
-            if (groupIds.isNotEmpty()) {
-                groupIds.chunked(10).forEach { chunk ->
+        if (groupIds.isNotEmpty()) {
+            groupIds.chunked(10).forEach { chunk ->
+                try {
                     var groupQuery: Query = getExtensionsColl().whereArrayContainsAny("sharedGroupIds", chunk)
                     if (startMs != null && endMs != null) {
                         groupQuery = groupQuery.whereGreaterThanOrEqualTo(CalendarEventExtension::dateTimestamp.name, startMs)
@@ -93,16 +139,10 @@ class CalendarExtensionDatabaseHelper(
                     val groupSnapshot = groupQuery.get().await()
                     groupSnapshot.documents.forEach { doc ->
                         val ext = doc.toObject(CalendarEventExtension::class.java)
-                        if (ext != null) {
-                            val id = ext.googleEventId.ifEmpty { doc.id }
-                            map[id] = ext
-                            if (ext.googleEventId.isNotEmpty()) map[ext.googleEventId] = ext
-                        }
+                        if (ext != null) indexExtension(map, doc.id, ext)
                     }
-                }
+                } catch (_: Exception) {}
             }
-        } catch (e: Exception) {
-            // fallback
         }
         return map
     }

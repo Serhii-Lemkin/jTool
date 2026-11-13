@@ -69,7 +69,7 @@ object GoogleCalendarSyncHelper {
                 allEvents.addAll(events)
             }
         }
-        return allEvents.distinctBy { it.id }
+        return allEvents.distinctBy { "${it.id}_${it.dtStart}" }
     }
 
     fun pullFromGoogleCalendar(context: Context, calendarId: String, startTime: Long, endTime: Long, userEmail: String? = null): List<CalendarEvent>? {
@@ -82,8 +82,6 @@ object GoogleCalendarSyncHelper {
         ContentUris.appendId(builder, startTime)
         ContentUris.appendId(builder, endTime)
         val pathUri = builder.build()
-        
-        val uri = applySyncParams(context, pathUri, calendarId)
 
         val projection = arrayOf(
             CalendarContract.Instances.EVENT_ID,
@@ -100,11 +98,12 @@ object GoogleCalendarSyncHelper {
         val selectionArgs = arrayOf(calendarId)
 
         val cursor = try {
-            context.contentResolver.query(uri, projection, selection, selectionArgs, null)
+            context.contentResolver.query(pathUri, projection, selection, selectionArgs, null)
         } catch (e: Exception) {
-            Log.e("GoogleSync", "Instances query failed for $uri", e)
+            Log.e("GoogleSync", "Instances query failed for $pathUri", e)
             try {
-                context.contentResolver.query(pathUri, projection, selection, selectionArgs, null)
+                val uri = applySyncParams(context, pathUri, calendarId)
+                context.contentResolver.query(uri, projection, selection, selectionArgs, null)
             } catch (e2: Exception) {
                 Log.e("GoogleSync", "Final Instances fallback failed", e2)
                 null
@@ -155,14 +154,15 @@ object GoogleCalendarSyncHelper {
 
         eventIds.chunked(100).forEach { chunk ->
             val selection = "${CalendarContract.Events._ID} IN (${chunk.joinToString(",")})"
-            val projection = arrayOf(CalendarContract.Events._ID, "sync_data1")
+            val projection = arrayOf(CalendarContract.Events._ID, "sync_data1", CalendarContract.Events._SYNC_ID)
 
             try {
                 context.contentResolver.query(uri, projection, selection, null, null)?.use { c ->
                     while (c.moveToNext()) {
                         val id = c.safeGetLong(CalendarContract.Events._ID).toString()
-                        val iCalUID = c.safeGetString("sync_data1")
-                        
+                        val iCalUID = c.safeGetString("sync_data1")?.takeIf { it.isNotEmpty() }
+                            ?: c.safeGetString(CalendarContract.Events._SYNC_ID)?.takeIf { it.isNotEmpty() }
+
                         for (i in events.indices) {
                             if (events[i].id == id) {
                                 events[i] = events[i].copy(iCalUID = iCalUID ?: events[i].iCalUID)
@@ -245,19 +245,20 @@ object GoogleCalendarSyncHelper {
         }
     }
 
-    private fun resolveLocalEventId(context: Context, eventIdOrSyncId: String): String? {
+    internal fun resolveLocalEventId(context: Context, eventIdOrSyncId: String): String? {
         if (eventIdOrSyncId.isEmpty()) return null
         val baseUri = CalendarContract.Events.CONTENT_URI
         val projection = arrayOf(CalendarContract.Events._ID)
-        val selections = listOf(
-            "${CalendarContract.Events._ID} = ?",
-            "${CalendarContract.Events._SYNC_ID} = ?",
-            "sync_data1 = ?"
+        val queries = listOf(
+            "${CalendarContract.Events._ID} = ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf(eventIdOrSyncId),
+            "${CalendarContract.Events._SYNC_ID} = ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf(eventIdOrSyncId),
+            "sync_data1 = ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf(eventIdOrSyncId),
+            "${CalendarContract.Events.DESCRIPTION} LIKE ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf("%/event/$eventIdOrSyncId%")
         )
 
-        selections.forEach { selection ->
+        queries.forEach { (selection, args) ->
             try {
-                context.contentResolver.query(baseUri, projection, selection, arrayOf(eventIdOrSyncId), null)?.use { c ->
+                context.contentResolver.query(baseUri, projection, selection, args, null)?.use { c ->
                     if (c.moveToFirst()) {
                         val id = c.safeGetLong(CalendarContract.Events._ID)
                         if (id > 0) return id.toString()
@@ -269,6 +270,7 @@ object GoogleCalendarSyncHelper {
     }
 
     fun pullEventById(context: Context, googleEventId: String, userEmail: String? = null): CalendarEvent? {
+        if (googleEventId.isEmpty()) return null
         val baseUri = CalendarContract.Events.CONTENT_URI
         val projection = arrayOf(
             CalendarContract.Events._ID,
@@ -280,63 +282,37 @@ object GoogleCalendarSyncHelper {
             CalendarContract.Events.CALENDAR_ID,
             CalendarContract.Events.ORGANIZER,
             CalendarContract.Events._SYNC_ID,
-            CalendarContract.Events.EVENT_COLOR_KEY
-        )
-        
-        val selections = listOf(
-            "${CalendarContract.Events._ID} = ?",
-            "${CalendarContract.Events._SYNC_ID} = ?",
-            "sync_data1 = ?"
+            "sync_data1",
+            CalendarContract.Events.EVENT_COLOR_KEY,
+            CalendarContract.Events.RRULE,
+            CalendarContract.Events.DURATION,
+            CalendarContract.Events.EVENT_LOCATION
         )
 
-        selections.forEach { selection ->
+        val queries = listOf(
+            "${CalendarContract.Events._ID} = ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf(googleEventId),
+            "${CalendarContract.Events._SYNC_ID} = ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf(googleEventId),
+            "sync_data1 = ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf(googleEventId),
+            "${CalendarContract.Events.DESCRIPTION} LIKE ? AND ${CalendarContract.Events.DELETED} != 1" to arrayOf("%/event/$googleEventId%")
+        )
+
+        queries.forEach { (selection, args) ->
             try {
-                context.contentResolver.query(baseUri, projection, selection, arrayOf(googleEventId), null)?.use { c ->
+                context.contentResolver.query(baseUri, projection, selection, args, null)?.use { c ->
                     if (c.moveToFirst()) {
                         val calId = c.safeGetString(CalendarContract.Events.CALENDAR_ID) ?: ""
                         if (calId.isNotEmpty()) {
                             val syncUri = applySyncParams(context, baseUri, calId)
-                            context.contentResolver.query(syncUri, projection, selection, arrayOf(googleEventId), null)?.use { sc ->
+                            context.contentResolver.query(syncUri, projection, selection, args, null)?.use { sc ->
                                 if (sc.moveToFirst()) return parseEvent(context, sc, userEmail, calId)
                             }
                         }
                         return parseEvent(context, c, userEmail, calId)
                     }
                 }
-            } catch (e: Exception) {}
+            } catch (_: Exception) {}
         }
         return null
-    }
-
-    private fun getEventReminderMinutes(context: Context, eventId: String): Int? {
-        if (eventId.isEmpty()) return null
-        val uri = CalendarContract.Reminders.CONTENT_URI
-        val projection = arrayOf(CalendarContract.Reminders.MINUTES)
-        val selection = "${CalendarContract.Reminders.EVENT_ID} = ?"
-        try {
-            context.contentResolver.query(uri, projection, selection, arrayOf(eventId), null)?.use { c ->
-                if (c.moveToFirst()) {
-                    return c.getInt(0)
-                }
-            }
-        } catch (_: Exception) {}
-        return null
-    }
-
-    private fun updateEventReminder(context: Context, localEventId: String, minutes: Int?) {
-        if (localEventId.isEmpty()) return
-        val uri = CalendarContract.Reminders.CONTENT_URI
-        try {
-            context.contentResolver.delete(uri, "${CalendarContract.Reminders.EVENT_ID} = ?", arrayOf(localEventId))
-            if (minutes != null && minutes >= 0) {
-                val values = ContentValues().apply {
-                    put(CalendarContract.Reminders.EVENT_ID, localEventId)
-                    put(CalendarContract.Reminders.MINUTES, minutes)
-                    put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
-                }
-                context.contentResolver.insert(uri, values)
-            }
-        } catch (_: Exception) {}
     }
 
     private fun parseEvent(context: Context, c: Cursor, userEmail: String?, calendarId: String): CalendarEvent {
@@ -346,13 +322,14 @@ object GoogleCalendarSyncHelper {
         val start = c.safeGetLong(CalendarContract.Events.DTSTART)
         val end = c.safeGetLong(CalendarContract.Events.DTEND)
         val allDay = c.safeGetInt(CalendarContract.Events.ALL_DAY) == 1
-        val iCalUID = c.safeGetString("sync_data1")
+        val iCalUID = c.safeGetString("sync_data1")?.takeIf { it.isNotEmpty() }
+            ?: c.safeGetString(CalendarContract.Events._SYNC_ID)?.takeIf { it.isNotEmpty() }
         val organizer = c.safeGetString(CalendarContract.Events.ORGANIZER)
         val colorKey = c.safeGetString(CalendarContract.Events.EVENT_COLOR_KEY)
         val rrule = c.safeGetString(CalendarContract.Events.RRULE)
         val duration = c.safeGetString(CalendarContract.Events.DURATION)
         val location = c.safeGetString(CalendarContract.Events.EVENT_LOCATION)
-        val reminderMinutes = getEventReminderMinutes(context, gId.toString())
+        val reminderMinutes = GoogleCalendarMetaHelper.getEventReminderMinutes(context, gId.toString())
 
         val (attendees, status, statuses) = getAttendeesAndStatus(context, gId.toString(), userEmail)
 
@@ -452,162 +429,43 @@ object GoogleCalendarSyncHelper {
         }
 
         if (localId != null) {
-            updateEventReminder(context, localId, event.reminderMinutes)
+            GoogleCalendarMetaHelper.updateEventReminder(context, localId, event.reminderMinutes)
             val globalId = fetchGlobalId(context, localId, targetCalendarId) ?: cleanICalUID ?: localId
-            val linkText = DeepLinkService.createEventNoteLinkText(globalId)
-            
-            val descUri = Uri.withAppendedPath(baseUri, localId)
-            context.contentResolver.query(descUri, arrayOf(CalendarContract.Events.DESCRIPTION), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val currentDesc = cursor.getString(0) ?: ""
-                    val newDesc = if (currentDesc.contains("jTool: ")) {
-                        currentDesc.replace(Regex("jTool: https://[^\\s\\n]+"), linkText)
-                    } else {
-                        if (currentDesc.isEmpty()) linkText else "$currentDesc\n\n$linkText"
-                    }
-                    if (newDesc != currentDesc) {
-                        val updateValues = ContentValues().apply { put(CalendarContract.Events.DESCRIPTION, newDesc) }
-                        try { context.contentResolver.update(descUri, updateValues, null, null) } catch (_: Exception) {}
-                    }
-                }
-            }
+            GoogleCalendarMetaHelper.updateEventDescriptionLink(context, localId, globalId)
 
             val filteredAttendees = if (ownerEmail != null) {
                 event.attendees.filter { it.lowercase().trim() != ownerEmail.lowercase().trim() }
             } else event.attendees
             updateAttendees(context, localId, filteredAttendees, ownerEmail)
-            
             return globalId
         }
         return null
     }
 
-    private fun fetchGlobalId(context: Context, localId: String, calendarId: String): String? {
-        val baseUri = CalendarContract.Events.CONTENT_URI
-        val syncUri = applySyncParams(context, baseUri, calendarId)
-        val projection = arrayOf(CalendarContract.Events._ID, CalendarContract.Events._SYNC_ID, "sync_data1")
+    fun updateEventDescriptionLink(context: Context, localId: String, canonicalId: String) =
+        GoogleCalendarMetaHelper.updateEventDescriptionLink(context, localId, canonicalId)
 
-        try {
-            context.contentResolver.query(syncUri, projection, "${CalendarContract.Events._ID} = ?", arrayOf(localId), null)?.use { c ->
-                if (c.moveToFirst()) {
-                    val iCalUID = c.safeGetString("sync_data1")
-                    if (!iCalUID.isNullOrEmpty()) return iCalUID
-                    val syncId = c.safeGetString(CalendarContract.Events._SYNC_ID)
-                    if (!syncId.isNullOrEmpty()) return syncId
-                }
-            }
-        } catch (e: Exception) {}
-        return null
-    }
-
-    private fun updateAttendees(context: Context, googleEventId: String, attendees: List<String>, ownerEmail: String? = null) {
-        val baseAttendeesUri = CalendarContract.Attendees.CONTENT_URI
-        val silentAttendeesUri = baseAttendeesUri.buildUpon().appendQueryParameter("sendNotifications", "0").build()
-
-        try { context.contentResolver.delete(silentAttendeesUri, "${CalendarContract.Attendees.EVENT_ID} = ?", arrayOf(googleEventId)) } catch (_: Exception) {}
-
-        if (!ownerEmail.isNullOrEmpty()) {
-            val ownerValues = ContentValues().apply {
-                put(CalendarContract.Attendees.ATTENDEE_EMAIL, ownerEmail.trim())
-                put(CalendarContract.Attendees.ATTENDEE_RELATIONSHIP, CalendarContract.Attendees.RELATIONSHIP_ORGANIZER)
-                put(CalendarContract.Attendees.ATTENDEE_TYPE, CalendarContract.Attendees.TYPE_REQUIRED)
-                put(CalendarContract.Attendees.ATTENDEE_STATUS, CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED)
-                put(CalendarContract.Attendees.EVENT_ID, googleEventId)
-            }
-            try {
-                context.contentResolver.insert(silentAttendeesUri, ownerValues)
-            } catch (_: Exception) {}
-        }
-
-        attendees.forEach { email ->
-            val cleanEmail = email.lowercase().trim()
-            if (ownerEmail.isNullOrEmpty() || cleanEmail != ownerEmail.lowercase().trim()) {
-                val values = ContentValues().apply {
-                    put(CalendarContract.Attendees.ATTENDEE_EMAIL, email.trim())
-                    put(CalendarContract.Attendees.ATTENDEE_RELATIONSHIP, CalendarContract.Attendees.RELATIONSHIP_ATTENDEE)
-                    put(CalendarContract.Attendees.ATTENDEE_TYPE, CalendarContract.Attendees.TYPE_REQUIRED)
-                    put(CalendarContract.Attendees.ATTENDEE_STATUS, CalendarContract.Attendees.ATTENDEE_STATUS_INVITED)
-                    put(CalendarContract.Attendees.EVENT_ID, googleEventId)
-                }
-                try {
-                    context.contentResolver.insert(silentAttendeesUri, values)
-                } catch (_: Exception) {}
-            }
-        }
-    }
-
-    fun deleteFromGoogleCalendar(context: Context, googleEventId: String): Boolean {
-        if (googleEventId.isEmpty()) return false
-        val cleanId = googleEventId.removePrefix("ext_").removePrefix("virtual_")
-        return try {
-            val baseUri = CalendarContract.Events.CONTENT_URI
-            val syncUri = baseUri.buildUpon()
-                .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
-                .appendQueryParameter("sendNotifications", "0")
-                .build()
-
-            var rowsDeleted = 0
-            
-            if (cleanId.all { it.isDigit() }) {
-                val deleteUri = ContentUris.withAppendedId(baseUri, cleanId.toLongOrNull() ?: 0L)
-                try {
-                    rowsDeleted = context.contentResolver.delete(deleteUri, null, null)
-                } catch (_: Exception) {}
-            }
-
-            if (rowsDeleted == 0) {
-                val selection = "${CalendarContract.Events._ID} = ? OR ${CalendarContract.Events._SYNC_ID} = ? OR sync_data1 = ?"
-                rowsDeleted = context.contentResolver.delete(baseUri, selection, arrayOf(cleanId, cleanId, cleanId))
-            }
-
-            if (rowsDeleted == 0 && cleanId.all { it.isDigit() }) {
-                val deleteSyncUri = ContentUris.withAppendedId(syncUri, cleanId.toLongOrNull() ?: 0L)
-                try {
-                    rowsDeleted = context.contentResolver.delete(deleteSyncUri, null, null)
-                } catch (_: Exception) {}
-            }
-
-            Log.d("GoogleSync", "deleteFromGoogleCalendar ID $cleanId result: $rowsDeleted rows deleted")
-            rowsDeleted > 0
-        } catch (e: Exception) {
-            Log.e("GoogleSync", "Failed to delete event $googleEventId: ${e.message}", e)
-            false
-        }
-    }
-
-    fun getAvailableCalendars(context: Context): List<Triple<String, String, String>> {
-        val calendars = mutableListOf<Triple<String, String, String>>()
-        val projection = arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME)
-        context.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, projection, null, null, null)?.use { cursor ->
-            val idIdx = cursor.getColumnIndex(CalendarContract.Calendars._ID)
-            val nameIdx = cursor.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
-            val accountIdx = cursor.getColumnIndex(CalendarContract.Calendars.ACCOUNT_NAME)
-            while (cursor.moveToNext()) calendars.add(Triple(cursor.getString(idIdx), cursor.getString(nameIdx), cursor.getString(accountIdx)))
-        }
-        return calendars
-    }
-
-    fun calculateRfcDuration(startMs: Long?, endMs: Long?, allDay: Boolean): String {
-        if (allDay) return "P1D"
-        val diffSeconds = if (startMs != null && endMs != null && endMs > startMs) {
-            (endMs - startMs) / 1000L
-        } else {
-            3600L
-        }
-        return "P${diffSeconds}S"
-    }
-
-    fun getColorPalette(context: Context): List<Pair<Int, String>> {
-        val colors = mutableListOf<Pair<Int, String>>()
-        val uri = CalendarContract.Colors.CONTENT_URI
-        val projection = arrayOf(CalendarContract.Colors.COLOR, CalendarContract.Colors.COLOR_KEY, CalendarContract.Colors.COLOR_TYPE)
-        try {
-            context.contentResolver.query(uri, projection, "${CalendarContract.Colors.COLOR_TYPE} = ?", arrayOf("1"), null)?.use { cursor ->
-                val colorIdx = cursor.getColumnIndex(CalendarContract.Colors.COLOR)
-                val keyIdx = cursor.getColumnIndex(CalendarContract.Colors.COLOR_KEY)
-                while (cursor.moveToNext()) colors.add(cursor.getInt(colorIdx) to cursor.getString(keyIdx))
-            }
-        } catch (_: Exception) {}
-        return colors
-    }
+    private fun fetchGlobalId(context: Context, localId: String, calendarId: String): String? =
+        GoogleCalendarMetaHelper.fetchGlobalId(context, localId, applySyncParams(context, CalendarContract.Events.CONTENT_URI, calendarId))
+    private fun updateAttendees(context: Context, googleEventId: String, attendees: List<String>, ownerEmail: String? = null) =
+        GoogleCalendarMetaHelper.updateAttendees(context, googleEventId, attendees, ownerEmail)
+    fun deleteFromGoogleCalendar(context: Context, googleEventId: String): Boolean =
+        GoogleCalendarMetaHelper.deleteFromGoogleCalendar(context, googleEventId)
+    fun isEventDeleted(context: Context, googleEventId: String, localEventId: String = ""): Boolean =
+        GoogleCalendarMetaHelper.isEventDeleted(context, googleEventId, localEventId)
+    fun resolveEffectiveCalendarIds(
+        context: Context,
+        configuredDisplayedIds: Set<String>,
+        primaryCalId: String,
+        sharedCalId: String,
+        userEmail: String?
+    ): Set<String> = GoogleCalendarMetaHelper.resolveEffectiveCalendarIds(
+        context, configuredDisplayedIds, primaryCalId, sharedCalId, userEmail
+    )
+    fun getAvailableCalendars(context: Context): List<Triple<String, String, String>> =
+        GoogleCalendarMetaHelper.getAvailableCalendars(context)
+    fun calculateRfcDuration(startMs: Long?, endMs: Long?, allDay: Boolean): String =
+        GoogleCalendarMetaHelper.calculateRfcDuration(startMs, endMs, allDay)
+    fun getColorPalette(context: Context): List<Pair<Int, String>> =
+        GoogleCalendarMetaHelper.getColorPalette(context)
 }

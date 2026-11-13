@@ -24,7 +24,8 @@ data class NotesUiState(
     
     val searchQuery: String = "",
     val filterType: NoteTypeEnum? = null,
-    val isSearchVisible: Boolean = false
+    val isSearchVisible: Boolean = false,
+    val previewMaxLines: Int = 2
 ) {
     val filteredNotes: List<NoteItem>
         get() = notes

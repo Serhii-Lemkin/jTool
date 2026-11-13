@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.jtool.android.core.components.layout.ActionListItem
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
-import com.jtool.android.features.shopping.AisleIcons
+import com.jtool.android.features.shopping.components.AisleIcons
 import com.jtool.android.ui.components.common.GenericSheet
 
 @Composable

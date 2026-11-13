@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.user.enums.LauncherGestureEnum
+import com.jtool.android.ui.components.launcher.components.gesture_action_picker_sheet.GestureActionPickerSheet
 import com.jtool.android.ui.navigation.AppProperties
 
 @Composable
@@ -159,93 +158,6 @@ fun LauncherGesturesSection(
             },
             onDismiss = { selectedGestureForPicker = null }
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GestureActionPickerSheet(
-    gesture: LauncherGestureEnum,
-    currentActionId: String,
-    onSelectAction: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val gestureLabel = when (gesture) {
-        LauncherGestureEnum.SWIPE_LEFT -> Loc.Launcher.swipeLeft
-        LauncherGestureEnum.SWIPE_RIGHT -> Loc.Launcher.swipeRight
-        LauncherGestureEnum.DOUBLE_TAP -> Loc.Launcher.doubleTap
-    }
-
-    val availableTargets = remember {
-        listOf(
-            "" to Loc.Launcher.none,
-            AppScreenEnum.SETTINGS.id to Loc.Launcher.settings,
-            AppScreenEnum.SUPPORT_HUB.id to Loc.Launcher.supportHub
-        ) + AppProperties.allApps.map { it.id.id to it.getName() }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                text = "${Loc.Launcher.selectAction}: $gestureLabel",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            availableTargets.forEach { (actionId, label) ->
-                val icon = remember(actionId) { getActionIcon(actionId) }
-                Surface(
-                    onClick = { onSelectAction(actionId) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (actionId == currentActionId) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (icon != null) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                            }
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (actionId == currentActionId) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                        if (actionId == currentActionId) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-        }
     }
 }
 

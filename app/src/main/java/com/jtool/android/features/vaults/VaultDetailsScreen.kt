@@ -1,7 +1,6 @@
 package com.jtool.android.features.vaults
 
-import android.content.Intent
-import android.net.Uri
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,12 +25,15 @@ import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.localization.domains.VaultsLoc
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.models.vaults.VaultDocument
+import com.jtool.android.core.models.vaults.enums.FileOpenErrorReasonEnum
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.vaults.common.DocIconWithBadge
 import com.jtool.android.features.vaults.common.GoogleDriveVaultHelper
 import com.jtool.android.features.vaults.common.VaultDocUtils
+import com.jtool.android.features.vaults.components.VaultDocListItem
 import com.jtool.android.features.vaults.components.delete_local_file_confirm_sheet.DeleteLocalFileConfirmSheet
+import com.jtool.android.features.vaults.components.file_open_error_sheet.FileOpenErrorSheet
 import com.jtool.android.core.services.FileDownloadQueueManager
 import com.jtool.android.core.services.FileUploadQueueManager
 import com.jtool.android.features.vaults.components.doc_delete_confirm_sheet.DocDeleteConfirmSheet
@@ -90,6 +92,7 @@ fun VaultDetailsScreen(
     var docForFilesSheet by remember { mutableStateOf<VaultDocument?>(null) }
     var docForActionSheet by remember { mutableStateOf<Pair<VaultDocument, Boolean>?>(null) }
     var infoMessage by remember { mutableStateOf<Pair<String, MessageType>?>(null) }
+    var openErrorReason by remember { mutableStateOf<FileOpenErrorReasonEnum?>(null) }
     var draftSearchQuery by remember { mutableStateOf(uiState.searchQuery) }
 
     val uploadState by com.jtool.android.core.services.FileUploadQueueManager.uploadState.collectAsState()
@@ -115,6 +118,7 @@ fun VaultDetailsScreen(
 
     BaseScreen(
         title = vault.name,
+        isLoading = uiState.isLoading,
         onBack = onBack,
         onRefresh = { viewModel.onEvent(VaultsEvent.Refresh) },
         isSearchVisible = uiState.isSearchVisible,
@@ -168,183 +172,62 @@ fun VaultDetailsScreen(
             }
         }
     ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.onEvent(VaultsEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (uiState.isLoading) {
-                    // Keep empty while loading so loader, items, and FAB reveal simultaneously
-                } else if (displayedDocs.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (!isOnline) "No offline cached documents available" else Loc.Vaults.noDocs,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            if (!uiState.isLoading && displayedDocs.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (!isOnline) "No offline cached documents available" else Loc.Vaults.noDocs,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else if (!uiState.isLoading) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(pagedDocs, key = { it.id }) { doc ->
+                        VaultDocListItem(
+                            doc = doc,
+                            uiState = uiState,
+                            downloadState = downloadState,
+                            uploadState = uploadState,
+                            onOpenFilesSheet = { docForFilesSheet = doc },
+                            onUpdatingBlocked = {
+                                infoMessage = Loc.s("vaults_docUpdatingMessage", "Record is being updated. Please wait for the background update to finish.") to MessageType.INFO
+                            },
+                            onOpenDetails = {
+                                viewModel.selectDoc(doc)
+                                onNavigate(AppScreenEnum.VAULT_DOC_DETAILS)
+                            },
+                            onOpenActionSheet = { isDownloaded ->
+                                docForActionSheet = doc to isDownloaded
+                            }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(pagedDocs, key = { it.id }) { doc ->
-                            val dateFormat = remember(context) { com.jtool.android.core.utils.getPreferredSimpleDateFormat(context) }
-                            val dateStr = dateFormat.format(Date(doc.documentTimestamp))
-                            val isDocOwner = doc.lastUpdatedBy == currentUserId || doc.lastUpdatedBy == authUid || isVaultOwner
-                            val isDownloaded = remember(doc.id, uiState.offlineVersion, downloadState) {
-                                VaultDocUtils.isDocumentDownloadedLocally(context, doc)
+
+                    if (displayedDocs.size > pagedDocs.size) {
+                        item {
+                            TextButton(
+                                onClick = { viewModel.onEvent(VaultsEvent.LoadMore) },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Text(Loc.s("vaults_loadMore", "Load More"))
                             }
-                            val isDownloading = uiState.downloadingDocIds.contains(doc.id)
-                            val isDeleting = uiState.deletingDocIds.contains(doc.id)
-                            val firstFileName = doc.fileNames.firstOrNull() ?: doc.name
-                            val fileCount = if (doc.fileNames.isNotEmpty()) doc.fileNames.size else if (doc.driveFileIds.isNotEmpty()) doc.driveFileIds.size else 1
-                            val tagText = if (doc.tag.isNotBlank()) "${VaultDocUtils.getLocalizedTag(doc.tag)} • " else ""
-
-                            val isUpdating = remember(doc.id, uiState.updatingDocIds, uploadState) {
-                                uiState.updatingDocIds.contains(doc.id) ||
-                                uploadState.tasks.any { !it.isFailed && it.existingDocId == doc.id && it.files.any { f -> f.status != com.jtool.android.core.services.UploadFileStatus.COMPLETED } }
-                            }
-
-                            val metadataStr = when {
-                                isDeleting -> Loc.s("general_deleting", "Deleting...")
-                                isUpdating -> Loc.s("vaults_updatingBg", "Updating in background...")
-                                isDownloading -> Loc.General.downloading
-                                isDownloaded -> Loc.Vaults.downloaded
-                                else -> ""
-                            }
-
-                            val isSavingToDownloads = uiState.savingToDownloadsDocIds.contains(doc.id)
-
-                            ActionListItem(
+                        }
+                    } else if (!isOnline && uiState.filteredDocs.size > displayedDocs.size) {
+                        item {
+                            TextButton(
                                 onClick = {
-                                    if (isUpdating) {
-                                        infoMessage = Loc.s("vaults_docUpdatingMessage", "Record is being updated. Please wait for the background update to finish.") to MessageType.INFO
-                                    } else if (!isDeleting) {
-                                        docForFilesSheet = doc
-                                    }
+                                    infoMessage = Loc.s("vaults_offlineViewError", "No internet connection. Connection required to view uncached online documents.") to MessageType.INFO
                                 },
-                                headline = doc.name,
-                                supportingComponent = {
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        if (doc.description.isNotBlank()) {
-                                            Text(
-                                                text = doc.description,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.secondary,
-                                                maxLines = 2,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            if (tagText.isNotEmpty()) {
-                                                Text(
-                                                    text = tagText,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.secondary
-                                                )
-                                            }
-                                            Text(
-                                                text = "$fileCount ",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.secondary
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Default.Description,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.secondary
-                                            )
-                                        }
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.CalendarToday,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.secondary
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = dateStr,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.secondary
-                                            )
-                                        }
-                                        if (metadataStr.isNotEmpty()) {
-                                            Text(
-                                                text = metadataStr,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                            )
-                                        }
-                                    }
-                                },
-                                leadingContent = {
-                                    DocIconWithBadge(
-                                        fileName = firstFileName,
-                                        isDownloaded = isDownloaded,
-                                        isDownloading = isDownloading || isUpdating,
-                                        isDeleting = isDeleting,
-                                        isSavingToDownloads = isSavingToDownloads
-                                    )
-                                },
-                                trailingContent = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = {
-                                                if (isUpdating) {
-                                                    infoMessage = Loc.s("vaults_docUpdatingMessage", "Record is being updated. Please wait for the background update to finish.") to MessageType.INFO
-                                                } else {
-                                                    viewModel.selectDoc(doc)
-                                                    onNavigate(AppScreenEnum.VAULT_DOC_DETAILS)
-                                                }
-                                            }
-                                        ) {
-                                            Icon(Icons.Default.Info, contentDescription = "Doc Details")
-                                        }
-
-                                        if (isDocOwner && !isDeleting) {
-                                            IconButton(
-                                                onClick = {
-                                                    if (isUpdating) {
-                                                        infoMessage = Loc.s("vaults_docUpdatingMessage", "Record is being updated. Please wait for the background update to finish.") to MessageType.INFO
-                                                    } else {
-                                                        docForActionSheet = doc to isDownloaded
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.MoreVert, null)
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
-
-                        if (displayedDocs.size > pagedDocs.size) {
-                            item {
-                                TextButton(
-                                    onClick = { viewModel.onEvent(VaultsEvent.LoadMore) },
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                                ) {
-                                    Text(Loc.s("vaults_loadMore", "Load More"))
-                                }
-                            }
-                        } else if (!isOnline && uiState.filteredDocs.size > displayedDocs.size) {
-                            item {
-                                TextButton(
-                                    onClick = {
-                                        infoMessage = Loc.s("vaults_offlineViewError", "No internet connection. Connection required to view uncached online documents.") to MessageType.INFO
-                                    },
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                                ) {
-                                    Text(Loc.s("vaults_loadMoreOffline", "Load More (Offline)"))
-                                }
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Text(Loc.s("vaults_loadMoreOffline", "Load More (Offline)"))
                             }
                         }
-
-                        item { Spacer(Modifier.height(100.dp)) }
                     }
+
+                    item { Spacer(Modifier.height(100.dp)) }
                 }
             }
         }
@@ -367,12 +250,10 @@ fun VaultDetailsScreen(
             isDocOwner = isDocOwner,
             showDriveButtons = showDriveButtons,
             onOpenDrive = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedDoc.effectiveDriveUrl))
-                context.startActivity(intent)
+                openErrorReason = VaultDocUtils.openExternalUrlWithReason(context, selectedDoc.effectiveDriveUrl)
             },
             onOpenFolder = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(selectedDoc.folderUrl))
-                context.startActivity(intent)
+                openErrorReason = VaultDocUtils.openExternalUrlWithReason(context, selectedDoc.effectiveFolderUrl)
             },
             onDownloadOffline = {
                 viewModel.onEvent(VaultsEvent.DownloadDocForOffline(selectedDoc))
@@ -390,11 +271,9 @@ fun VaultDetailsScreen(
                 })
             },
             onShare = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "${selectedDoc.name}\n${selectedDoc.effectiveDriveUrl}")
+                if (!VaultDocUtils.shareText(context, "${selectedDoc.name}\n${selectedDoc.effectiveDriveUrl}", Loc.General.share)) {
+                    infoMessage = Loc.Vaults.shareError to MessageType.ERROR
                 }
-                context.startActivity(Intent.createChooser(intent, Loc.General.share))
             },
             onEdit = {
                 docToEdit = selectedDoc
@@ -469,10 +348,13 @@ fun VaultDetailsScreen(
     }
 
     if (docToEdit != null) {
+        val editingDoc = docToEdit!!
+        val canEditDocFiles = editingDoc.lastUpdatedBy == currentUserId || editingDoc.lastUpdatedBy == authUid || isVaultOwner
         EditDocSheet(
             vault = vault,
-            doc = docToEdit!!,
+            doc = editingDoc,
             isUploading = uiState.isUploading,
+            canEditFiles = canEditDocFiles,
             onDismiss = { docToEdit = null },
             onConfirm = { updatedDoc, newFiles, removedIds ->
                 docToEdit = null
@@ -548,6 +430,13 @@ fun VaultDetailsScreen(
             message = infoMessage!!.first,
             type = infoMessage!!.second,
             onDismiss = { infoMessage = null }
+        )
+    }
+
+    if (openErrorReason != null) {
+        FileOpenErrorSheet(
+            reason = openErrorReason!!,
+            onDismiss = { openErrorReason = null }
         )
     }
 }

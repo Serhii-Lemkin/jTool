@@ -5,7 +5,7 @@
   "direction": "ltr",
   "strings": {
     "settings_releaseNotes": "Примітки до випуску",
-    "settings_releaseNotesDesc": "Перегляньте нові функції, зміни та виправлення помилок для версії 2.8.4 (Збірка 65)",
+    "settings_releaseNotesDesc": "Нові функції, зміни та виправлення помилок для версії %1$s (Збірка %2$s)",
     "settings_viewChangelog": "Переглянути список змін",
     "general_learnMore": "Дізнатися більше",
     "launcher_hello": "Привіт",
@@ -383,6 +383,13 @@
     "notes_deleteNoteTitle": "Видалити нотатку?",
     "notes_noteTitlePlaceholder": "Назва",
     "notes_untitledNote": "Без назви",
+    "notes_previewLength": "Довжина попереднього перегляду",
+    "notes_previewLengthDesc": "Кількість рядків тексту нотатки, що показуються у списку",
+    "notes_previewLines": "Рядків: %d",
+    "notes_previewOneLine": "1 рядок",
+    "notes_previewNoLimit": "Повний текст",
+    "notes_editNoteDesc": "Відкрити нотатку для редагування",
+    "notes_deleteNoteDesc": "Остаточно видалити нотатку",
     "notes_addTitleQuestion": "Додати заголовок?",
     "notes_addTitleExpl": "Без заголовка нотатку буде збережено як «Без назви».",
     "comments_comments": "Коментарі",
@@ -893,6 +900,12 @@
     "worktime_hoursConfig": "Конфігурація годин",
     "worktime_setByDay": "Встановити за днями",
     "worktime_stableHours": "Стабільні години",
-    "worktime_withDuration": "З тривалістю"
+    "worktime_withDuration": "З тривалістю",
+    "vaults_openFileError": "Не вдалося відкрити файл. Не знайдено сумісного додатку або посилання недоступне.",
+    "vaults_shareError": "Не вдалося поділитися посиланням на файл.",
+    "vaults_openErrorMissingDriveLink": "До цього елемента не прикріплено посилання Google Диска. Можна завантажити файл або перевірити папку на Диску.",
+    "vaults_openErrorLocalMissing": "Локальний кешований файл не знайдено на пристрої. Слід завантажити його повторно перед відкриттям.",
+    "vaults_openErrorInvalidUrl": "Прикріплене посилання має некоректний формат і не може бути відкрите.",
+    "vaults_openErrorNoApp": "На пристрої не знайдено жодного сумісного додатку для відкриття цього файлу або посилання."
   }
 }

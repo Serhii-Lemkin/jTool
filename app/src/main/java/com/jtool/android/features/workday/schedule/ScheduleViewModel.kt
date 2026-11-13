@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jtool.android.core.models.calendar.CalendarEvent
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.features.calendar.common.CalendarEventHelper
 import com.jtool.android.features.calendar.common.GoogleCalendarSyncHelper
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.models.workday.DaySchedule
@@ -132,18 +133,23 @@ class ScheduleViewModel(
 
     private fun saveShiftsToGoogle() {
         val calendarId = settingsManager.getGoogleCalendarId()
+            .ifEmpty {
+                settingsManager.getDisplayedCalendarIds().firstOrNull()
+                    ?: GoogleCalendarSyncHelper.getAvailableCalendars(dataManager.context).firstOrNull()?.first
+                    ?: ""
+            }
         if (calendarId.isEmpty()) return
-        
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val weekStart = _uiState.value.selectedWeekStart
             val weekEnd = weekStart.plusDays(6)
             val workShiftColorKey = settingsManager.getWorkShiftColorKey()
+            val sharedGids = emptyList<String>()
 
             val startMs = weekStart.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val endMs = weekEnd.plusDays(1).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-            // Delete old schedule/day off events for the week to override and prevent duplicates
             val existingWeekEvents = GoogleCalendarSyncHelper.pullFromGoogleCalendar(dataManager.context, calendarId, startMs, endMs) ?: emptyList()
             existingWeekEvents.forEach { evt ->
                 val hasJToolTag = evt.note.contains("jTool")
@@ -152,11 +158,13 @@ class ScheduleViewModel(
                 val isWorkColor = evt.colorKey == workShiftColorKey
                 if (hasJToolTag || (isWorkColor && (isDayOff || isShift))) {
                     GoogleCalendarSyncHelper.deleteFromGoogleCalendar(dataManager.context, evt.id)
+                    evt.iCalUID?.let { dataManager.deleteCalendarExtension(it) }
+                    dataManager.deleteCalendarExtension(evt.id)
                 }
             }
 
             val startDay = _uiState.value.weeklyStartDay
-            
+
             _uiState.value.tempWeeklySchedule.forEach { (day, schedule) ->
                 val dayOffset = (day.value - startDay.value + 7) % 7
                 val date = weekStart.plusDays(dayOffset.toLong())
@@ -173,7 +181,14 @@ class ScheduleViewModel(
                             colorKey = workShiftColorKey,
                             note = "jTool:work_schedule"
                         )
-                        GoogleCalendarSyncHelper.pushToGoogleCalendar(dataManager.context, dayOffEvent, calendarId)
+                        CalendarEventHelper.pushAndShareShiftOrEvent(
+                            context = dataManager.context,
+                            settingsManager = settingsManager,
+                            dataManager = dataManager,
+                            event = dayOffEvent,
+                            calendarId = calendarId,
+                            sharedGroupIds = sharedGids
+                        )
                     } catch (_: Exception) {}
                 } else if (schedule.shifts.isNotEmpty()) {
                     schedule.shifts.forEach { shift ->
@@ -183,7 +198,7 @@ class ScheduleViewModel(
                                 val endLdt = if (shift.end != null) date.atTime(LocalTime.parse(shift.end)) else startLdt.plusHours(8)
                                 val baseNote = shift.note ?: ""
                                 val noteWithTag = if (baseNote.contains("jTool")) baseNote else if (baseNote.isEmpty()) "jTool:work_schedule" else "$baseNote\njTool:work_schedule"
-                                
+
                                 val event = CalendarEvent(
                                     title = shift.title ?: Loc.Calendar.shift,
                                     dtStart = startLdt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
@@ -191,13 +206,20 @@ class ScheduleViewModel(
                                     colorKey = workShiftColorKey,
                                     note = noteWithTag
                                 )
-                                GoogleCalendarSyncHelper.pushToGoogleCalendar(dataManager.context, event, calendarId)
+                                CalendarEventHelper.pushAndShareShiftOrEvent(
+                                    context = dataManager.context,
+                                    settingsManager = settingsManager,
+                                    dataManager = dataManager,
+                                    event = event,
+                                    calendarId = calendarId,
+                                    sharedGroupIds = sharedGids
+                                )
                             } catch (_: Exception) {}
                         }
                     }
                 }
             }
-            
+
             _uiState.update { it.copy(isLoading = false, hasUnsavedChanges = false, showSavedSuccess = true) }
             loadWeekShifts(weekStart)
         }

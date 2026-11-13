@@ -34,13 +34,17 @@ class SignInHandler(
                         val success = authManager.signInWithGoogle(account)
                         if (success) {
                             val settings = SettingsManager(activity)
+                            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                            settings.checkAndPurgeIfUserChanged(uid)
+                            val fetched = dataManager.fetchUserSettings(force = true)
                             if (settings.getUserName().isEmpty() || settings.getUserName() == "User") {
                                 account.displayName?.let { name ->
                                     if (name.isNotEmpty()) settings.saveUserName(name)
                                 }
                             }
-                            dataManager.fetchUserSettings(force = true)
-                            dataManager.pushUserSettings()
+                            if (!fetched) {
+                                dataManager.pushUserSettings()
+                            }
                         } else {
                             onError("Firebase Auth Failed")
                         }

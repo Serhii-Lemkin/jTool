@@ -8,6 +8,7 @@ import com.jtool.android.core.models.workday.enums.WorkModeEnum
 import com.jtool.android.core.models.workday.enums.PickerTypeEnum
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.features.calendar.common.CalendarEventHelper
 import com.jtool.android.features.calendar.common.GoogleCalendarSyncHelper
 import com.jtool.android.core.localization.Loc
 import com.google.firebase.auth.FirebaseAuth
@@ -38,65 +39,79 @@ class WorkdayTrackerViewModel(
 
     fun pullTodayGoogleEvents() {
         viewModelScope.launch {
-            val calendarId = settingsManager.getGoogleCalendarId()
-            val sharedCalendarId = settingsManager.getGoogleCalendarSharedId()
-            val displayedIds = settingsManager.getDisplayedCalendarIds()
-            if (displayedIds.isNotEmpty()) {
-                val today = LocalDate.now()
-                val startMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                val endMs = today.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                val userEmail = settingsManager.getGoogleCalendarEmail()
-                
-                val mainEvents = GoogleCalendarSyncHelper.pullFromMultipleGoogleCalendars(dataManager.context, displayedIds, startMs, endMs, userEmail)
-                val allEvents = if (sharedCalendarId.isNotEmpty() && sharedCalendarId != calendarId) {
-                    val sharedEvents = GoogleCalendarSyncHelper.pullFromGoogleCalendar(dataManager.context, sharedCalendarId, startMs, endMs, userEmail) ?: emptyList()
-                    (mainEvents + sharedEvents).distinctBy { it.iCalUID ?: it.id }
-                } else {
-                    mainEvents
-                }
+            pullTodayGoogleEventsInternal()
+        }
+    }
 
-                val userId = settingsManager.getUserId()
-                val groupIds = settingsManager.getGroups().keys.toList()
-                val extensions = dataManager.getAllCalendarExtensions(userId, groupIds)
+    private suspend fun pullTodayGoogleEventsInternal(): List<CalendarEvent> {
+        val calendarId = settingsManager.getGoogleCalendarId()
+        val displayedIds = settingsManager.getDisplayedCalendarIds()
+        val effectiveIds = if (displayedIds.isNotEmpty()) {
+            if (calendarId.isNotEmpty()) displayedIds + calendarId else displayedIds
+        } else if (calendarId.isNotEmpty()) {
+            setOf(calendarId)
+        } else {
+            emptySet()
+        }
 
-                val processedEvents = allEvents.map { event ->
-                    val ext = extensions[event.id] ?: extensions[event.iCalUID] ?: extensions.values.find { it.googleEventId == event.id || it.googleEventId == event.iCalUID }
-                    val colorKey = event.colorKey?.takeIf { !it.isNullOrEmpty() } ?: ext?.colorKey ?: "7"
-                    val title = if (!event.title.isNullOrEmpty() && event.title != Loc.Calendar.event) event.title else (ext?.title?.takeIf { !it.isNullOrEmpty() } ?: event.title.ifEmpty { Loc.Calendar.event })
-                    event.copy(
-                        colorKey = colorKey,
-                        title = title
+        if (effectiveIds.isEmpty()) {
+            _googleEvents.value = emptyList()
+            return emptyList()
+        }
+
+        val today = LocalDate.now()
+        val startMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val endMs = today.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val userEmail = settingsManager.getGoogleCalendarEmail()
+
+        val allEvents = GoogleCalendarSyncHelper.pullFromMultipleGoogleCalendars(
+            dataManager.context,
+            effectiveIds,
+            startMs,
+            endMs,
+            userEmail
+        ).distinctBy { it.iCalUID ?: it.id }
+
+        val userId = settingsManager.getUserId()
+        val groupIds = settingsManager.getGroups().keys.toList()
+        val extensions = dataManager.getAllCalendarExtensions(userId, groupIds)
+
+        val processedEvents = allEvents.map { event ->
+            val ext = extensions[event.id] ?: extensions[event.iCalUID] ?: extensions.values.find { it.googleEventId == event.id || it.googleEventId == event.iCalUID }
+            val colorKey = event.colorKey?.takeIf { !it.isNullOrEmpty() } ?: ext?.colorKey ?: "7"
+            val title = if (!event.title.isNullOrEmpty() && event.title != Loc.Calendar.event) event.title else (ext?.title?.takeIf { !it.isNullOrEmpty() } ?: event.title.ifEmpty { Loc.Calendar.event })
+            event.copy(
+                colorKey = colorKey,
+                title = title
+            )
+        }
+
+        val existingIds = processedEvents.mapNotNull { it.iCalUID }.toSet() + processedEvents.map { it.id }.toSet()
+        val extraEvents = mutableListOf<CalendarEvent>()
+        extensions.forEach { (extId, ext) ->
+            if (!existingIds.contains(extId) && !existingIds.contains(ext.googleEventId) && ext.dateTimestamp != 0L) {
+                val eventDate = Instant.ofEpochMilli(ext.dateTimestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+                if (eventDate == today) {
+                    val authEmail = FirebaseAuth.getInstance().currentUser?.email?.lowercase()?.trim() ?: ""
+                    val extStatus = ext.attendeeStatuses[userEmail] ?: ext.attendeeStatuses[authEmail] ?: CalendarContract.Attendees.ATTENDEE_STATUS_INVITED
+                    extraEvents.add(
+                        CalendarEvent(
+                            id = "ext_$extId",
+                            title = ext.title?.takeIf { it.isNotEmpty() } ?: "Shared Event",
+                            dtStart = ext.dateTimestamp,
+                            dtEnd = ext.dateTimestamp + 3600_000L,
+                            currentUserStatus = extStatus,
+                            iCalUID = ext.googleEventId,
+                            colorKey = ext.colorKey ?: "7"
+                        )
                     )
                 }
-
-                val existingIds = processedEvents.mapNotNull { it.iCalUID }.toSet() + processedEvents.map { it.id }.toSet()
-                val extraEvents = mutableListOf<CalendarEvent>()
-                extensions.forEach { (extId, ext) ->
-                    if (!existingIds.contains(extId) && !existingIds.contains(ext.googleEventId) && ext.dateTimestamp != 0L) {
-                        val eventDate = Instant.ofEpochMilli(ext.dateTimestamp).atZone(ZoneId.systemDefault()).toLocalDate()
-                        if (eventDate == today) {
-                            val authEmail = FirebaseAuth.getInstance().currentUser?.email?.lowercase()?.trim() ?: ""
-                            val extStatus = ext.attendeeStatuses[userEmail] ?: ext.attendeeStatuses[authEmail] ?: CalendarContract.Attendees.ATTENDEE_STATUS_INVITED
-                            extraEvents.add(
-                                CalendarEvent(
-                                    id = "ext_$extId",
-                                    title = ext.title?.takeIf { it.isNotEmpty() } ?: "Shared Event",
-                                    dtStart = ext.dateTimestamp,
-                                    dtEnd = ext.dateTimestamp + 3600_000L,
-                                    currentUserStatus = extStatus,
-                                    iCalUID = ext.googleEventId,
-                                    colorKey = ext.colorKey ?: "7"
-                                )
-                            )
-                        }
-                    }
-                }
-
-                _googleEvents.value = (processedEvents + extraEvents).sortedBy { it.dtStart ?: 0L }
-            } else {
-                _googleEvents.value = emptyList()
             }
         }
+
+        val sorted = (processedEvents + extraEvents).sortedBy { it.dtStart ?: 0L }
+        _googleEvents.value = sorted
+        return sorted
     }
 
     private fun observeTodayEvents() {
@@ -247,9 +262,11 @@ class WorkdayTrackerViewModel(
                 _uiState.update { it.copy(selectedEventId = event.eventId, isSessionActive = event.eventId != null) }
             }
             is WorkdayTrackerEvent.StartSession -> {
-                _uiState.update { it.copy(isSessionActive = true) }
                 if (_uiState.value.mode == WorkModeEnum.QUICK_START) {
                     processQuickStart()
+                } else {
+                    _uiState.update { it.copy(isSessionActive = true) }
+                    calculateRealTimeData()
                 }
             }
             is WorkdayTrackerEvent.Refresh -> {
@@ -308,11 +325,18 @@ class WorkdayTrackerViewModel(
     private fun processQuickStart() {
         viewModelScope.launch {
             val calendarId = settingsManager.getGoogleCalendarId()
-            if (calendarId.isEmpty()) return@launch
+                .ifEmpty { settingsManager.getDisplayedCalendarIds().firstOrNull() ?: "" }
+            if (calendarId.isEmpty()) {
+                _uiState.update { it.copy(showQuickStartConfigError = true, isLoading = false) }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isLoading = true) }
 
             val state = _uiState.value
-            val startMs = state.freehandStart?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: System.currentTimeMillis()
-            
+            val startMs = state.freehandStart?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+                ?: System.currentTimeMillis()
+
             val options = settingsManager.getWorktimeOptions()
             val today = LocalDate.now().dayOfWeek
             val dayLogHours = options.logSchedule[today.name]
@@ -332,66 +356,115 @@ class WorkdayTrackerViewModel(
             val durationMs = if (state.isUsingDuration) {
                 (state.freehandDurationHours * 3600L + state.freehandDurationMinutes * 60L) * 1000L
             } else {
-                val endMsVal = state.freehandEnd?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: (startMs + defaultDurationMs)
+                val endMsVal = state.freehandEnd?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+                    ?: (startMs + defaultDurationMs)
                 (endMsVal - startMs).coerceAtLeast(0L)
             }
 
             val finalDurationMs = if (durationMs <= 0L) defaultDurationMs else durationMs
             val plannedEndMs = startMs + finalDurationMs
 
-            _uiState.update { it.copy(
-                quickStartStartMs = startMs,
-                quickStartEndMs = plannedEndMs
-            ) }
-
             val workShiftColorKey = settingsManager.getWorkShiftColorKey()
+            val shiftTitle = settingsManager.getCustomWorkShiftTitle()
             val newEvent = CalendarEvent(
-                title = Loc.Calendar.shift,
+                title = shiftTitle,
                 dtStart = startMs,
                 dtEnd = plannedEndMs,
                 note = "Quick Start Shift",
-                colorKey = workShiftColorKey
+                colorKey = workShiftColorKey,
+                googleCalendarId = calendarId
             )
 
-            val createdId = GoogleCalendarSyncHelper.pushToGoogleCalendar(dataManager.context, newEvent, calendarId)
-            _uiState.update { it.copy(quickStartEventId = createdId) }
-            pullTodayGoogleEvents()
+            val createdId = CalendarEventHelper.pushAndShareShiftOrEvent(
+                context = dataManager.context,
+                settingsManager = settingsManager,
+                dataManager = dataManager,
+                event = newEvent,
+                calendarId = calendarId,
+                sharedGroupIds = emptyList()
+            )
+            val refreshed = pullTodayGoogleEventsInternal()
+            val matchedEvent = refreshed.find {
+                (createdId != null && (it.id == createdId || it.iCalUID == createdId)) ||
+                    (it.title == shiftTitle && Math.abs((it.dtStart ?: 0L) - startMs) <= 120_000L)
+            }
+
+            val targetEvent = matchedEvent ?: newEvent.copy(id = createdId ?: "local_$startMs")
+
+            _uiState.update { it.copy(
+                mode = WorkModeEnum.CALENDAR_EVENT,
+                selectedEventId = targetEvent.id,
+                isSessionActive = true,
+                quickStartEventId = targetEvent.id,
+                quickStartStartMs = startMs,
+                quickStartEndMs = plannedEndMs,
+                isLoading = false
+            ) }
+
+            if (matchedEvent == null) {
+                val updatedList = (refreshed + targetEvent).sortedBy { it.dtStart ?: 0L }
+                _googleEvents.value = updatedList
+            } else {
+                _uiState.update { it.copy(todayEvents = refreshed) }
+            }
+            calculateRealTimeData()
         }
     }
 
     private fun processFinish() {
         val state = _uiState.value
         if (!state.isSessionActive) return
-        
+
+        val targetEventId = state.selectedEventId ?: state.quickStartEventId
         _uiState.update { it.copy(isSessionActive = false, selectedEventId = null, quickStartEventId = null, quickStartStartMs = 0L, quickStartEndMs = 0L) }
 
         viewModelScope.launch {
             val nowMs = System.currentTimeMillis()
             val calendarId = settingsManager.getGoogleCalendarId()
-            
-            if (calendarId.isNotEmpty()) {
-                val targetEventId = if (state.mode == WorkModeEnum.QUICK_START) state.quickStartEventId else state.selectedEventId
+                .ifEmpty { settingsManager.getDisplayedCalendarIds().firstOrNull() ?: "" }
+
+            if (calendarId.isNotEmpty() && targetEventId != null) {
                 val existing = _googleEvents.value.find { it.id == targetEventId || it.iCalUID == targetEventId }
-                
+
                 if (existing != null) {
                     val updated = existing.copy(
                         dtEnd = nowMs,
                         note = "${existing.note}\nFinished: ${LocalTime.now()}".trim()
                     )
-                    GoogleCalendarSyncHelper.pushToGoogleCalendar(dataManager.context, updated, calendarId)
-                } else if (state.mode == WorkModeEnum.QUICK_START && targetEventId != null) {
+                    val updatedId = GoogleCalendarSyncHelper.pushToGoogleCalendar(
+                        dataManager.context,
+                        updated,
+                        calendarId,
+                        settingsManager.getGoogleCalendarEmail()
+                    )
+                    val ext = dataManager.getCalendarExtension(updated.iCalUID ?: updated.id)
+                        ?: updatedId?.let { dataManager.getCalendarExtension(it) }
+                    if (ext != null) {
+                        dataManager.saveCalendarExtension(ext.copy(endTimestamp = nowMs))
+                    }
+                } else if (state.quickStartStartMs > 0L) {
                     val updated = CalendarEvent(
                         id = targetEventId,
-                        title = Loc.Calendar.shift,
-                        dtStart = System.currentTimeMillis() - 8 * 3600000,
+                        title = settingsManager.getCustomWorkShiftTitle(),
+                        dtStart = state.quickStartStartMs,
                         dtEnd = nowMs,
                         note = "Quick Start Shift"
                     )
-                    GoogleCalendarSyncHelper.pushToGoogleCalendar(dataManager.context, updated, calendarId)
+                    val updatedId = GoogleCalendarSyncHelper.pushToGoogleCalendar(
+                        dataManager.context,
+                        updated,
+                        calendarId,
+                        settingsManager.getGoogleCalendarEmail()
+                    )
+                    val ext = dataManager.getCalendarExtension(targetEventId)
+                        ?: updatedId?.let { dataManager.getCalendarExtension(it) }
+                    if (ext != null) {
+                        dataManager.saveCalendarExtension(ext.copy(endTimestamp = nowMs))
+                    }
                 }
             }
 
-            pullTodayGoogleEvents()
+            pullTodayGoogleEventsInternal()
         }
     }
 }

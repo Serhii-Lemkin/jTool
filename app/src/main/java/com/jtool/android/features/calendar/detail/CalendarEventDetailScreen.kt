@@ -38,6 +38,7 @@ import com.jtool.android.features.calendar.components.delete_event_confirm_sheet
 import com.jtool.android.features.calendar.detail.components.event_action_sheet.EventActionSheet
 import com.jtool.android.features.calendar.detail.components.rsvp_status_sheet.RsvpStatusSheet
 import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getEventColor
+import com.jtool.android.features.calendar.detail.components.DetailRow
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -62,13 +63,19 @@ fun CalendarEventDetailScreen(
         viewModel.refresh()
     }
 
+    LaunchedEffect(uiState.isDeleted) {
+        if (uiState.isDeleted) {
+            onBack()
+        }
+    }
+
     if (showDeleteSheet) {
         DeleteEventConfirmSheet(
             isSynced = true,
             onDismiss = { showDeleteSheet = false },
             onConfirm = {
+                showDeleteSheet = false
                 viewModel.deleteEvent()
-                onBack()
             }
         )
     }
@@ -114,7 +121,7 @@ fun CalendarEventDetailScreen(
 
     BaseScreen(
         title = Loc.Calendar.event,
-        isLoading = uiState.isLoading || uiState.isResponding,
+        isLoading = uiState.isLoading || uiState.isResponding || uiState.isDeleting,
         onBack = onBack,
         onRefresh = { viewModel.refresh() },
         actions = {
@@ -478,8 +485,8 @@ fun CalendarEventDetailScreen(
                         onEvent = { e ->
                             when (e) {
                                 is CommentEvent.Add -> viewModel.addComment(e.content, e.parentId)
-                                is CommentEvent.Edit -> {} // Implement if needed
-                                is CommentEvent.Delete -> {} // Implement if needed
+                                is CommentEvent.Edit -> {}
+                                is CommentEvent.Delete -> {}
                             }
                         }
                     )
@@ -487,23 +494,6 @@ fun CalendarEventDetailScreen(
 
                 Spacer(Modifier.height(100.dp))
             }
-        }
-    }
-}
-
-@Composable
-private fun DetailRow(icon: ImageVector, label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Icon(
-            icon, 
-            null, 
-            tint = MaterialTheme.colorScheme.primary, 
-            modifier = Modifier.size(20.dp).padding(top = 2.dp)
-        )
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
         }
     }
 }

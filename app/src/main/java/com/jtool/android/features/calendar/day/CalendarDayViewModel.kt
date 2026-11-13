@@ -28,6 +28,8 @@ class CalendarDayViewModel(
 
     private val _googleEvents = MutableStateFlow<List<CalendarEvent>>(emptyList())
     private val _extensions = MutableStateFlow<Map<String, CalendarEventExtension>>(emptyMap())
+    private var fetchJob: kotlinx.coroutines.Job? = null
+    private var combineJob: kotlinx.coroutines.Job? = null
 
     fun getWorkdayStartHour(): Int {
         val options = settingsManager.getWorktimeOptions()
@@ -80,67 +82,69 @@ class CalendarDayViewModel(
         val startMs = date.minusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val endMs = date.plusDays(7).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-        viewModelScope.launch {
-            val calendarId = settingsManager.getGoogleCalendarId()
-            val sharedCalendarId = settingsManager.getGoogleCalendarSharedId()
-            val userEmail = settingsManager.getGoogleCalendarEmail()
+        fetchJob?.cancel()
+        fetchJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                val calendarId = settingsManager.getGoogleCalendarId()
+                val sharedCalendarId = settingsManager.getGoogleCalendarSharedId()
+                val userEmail = settingsManager.getGoogleCalendarEmail()
+                val displayedIds = settingsManager.getDisplayedCalendarIds()
+                val effectiveIds = GoogleCalendarSyncHelper.resolveEffectiveCalendarIds(
+                    dataManager.context, displayedIds, calendarId, sharedCalendarId, userEmail
+                )
 
-            val displayedIds = settingsManager.getDisplayedCalendarIds()
+                if (effectiveIds.isNotEmpty()) {
+                    val allEvents = GoogleCalendarSyncHelper.pullFromMultipleGoogleCalendars(
+                        dataManager.context, effectiveIds, startMs, endMs, userEmail
+                    ).distinctBy { "${it.iCalUID ?: it.id}_${it.dtStart}" }
 
-            if (displayedIds.isNotEmpty()) {
-                val mainEvents = GoogleCalendarSyncHelper.pullFromMultipleGoogleCalendars(dataManager.context, displayedIds, startMs, endMs, userEmail)
-                
-                val allEvents = if (sharedCalendarId.isNotEmpty() && sharedCalendarId != calendarId) {
-                    val sharedEvents = GoogleCalendarSyncHelper.pullFromGoogleCalendar(dataManager.context, sharedCalendarId, startMs, endMs, userEmail) ?: emptyList()
-                    (mainEvents + sharedEvents).distinctBy { it.iCalUID ?: it.id }
-                } else {
-                    mainEvents
-                }
-                
-                _googleEvents.value = allEvents
-                
-                val userId = settingsManager.getUserId()
-                val groupIds = settingsManager.getGroups().keys.toList()
-                val exts = dataManager.getAllCalendarExtensions(userId, groupIds)
-                val mappedExtensions = mutableMapOf<String, CalendarEventExtension>()
-                allEvents.forEach { event ->
-                    val ext = exts[event.id] 
-                        ?: exts[event.iCalUID] 
-                        ?: exts.values.find { ext ->
-                            ext.googleEventId == event.id ||
-                            ext.googleEventId == event.iCalUID ||
-                            (event.iCalUID != null && ext.googleEventId == "ext_${event.iCalUID}") ||
-                            (ext.title?.trim().equals(event.title.trim(), ignoreCase = true) &&
-                             ext.dateTimestamp != 0L && event.dtStart != null &&
-                             Math.abs(ext.dateTimestamp - event.dtStart) < 300_000L)
-                        }
-                    if (ext != null) {
-                        mappedExtensions[event.id] = ext
-                        if (event.iCalUID != null) mappedExtensions[event.iCalUID] = ext
-                        mappedExtensions[ext.googleEventId] = ext
-                        
-                        val canonicalId = event.iCalUID ?: event.id
-                        if (canonicalId.isNotEmpty() && ext.googleEventId != canonicalId) {
-                            val healedExt = ext.copy(googleEventId = canonicalId)
-                            viewModelScope.launch {
-                                dataManager.saveCalendarExtension(healedExt)
+                    val userId = settingsManager.getUserId()
+                    val groupIds = settingsManager.getGroups().keys.toList()
+                    val exts = dataManager.getAllCalendarExtensions(userId, groupIds)
+                    val mappedExtensions = mutableMapOf<String, CalendarEventExtension>()
+                    exts.forEach { (k, v) ->
+                        mappedExtensions[k] = v
+                        if (v.googleEventId.isNotEmpty()) mappedExtensions[v.googleEventId] = v
+                    }
+                    allEvents.forEach { event ->
+                        val ext = CalendarEventHelper.findExtensionForEvent(event, exts)
+                        if (ext != null) {
+                            mappedExtensions[event.id] = ext
+                            if (!event.iCalUID.isNullOrEmpty()) mappedExtensions[event.iCalUID] = ext
+                            if (ext.googleEventId.isNotEmpty()) mappedExtensions[ext.googleEventId] = ext
+
+                            val canonicalId = event.iCalUID ?: event.id
+                            if (canonicalId.isNotEmpty() && ext.googleEventId != canonicalId) {
+                                val oldGoogleId = ext.googleEventId
+                                val healedLocalId = ext.localEventId.ifEmpty {
+                                    if (oldGoogleId.all { it.isDigit() }) oldGoogleId else event.id
+                                }
+                                val healedExt = ext.copy(googleEventId = canonicalId, localEventId = healedLocalId)
+                                viewModelScope.launch {
+                                    if (oldGoogleId.isNotEmpty()) {
+                                        dataManager.deleteCalendarExtension(oldGoogleId)
+                                    }
+                                    dataManager.saveCalendarExtension(healedExt)
+                                    GoogleCalendarSyncHelper.updateEventDescriptionLink(dataManager.context, event.id, canonicalId)
+                                }
                             }
                         }
                     }
+                    _extensions.value = mappedExtensions
+                    _googleEvents.value = allEvents
+                } else {
+                    _extensions.value = emptyMap()
+                    _googleEvents.value = emptyList()
                 }
-                exts.forEach { (k, v) ->
-                    mappedExtensions[k] = v
-                    mappedExtensions[v.googleEventId] = v
-                }
-                _extensions.value = mappedExtensions
-            } else {
-                _googleEvents.value = emptyList()
-                _extensions.value = emptyMap()
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
 
-        combine(
-            _googleEvents, 
+        combineJob?.cancel()
+        combineJob = combine(
+            _googleEvents,
             _extensions,
             dataManager.optimisticDeletedIds,
             _uiState.map { it.showDeclinedEvents }.distinctUntilChanged()
@@ -149,13 +153,13 @@ class CalendarDayViewModel(
             val userEmail = settingsManager.getGoogleCalendarEmail().ifEmpty { authEmail }.lowercase().trim()
 
             val processedGoogleEvents = googleEvents.map { event ->
-                val ext = extensions[event.id] ?: extensions[event.iCalUID] ?: extensions.values.find { it.googleEventId == event.id || it.googleEventId == event.iCalUID }
+                val ext = CalendarEventHelper.findExtensionForEvent(event, extensions)
                 val extStatus = ext?.attendeeStatuses?.get(userEmail) ?: ext?.attendeeStatuses?.get(authEmail)
                 val effectiveStatus = extStatus ?: event.currentUserStatus ?: event.attendeeStatuses[userEmail] ?: event.attendeeStatuses[authEmail]
-                
-                val colorKey = event.colorKey?.takeIf { !it.isNullOrEmpty() } ?: ext?.colorKey ?: "7"
-                val title = if (!event.title.isNullOrEmpty() && event.title != Loc.Calendar.event) event.title else (ext?.title?.takeIf { !it.isNullOrEmpty() } ?: event.title.ifEmpty { Loc.Calendar.event })
-                
+
+                val colorKey = event.colorKey?.takeIf { it.isNotEmpty() } ?: ext?.colorKey ?: "7"
+                val title = if (event.title.isNotEmpty() && event.title != Loc.Calendar.event) event.title else (ext?.title?.takeIf { it.isNotEmpty() } ?: event.title.ifEmpty { Loc.Calendar.event })
+
                 if (ext != null && (ext.title.isNullOrEmpty() || ext.colorKey.isNullOrEmpty())) {
                     val updatedExt = ext.copy(
                         title = title,
@@ -165,7 +169,7 @@ class CalendarDayViewModel(
                         dataManager.saveCalendarExtension(updatedExt)
                     }
                 }
-                
+
                 event.copy(
                     currentUserStatus = effectiveStatus,
                     colorKey = colorKey,
@@ -189,8 +193,12 @@ class CalendarDayViewModel(
                 }
             }
             val extraEvents = mutableListOf<CalendarEvent>()
+            val seenExtIds = mutableSetOf<String>()
 
             extensions.forEach { (extId, ext) ->
+                val canonicalExtId = ext.googleEventId.ifEmpty { extId.removePrefix("ext_") }
+                if (!seenExtIds.add(canonicalExtId)) return@forEach
+
                 val cleanExtId = extId.removePrefix("ext_")
                 val cleanGoogleId = ext.googleEventId.removePrefix("ext_")
                 val isAlreadyInGoogle = existingIds.contains(extId) ||
@@ -205,25 +213,25 @@ class CalendarDayViewModel(
 
                 if (!isAlreadyInGoogle && ext.dateTimestamp != 0L) {
                     val extStatus = ext.attendeeStatuses[userEmail] ?: ext.attendeeStatuses[authEmail] ?: CalendarContract.Attendees.ATTENDEE_STATUS_INVITED
-                    if (!showDeclined && extStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) {
-                        // Skip
-                    } else if (ext.title.isNullOrEmpty() && ext.sharedGroupIds.isEmpty()) {
-                        viewModelScope.launch {
-                            dataManager.deleteCalendarExtension(extId)
-                            dataManager.deleteCalendarExtension(ext.googleEventId)
-                        }
-                    } else {
-                        extraEvents.add(
-                            CalendarEvent(
-                                id = "ext_$extId",
-                                title = ext.title?.takeIf { it.isNotEmpty() } ?: "Shared Event",
-                                dtStart = ext.dateTimestamp,
-                                dtEnd = ext.dateTimestamp + 3600_000L,
-                                currentUserStatus = extStatus,
-                                iCalUID = ext.googleEventId,
-                                colorKey = ext.colorKey ?: "7"
+                    if (showDeclined || extStatus != CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) {
+                        if (ext.title.isNullOrEmpty() && ext.sharedGroupIds.isEmpty()) {
+                            viewModelScope.launch {
+                                dataManager.deleteCalendarExtension(extId)
+                                dataManager.deleteCalendarExtension(ext.googleEventId)
+                            }
+                        } else {
+                            extraEvents.add(
+                                CalendarEvent(
+                                    id = "ext_$canonicalExtId",
+                                    title = ext.title?.takeIf { it.isNotEmpty() } ?: "Shared Event",
+                                    dtStart = ext.dateTimestamp,
+                                    dtEnd = if (ext.endTimestamp > ext.dateTimestamp) ext.endTimestamp else ext.dateTimestamp + 3600_000L,
+                                    currentUserStatus = extStatus,
+                                    iCalUID = ext.googleEventId,
+                                    colorKey = ext.colorKey ?: "7"
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -281,15 +289,22 @@ class CalendarDayViewModel(
     }
 
     fun toggleAddEditDialog(show: Boolean, event: CalendarEvent? = null) {
-        if (event != null) {
-            settingsManager.setSelectedCalendarEventId(event.id)
+        if (show) {
+            if (event == null || event.id.isEmpty()) {
+                settingsManager.setSelectedCalendarEventId(null)
+            } else {
+                settingsManager.setSelectedCalendarEventId(event.id)
+            }
+            CalendarEventHelper.pendingPresetEvent = if (event != null && event.id.isEmpty()) event else null
         }
         _uiState.update { it.copy(showAddEditDialog = show, editingEvent = event) }
     }
 
     fun addEvent(context: Context, event: CalendarEvent, selectedGroupIds: List<String>) {
         viewModelScope.launch {
-            val calendarId = settingsManager.getGoogleCalendarId()
+            val calendarId = settingsManager.getGoogleCalendarId().ifEmpty {
+                settingsManager.getDisplayedCalendarIds().firstOrNull() ?: ""
+            }
             if (calendarId.isEmpty()) return@launch
 
             val attendees = mutableSetOf<String>()
@@ -309,6 +324,8 @@ class CalendarDayViewModel(
                     googleEventId = googleEventId,
                     sharedGroupIds = selectedGroupIds,
                     dateTimestamp = event.dtStart ?: 0L,
+                    endTimestamp = event.dtEnd ?: 0L,
+                    localEventId = if (googleEventId.all { it.isDigit() }) googleEventId else "",
                     ownerUid = settingsManager.getUserId(),
                     attendeeStatuses = statuses,
                     colorKey = event.colorKey,

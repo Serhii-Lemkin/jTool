@@ -112,7 +112,7 @@ fun AppUpdatesScreen(
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(Loc.Settings.releaseNotes, style = MaterialTheme.typography.titleSmall)
             Text(
-                Loc.Settings.releaseNotesDesc,
+                Loc.Settings.releaseNotesDesc.format(uiState.currentVersionName, uiState.currentVersionCode.toString()),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 8.dp)

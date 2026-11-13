@@ -11,5 +11,15 @@ v2.8.4
 - Enhanced Date Pickers & Settings: Added improved date formatting options and preference pickers across General Settings and Calendar views.
 
 [Bug Fixes]
+- Shopping List Scroll Position: Preserved scroll position when toggling items cleanly without jumping back to the top.
+- Dynamic Release Notes & Historical Changelogs: Synced Release Notes version and build dynamically with the installed app build, and enhanced historical changelogs with version selection, cross-version search, and an "All Versions" filter.
+- Notes Spacing, Preview & Title Fixes: Added top spacing in checklist mode, replaced the 3-dots menu with a bottom action sheet, added configurable preview line count, and displayed editable note titles with keyboard-aware scrolling.
+- Vault Non-Owner Actions & File Open Safety: Enabled non-owners to view, cache offline, copy/share Drive links, and edit database metadata while protecting Drive files, and prevented crashes by showing clear error sheets if no viewer/share app exists.
+- Website Alpha Request Email: Updated the alpha tester request email template with natural phrasing to avoid spam filters.
+- Unified Pull-to-Refresh & Gesture Picker: Standardized loading indicators across Calendar, Links, and Vaults to a single top loader and replaced the gesture dropdown with a smooth bottom sheet picker.
+- Calendar Group Extension Sync & Badges: Retained Calendar extension group details across refreshes and displayed "Belongs to" group badges in both Grid and Day views.
+- Checklist View-Mode Auto-Save: Persisted checklist item toggles immediately to Firebase and local storage when viewing a checklist note.
+- Vault File Open Error Sheet (#164): Prevented crashes when opening Vault files/links by explaining the exact reason (missing local cache, missing Drive link, invalid URL, or no viewer app) in a clear bottom sheet.
+- Shift Events Calendar Parity & Deep Links: Shared shift events across group members with Firestore extensions and ensured shift event links resolve properly across devices.
 - Crash Prevention & Stability: Resolved edge cases during background transfers and updated crash interceptors for improved app stability.
 - UI Layout & Padding Fixes: Fixed UI spacing, margins, and gesture scrolling across launcher, vaults, and settings screens.

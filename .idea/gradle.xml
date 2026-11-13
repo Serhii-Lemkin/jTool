@@ -8,18 +8,8 @@
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="modules">
           <set>
-            <option value="/var/home/serhii/AndroidStudioProjects/jTool" />
-            <option value="/var/home/serhii/AndroidStudioProjects/jTool/app" />
-          </set>
-        </option>
-      </GradleProjectSettings>
-      <GradleProjectSettings>
-        <option name="testRunner" value="CHOOSE_PER_TEST" />
-        <option name="externalProjectPath" value="/var/home/serhii/AndroidStudioProjects/jTool" />
-        <option name="modules">
-          <set>
-            <option value="/var/home/serhii/AndroidStudioProjects/jTool" />
-            <option value="/var/home/serhii/AndroidStudioProjects/jTool/app" />
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/app" />
           </set>
         </option>
       </GradleProjectSettings>

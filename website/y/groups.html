@@ -37,7 +37,7 @@
                                 <span class="material-icons text-info">lock</span> 1. Shared & Private Group Management
                             </h2>
                             <p class="text-secondary small mb-0">
-                                Create or join collaborative groups effortlessly using dedicated Group IDs and invite codes. Every user also gets an automatic, 100% isolated <strong>Private Group</strong> for personal notes, documents, and private schedules.
+                                Create or join collaborative groups effortlessly using dedicated Group IDs (with member approval) or direct email invitations. Every user also gets an automatic, 100% isolated <strong>Private Group</strong> for personal notes, documents, and private schedules.
                             </p>
                         </div>
                     </div>
@@ -135,7 +135,7 @@
                             <button class="btn btn-primary w-100 py-2 fw-semibold" style="border-radius: 8px;">Save</button>
                         </div>
                     </div>
-                    <p class="text-secondary small mt-2 mb-0 text-center">Open the Create New Group sheet, enter your group name, and toggle Invite Only mode to require admin approval for new members before saving.</p>
+                    <p class="text-secondary small mt-2 mb-0 text-center">Open the Create New Group sheet, enter your group name, and optionally toggle Invite Only mode to disallow Group ID join requests (requiring direct email invitations) before saving.</p>
                 </div>
 
                 <!-- Visualization 2: Copy Group ID -->
@@ -180,7 +180,7 @@
                         </div>
 
                     </div>
-                    <p class="text-secondary small mt-2 mb-0 text-center">Tap "Copy ID" in Group Settings or from the creation success dialog to copy your unique Group ID to your clipboard and share it with members.</p>
+                    <p class="text-secondary small mt-2 mb-0 text-center">When Invite Only is disabled, tap "Copy ID" in Group Settings or from the creation success dialog to copy your unique Group ID to your clipboard and share it with members.</p>
                 </div>
 
                 <!-- Visualization 3: Inviting Members by Email -->
@@ -353,11 +353,12 @@
                 <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">settings</span> Group Settings & Administration Options</h2>
                 <div class="p-4 rounded-3 mb-5" style="background: var(--surface); border: 1px solid var(--border);">
                     <ul class="feature-list mb-0">
-                        <li class="mb-3"><strong class="strong-text">Active Group Switcher:</strong> Tap the active group header in Launcher or Group Settings to switch active group context instantly across all JTools modules.</li>
-                        <li class="mb-3"><strong class="strong-text">Invite-Only Security Mode:</strong> Toggle "Invite Only" mode to disallow open join requests. When enabled, new members can only join via direct email invitations.</li>
-                        <li class="mb-3"><strong class="strong-text">Group ID Sharing:</strong> Copy your unique Group ID with one tap to share with family, partners, or team members.</li>
-                        <li class="mb-3"><strong class="strong-text">Group Member Management:</strong> View all active group members, owner designations, and email identifiers.</li>
-                        <li class="mb-0"><strong class="strong-text">Unlink & Leave Group:</strong> Remove a group from your active account list. If you are the last remaining member, group data is permanently purged on leave.</li>
+                        <li class="mb-3"><strong class="strong-text">Active Group Switcher:</strong> Tap the active group pill in Launcher or open Group Settings to switch active group context instantly across all JTools modules.</li>
+                        <li class="mb-3"><strong class="strong-text">Edit Group Name:</strong> Rename your active Shared or Private group at any time.</li>
+                        <li class="mb-3"><strong class="strong-text">Invite-Only Security Mode (Shared Groups):</strong> Toggle "Invite Only" mode to disallow open join requests. When enabled, new members can only join via direct email invitations and the Group ID / Copy ID option is hidden.</li>
+                        <li class="mb-3"><strong class="strong-text">Group ID Sharing (Shared Groups):</strong> When Invite Only is off, copy your unique Group ID with one tap to share with family, partners, or team members.</li>
+                        <li class="mb-3"><strong class="strong-text">Group Members (Shared Groups):</strong> View all active group member names and owner designations. (Group Management and Members sections are hidden for your Private Group.)</li>
+                        <li class="mb-0"><strong class="strong-text">Unlink & Leave Group (Shared Groups):</strong> Remove a group from your active account list. If you are the last remaining member, group data is permanently purged on leave.</li>
                     </ul>
                 </div>
 
@@ -366,7 +367,7 @@
                 <div class="p-4 rounded-3 mb-5" style="background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border);">
                     <ul class="mb-0 text-secondary" style="padding-left: 20px;">
                         <li class="mb-2"><strong class="strong-text">Private Group Isolation:</strong> Switch back to your automatically created "Private" group anytime to save confidential personal notes, private document vaults, or personal schedules.</li>
-                        <li class="mb-2"><strong class="strong-text">Quick Group Header Switch:</strong> You don't need to open Settings to change groups—simply tap the Active Group pill in the Launcher top app bar to switch context instantly.</li>
+                        <li class="mb-2"><strong class="strong-text">Quick Group Header Switch:</strong> You don't need to open Settings to change groups—simply tap the Active Group pill below the Launcher greeting to switch context instantly.</li>
                         <li data-i18n="groups_protip_3"><strong class="strong-text">Invite-Only Protection:</strong> Keep household groups set to Invite Only to ensure only verified family members can join.</li>
                     </ul>
                 </div>
@@ -376,7 +377,7 @@
                 <div class="d-flex flex-column gap-3 mb-5">
                     <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
                         <strong class="strong-text d-block mb-1">How do I switch between my Private group and Shared groups?</strong>
-                        <p class="text-secondary small mb-0">Tap the Active Group header in the Launcher top bar or navigate to Settings → Groups → Active Group to open the Group Selection sheet. Selecting any group reloads all your tools for that active group context.</p>
+                        <p class="text-secondary small mb-0">Tap the Active Group pill below the Launcher greeting or navigate to Settings → Groups → Active Group to open the Group Selection sheet. Selecting any group reloads all your tools for that active group context.</p>
                     </div>
                     <div class="p-3 rounded-3" style="background: var(--surface); border: 1px solid var(--border);">
                         <strong class="strong-text d-block mb-1">Can members of my shared group see my Private group notes or vaults?</strong>

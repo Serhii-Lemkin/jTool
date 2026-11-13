@@ -79,7 +79,34 @@ fun LauncherScreen(
     var originalHiddenApps by remember { mutableStateOf(hiddenAppsState) }
     var originalGestures by remember { mutableStateOf(gesturesState) }
 
-    val userName = remember(settingsManager) { settingsManager.getUserName() }
+    var userName by remember(settingsManager, currentUser) {
+        mutableStateOf(
+            settingsManager.getUserName().ifEmpty { currentUser?.displayName ?: "" }
+        )
+    }
+
+    DisposableEffect(settingsManager, currentUser) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                "user_name" -> {
+                    userName = settingsManager.getUserName().ifEmpty { currentUser?.displayName ?: "" }
+                }
+                "launcher_config", "grid_column_count", "app_order", "hidden_apps" -> {
+                    if (!isEditMode) {
+                        gridColumnCount = settingsManager.getGridColumnCount()
+                        appOrderState = settingsManager.getAppOrder()
+                        hiddenAppsState = settingsManager.getHiddenApps()
+                        gesturesState = settingsManager.getLauncherGestures()
+                    }
+                }
+            }
+        }
+        settingsManager.registerListener(listener)
+        onDispose {
+            settingsManager.unregisterListener(listener)
+        }
+    }
+
     val orderedApps = remember(appOrderState) { getOrderedApps(appOrderState) }
 
     var isSearchVisible by remember { mutableStateOf(false) }
@@ -205,7 +232,11 @@ fun LauncherScreen(
     val groupName = remember(currentGroupId, groups) {
         currentGroupId?.let { id ->
             val group = groups[id]
-            if (group?.isPrivate == true) Loc.Settings.privateGroup else group?.name ?: id
+            when {
+                group?.isPrivate == true -> Loc.Settings.privateGroup
+                !group?.name.isNullOrBlank() -> group?.name
+                else -> Loc.General.refreshing
+            }
         }
     }
 

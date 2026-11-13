@@ -34,7 +34,7 @@ fun LauncherGreetingHeader(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (currentUser != null) {
             Text(
-                text = "${Loc.Launcher.hello}, $userName!",
+                text = if (userName.isNotBlank()) "${Loc.Launcher.hello}, $userName!" else "${Loc.Launcher.hello}!",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary,

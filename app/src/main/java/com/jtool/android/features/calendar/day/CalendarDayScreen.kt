@@ -62,7 +62,7 @@ fun CalendarDayScreen(
     val currentWorkShiftColorKey = remember { settingsManager.getWorkShiftColorKey() }
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
-    val hourHeight = 90 // dp
+    val hourHeight = 90
 
     var currentTime by remember { mutableStateOf(LocalTime.now()) }
 
@@ -210,10 +210,7 @@ private fun TimelineView(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 allDayEvents.forEach { event ->
-                    val extension = uiState.extensions[event.id]
-                        ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
-                        ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
-                        ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
+                    val extension = CalendarEventHelper.findExtensionForEvent(event, uiState.extensions)
                     TimelineEventCard(
                         event = event,
                         groups = groups,
@@ -248,10 +245,7 @@ private fun TimelineView(
                     val eventTop = CalendarEventHelper.getEventTop(event.startTime, hourHeight)
                     val eventHeight = CalendarEventHelper.getEventHeight(event.startTime, event.endTime, hourHeight)
 
-                    val extension = uiState.extensions[event.id]
-                        ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
-                        ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
-                        ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
+                    val extension = CalendarEventHelper.findExtensionForEvent(event, uiState.extensions)
 
                     Box(
                         modifier = Modifier
@@ -271,7 +265,6 @@ private fun TimelineView(
                 }
             }
 
-            // Current time indicator
             if (uiState.selectedDate == LocalDate.now()) {
                 val nowTop = CalendarEventHelper.getEventTop(currentTime.toString(), hourHeight)
                 Box(
@@ -315,10 +308,7 @@ private fun ListView(
         } else {
             items(uiState.privateEvents.sortedBy { if (it.allDay) 0 else 1 }.sortedBy { it.startTime }, key = { it.id }) { event ->
                 val isDeclined = event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
-                val extension = uiState.extensions[event.id]
-                    ?: (if (event.id.startsWith("ext_")) uiState.extensions[event.id.removePrefix("ext_")] else null)
-                    ?: (if (event.iCalUID != null) uiState.extensions[event.iCalUID] else null)
-                    ?: uiState.extensions.values.find { it.googleEventId == event.id || (event.iCalUID != null && it.googleEventId == event.iCalUID) }
+                val extension = CalendarEventHelper.findExtensionForEvent(event, uiState.extensions)
                 val themeColor = getEventColor(event.colorKey)
                 val isWork = (event.colorKey != null && event.colorKey == workShiftColorKey) ||
                         (event.colorKey == null && workShiftColorKey == "1")

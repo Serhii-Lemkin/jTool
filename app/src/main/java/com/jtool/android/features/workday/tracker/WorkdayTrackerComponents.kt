@@ -1,6 +1,7 @@
 package com.jtool.android.features.workday.tracker
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -11,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtool.android.core.localization.Loc
@@ -24,6 +26,7 @@ import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
 import com.jtool.android.features.calendar.common.CalendarEventHelper
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun QuickStartContent(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel) {
@@ -346,9 +349,85 @@ fun PreferenceOption(
     ActionListItem(
         headline = title,
         supportingText = description,
-        supportingMaxLines = Int.MAX_VALUE, // Do not truncate description
+        supportingMaxLines = Int.MAX_VALUE,
         leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
         trailingContent = trailingContent,
         onClick = onClick
     )
+}
+
+@Composable
+fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel, size: Dp = 200.dp) {
+    val currentTimer = uiState.eventTimer
+
+    val color = if (currentTimer.isFinished) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val label = if (currentTimer.isFinished) Loc.Workday.eventEnded else (currentTimer.label ?: Loc.Workday.timeLeft)
+    val time = if (currentTimer.isFinished) currentTimer.overtimeMillis else currentTimer.timeLeftMillis
+
+    val showTimer = uiState.isSessionActive
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
+            CircularProgressIndicator(
+                progress = { if (currentTimer.isFinished) 1f else currentTimer.progress },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = (size / 16),
+                color = if (showTimer) color else color.copy(alpha = 0.2f),
+                trackColor = color.copy(alpha = 0.1f)
+            )
+
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                if (!showTimer) {
+                    if (uiState.mode == WorkModeEnum.CALENDAR_EVENT && uiState.selectedEventId != null) {
+                        Surface(
+                            onClick = { viewModel.onEvent(WorkdayTrackerEvent.StartSession) },
+                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier.size(size * 0.6f),
+                            color = Color.Transparent
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(size * 0.24f), tint = color)
+                                Text(Loc.Workday.start, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.08f).sp, color = color)
+                            }
+                        }
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = label, style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            text = formatMillis(time),
+                            style = if (size > 200.dp) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+
+                        if (!currentTimer.isNotStarted) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel.onEvent(WorkdayTrackerEvent.FinishSession) },
+                                shape = RoundedCornerShape(24.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = color)
+                            ) {
+                                Icon(Icons.Default.Done, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(Loc.Workday.finish, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun formatMillis(millis: Long): String {
+    val h = millis / 3600000
+    val m = (millis % 3600000) / 60000
+    val s = (millis % 60000) / 1000
+    return String.format(Locale.ENGLISH, "%02d:%02d:%02d", h, m, s)
 }

@@ -32,6 +32,7 @@ import com.jtool.android.core.models.group.GroupInfo
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.utils.rememberCustomDatePickerState
 import com.jtool.android.features.calendar.components.group_picker_sheet.GroupPickerSheet
+import com.jtool.android.features.calendar.edit.components.CalendarAddEditFormContent
 import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.EventColorPickerSheet
 import com.jtool.android.features.calendar.edit.components.event_color_picker_sheet.getGoogleCalendarColorPalette
 import com.jtool.android.features.calendar.edit.components.required_fields_sheet.RequiredFieldsSheet
@@ -84,7 +85,17 @@ fun CalendarAddEditScreen(
     var attachmentUrlInput by remember(stateKey) { mutableStateOf(event?.attachmentUrl ?: "") }
     var reminderMinutesInput by remember(stateKey) { mutableStateOf(event?.reminderMinutes ?: 15) }
     
-    val selectedGroupIds = remember(stateKey) { mutableStateListOf<String>().apply { addAll(extension?.sharedGroupIds ?: emptyList()) } }
+    val selectedGroupIds = remember(stateKey) {
+        val initialGroups = when {
+            extension != null -> extension.sharedGroupIds
+            event == null || event.id.isEmpty() -> {
+                val activeGid = settingsManager.getCurrentGroupId()
+                if (activeGid != null && groups[activeGid]?.isPrivate == false) listOf(activeGid) else emptyList()
+            }
+            else -> emptyList()
+        }
+        mutableStateListOf<String>().apply { addAll(initialGroups) }
+    }
 
     var showGroupPicker by remember { mutableStateOf(false) }
     var showStartDatePicker by remember { mutableStateOf(false) }
@@ -264,7 +275,7 @@ fun CalendarAddEditScreen(
     }
 
     BaseScreen(
-        title = if (event == null) Loc.Calendar.addEvent else Loc.Calendar.editEvent,
+        title = if (event == null || event.id.isEmpty()) Loc.Calendar.addEvent else Loc.Calendar.editEvent,
         onBack = onBack,
         actions = {
             IconButton(
@@ -322,7 +333,8 @@ fun CalendarAddEditScreen(
                     val finalExt = CalendarEventExtension(
                         googleEventId = event?.id ?: "",
                         sharedGroupIds = selectedGroupIds.toList(),
-                        dateTimestamp = dtStart
+                        dateTimestamp = dtStart,
+                        endTimestamp = dtEnd ?: (dtStart + 3600_000L)
                     )
 
                     onConfirm(finalEvent, finalExt)
@@ -332,406 +344,44 @@ fun CalendarAddEditScreen(
             }
         }
     ) { _ ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = themeColor.copy(alpha = 0.1f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(Loc.Calendar.eventTitle)
-                                Text(" *", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
-                        trailingIcon = {
-                            if (title.isNotBlank()) {
-                                IconButton(onClick = { title = "" }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = themeColor,
-                            focusedLabelColor = themeColor
-                        )
-                    )
+        CalendarAddEditFormContent(
+            themeColor = themeColor,
+            title = title,
+            onTitleChange = { title = it },
+            colorKey = colorKey,
+            onShowColorPicker = { showColorPicker = true },
+            startDate = startDate,
+            onShowStartDatePicker = { showStartDatePicker = true },
+            endDate = endDate,
+            onShowEndDatePicker = { showEndDatePicker = true },
+            startTime = startTime,
+            onPickStartTime = { pickingStartTime = true },
+            endTime = endTime,
+            onPickEndTime = { pickingStartTime = false },
+            allDay = allDay,
+            onAllDayChange = { allDay = it },
+            isRecurring = isRecurring,
+            onIsRecurringChange = { checked ->
+                isRecurring = checked
+                if (checked && rrule.isEmpty()) {
+                    rrule = "FREQ=DAILY"
                 }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                val colorPalette = getGoogleCalendarColorPalette()
-                val currentColorOption = colorPalette.find { it.key == colorKey } ?: colorPalette.first()
-                ActionListItem(
-                    headline = Loc.Calendar.eventColor,
-                    supportingText = currentColorOption.name,
-                    leadingContent = {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(currentColorOption.hexColor)
-                        )
-                    },
-                    onClick = { showColorPicker = true }
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                text = Loc.Calendar.time,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Start).padding(start = 8.dp, bottom = 12.dp)
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CompactPickerButton(
-                            label = Loc.s("calendar_startDate", "Start Date"),
-                            value = startDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
-                            icon = Icons.Default.CalendarToday,
-                            onClick = { showStartDatePicker = true },
-                            modifier = Modifier.weight(1.1f)
-                        )
-                        if (!allDay) {
-                            CompactPickerButton(
-                                label = Loc.Workday.start,
-                                value = startTime,
-                                icon = Icons.Default.AccessTime,
-                                onClick = { pickingStartTime = true },
-                                modifier = Modifier.weight(0.9f)
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.alpha(0.1f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CompactPickerButton(
-                            label = Loc.s("calendar_endDate", "End Date"),
-                            value = endDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
-                            icon = Icons.Default.Event,
-                            onClick = { showEndDatePicker = true },
-                            modifier = Modifier.weight(1.1f)
-                        )
-                        if (!allDay) {
-                            CompactPickerButton(
-                                label = Loc.Workday.finish,
-                                value = if (endTime.isEmpty()) Loc.General.none else endTime,
-                                icon = Icons.Default.AccessTime,
-                                onClick = { pickingStartTime = false },
-                                modifier = Modifier.weight(0.9f)
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.alpha(0.1f))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Loc.Calendar.allDay, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                        Switch(
-                            checked = allDay,
-                            onCheckedChange = { allDay = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = themeColor, checkedTrackColor = themeColor.copy(alpha = 0.5f))
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = com.jtool.android.core.localization.domains.CalendarLoc.repeatEvent,
-                            modifier = Modifier.weight(1f),
-                            fontWeight = FontWeight.Bold
-                        )
-                        Switch(
-                            checked = isRecurring,
-                            onCheckedChange = { checked ->
-                                isRecurring = checked
-                                if (checked && rrule.isEmpty()) {
-                                    rrule = "FREQ=DAILY"
-                                }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = themeColor,
-                                checkedTrackColor = themeColor.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-
-                    if (isRecurring) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp).alpha(0.1f))
-
-                        val frequencyLabel = when {
-                            rrule.contains("FREQ=DAILY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryDay
-                            rrule.contains("FREQ=WEEKLY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryWeek
-                            rrule.contains("FREQ=MONTHLY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryMonth
-                            rrule.contains("FREQ=YEARLY") -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryYear
-                            else -> com.jtool.android.core.localization.domains.CalendarLoc.repeatEveryDay
-                        }
-
-                        ActionListItem(
-                            headline = com.jtool.android.core.localization.domains.CalendarLoc.repeatFrequency,
-                            supportingText = frequencyLabel,
-                            leadingContent = { Icon(Icons.Default.Repeat, null, tint = themeColor) },
-                            trailingContent = { Icon(Icons.Default.ArrowDropDown, null) },
-                            onClick = { showRepeatFrequencySheet = true }
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isAdditionalExpanded = !isAdditionalExpanded }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Tune, null, tint = themeColor)
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Loc.s("calendar_additionalOptions", "Additional Options"),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            imageVector = if (isAdditionalExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null
-                        )
-                    }
-
-                    if (isAdditionalExpanded) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp).alpha(0.1f))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = locationInput,
-                                    onValueChange = { locationInput = it },
-                                    label = { Text(Loc.s("calendar_eventLocation", "Location / Address")) },
-                                    leadingIcon = { Icon(Icons.Default.Place, null, tint = themeColor) },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
-                                    trailingIcon = {
-                                        if (locationInput.isNotBlank()) {
-                                            IconButton(onClick = { locationInput = "" }) {
-                                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                            }
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(16.dp)
-                                )
-                                if (locationInput.isNotBlank()) {
-                                    Spacer(Modifier.width(8.dp))
-                                    IconButton(
-                                        onClick = {
-                                            val uri = Uri.parse("geo:0,0?q=${Uri.encode(locationInput)}")
-                                            val intent = Intent(Intent.ACTION_VIEW, uri)
-                                            val chooser = Intent.createChooser(intent, Loc.s("calendar_openLocationWith", "Open Location With"))
-                                            try {
-                                                context.startActivity(chooser)
-                                            } catch (_: Exception) {
-                                                val webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(locationInput)}")
-                                                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
-                                            }
-                                        }
-                                    ) {
-                                        Icon(Icons.Default.Map, null, tint = themeColor)
-                                    }
-                                }
-                            }
-
-                            OutlinedTextField(
-                                value = conferenceUrlInput,
-                                onValueChange = { conferenceUrlInput = it },
-                                label = { Text(Loc.s("calendar_conferenceUrl", "Video Meeting Link (Google Meet / Zoom)")) },
-                                leadingIcon = { Icon(Icons.Default.VideoCall, null, tint = themeColor) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                trailingIcon = {
-                                    if (conferenceUrlInput.isNotBlank()) {
-                                        IconButton(onClick = { conferenceUrlInput = "" }) {
-                                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                        }
-                                    }
-                                },
-                                shape = RoundedCornerShape(16.dp)
-                            )
-
-                            OutlinedTextField(
-                                value = attachmentUrlInput,
-                                onValueChange = { attachmentUrlInput = it },
-                                label = { Text(Loc.s("calendar_attachmentUrl", "Attachment / Document Link")) },
-                                leadingIcon = { Icon(Icons.Default.AttachFile, null, tint = themeColor) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                trailingIcon = {
-                                    if (attachmentUrlInput.isNotBlank()) {
-                                        IconButton(onClick = { attachmentUrlInput = "" }) {
-                                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                        }
-                                    }
-                                },
-                                shape = RoundedCornerShape(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                text = Loc.Calendar.belongsTo,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Start).padding(start = 8.dp, bottom = 12.dp)
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    ActionListItem(
-                        headline = Loc.Calendar.shareWithGroups,
-                        supportingText = if (selectedGroupIds.isEmpty()) {
-                            Loc.Calendar.private
-                        } else {
-                            selectedGroupIds.map { id ->
-                                val group = groups[id]
-                                if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: id
-                            }.joinToString(", ")
-                        },
-                        leadingContent = { Icon(Icons.Default.Groups, null, tint = themeColor) },
-                        trailingContent = { Icon(Icons.Default.ArrowDropDown, null) },
-                        onClick = { showGroupPicker = true },
-                        supportingMaxLines = 1
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                text = Loc.Calendar.note,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Start).padding(start = 8.dp, bottom = 12.dp)
-            )
-
-            OutlinedTextField(
-                value = note,
-                onValueChange = { note = it },
-                label = { Text(Loc.Calendar.note) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
-                trailingIcon = {
-                    if (note.isNotBlank()) {
-                        IconButton(onClick = { note = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = themeColor,
-                    focusedLabelColor = themeColor
-                )
-            )
-
-            Spacer(Modifier.height(32.dp))
-        }
-    }
-}
-
-@Composable
-private fun CompactPickerButton(
-    label: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(58.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-            }
-        }
+            },
+            rrule = rrule,
+            onShowRepeatFrequencySheet = { showRepeatFrequencySheet = true },
+            isAdditionalExpanded = isAdditionalExpanded,
+            onToggleAdditionalExpanded = { isAdditionalExpanded = !isAdditionalExpanded },
+            locationInput = locationInput,
+            onLocationChange = { locationInput = it },
+            conferenceUrlInput = conferenceUrlInput,
+            onConferenceUrlChange = { conferenceUrlInput = it },
+            attachmentUrlInput = attachmentUrlInput,
+            onAttachmentUrlChange = { attachmentUrlInput = it },
+            selectedGroupIds = selectedGroupIds,
+            groups = groups,
+            onShowGroupPicker = { showGroupPicker = true },
+            note = note,
+            onNoteChange = { note = it }
+        )
     }
 }

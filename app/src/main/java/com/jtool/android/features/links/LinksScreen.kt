@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +88,7 @@ fun LinksScreen(
 
     BaseScreen(
         title = Loc.Links.links,
-        isLoading = uiState.isLoading,
+        isLoading = uiState.isLoading || uiState.isRefreshing,
         onBack = onBack,
         onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
         isSearchVisible = isSearchVisible,
@@ -141,54 +140,49 @@ fun LinksScreen(
             )
         }
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = uiState.isLoading || uiState.isRefreshing,
-            onRefresh = { viewModel.onEvent(LinksEvent.Refresh) },
-            modifier = Modifier.padding(padding).fillMaxSize()
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    items(uiState.filteredLinks, key = { it.id }) { link ->
-                        val localizedTag = LinksLoc.getLocalizedLinkTag(link.tag)
-                        val uName = uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy
-                        val meta = "$localizedTag • ${Loc.General.by} $uName"
+                items(uiState.filteredLinks, key = { it.id }) { link ->
+                    val localizedTag = LinksLoc.getLocalizedLinkTag(link.tag)
+                    val uName = uiState.userNames[link.lastUpdatedBy] ?: link.lastUpdatedBy
+                    val meta = "$localizedTag • ${Loc.General.by} $uName"
 
-                        ActionListItem(
-                            onClick = {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    infoMessage = Loc.Links.invalidUrl to MessageType.ERROR
-                                }
-                            },
-                            headline = link.title,
-                            supportingText = link.url,
-                            supportingMaxLines = 1,
-                            metadataText = meta,
-                            trailingContent = {
-                                IconButton(
-                                    onClick = { selectedLinkForAction = link },
-                                ) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = null)
-                                }
+                    ActionListItem(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                infoMessage = Loc.Links.invalidUrl to MessageType.ERROR
                             }
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                    }
-                    
-                    item {
-                        Spacer(Modifier.height(100.dp))
-                    }
+                        },
+                        headline = link.title,
+                        supportingText = link.url,
+                        supportingMaxLines = 1,
+                        metadataText = meta,
+                        trailingContent = {
+                            IconButton(
+                                onClick = { selectedLinkForAction = link },
+                            ) {
+                                Icon(Icons.Default.MoreVert, contentDescription = null)
+                            }
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                }
+
+                item {
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }

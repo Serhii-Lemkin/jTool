@@ -53,9 +53,12 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
     val dateFormat = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
 
     BaseScreen(
-        title = "",
+        title = if (uiState.isEditMode) uiState.draftTitle else uiState.draftTitle.ifBlank { Loc.Notes.untitledNote },
         isLoading = uiState.isLoading,
         onBack = { viewModel.onEvent(NotesEvent.NavigateBack) },
+        isTitleEditable = uiState.isEditMode,
+        onTitleChange = { viewModel.onEvent(NotesEvent.UpdateDraftTitle(it)) },
+        titlePlaceholder = Loc.Notes.noteTitlePlaceholder,
         actions = {
             if (uiState.isEditMode) {
                 IconButton(onClick = { 
@@ -74,15 +77,20 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
             }
         }
     ) { _ ->
-        SelectionContainer {
+        val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val extraImePadding = (imeBottom - navBottom).coerceAtLeast(0.dp)
+        val noteContent: @Composable () -> Unit = {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(bottom = extraImePadding)
                     .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 12.dp),
                 verticalArrangement = Arrangement.Top
             ) {
                 val noteType = uiState.editingNote?.type ?: uiState.creatingNoteType ?: NoteTypeEnum.TEXT
-                
+
                 item {
                     if (noteType == NoteTypeEnum.TEXT) {
                         if (uiState.isEditMode) {
@@ -190,6 +198,11 @@ fun NoteEditScreen(uiState: NotesUiState, viewModel: NotesViewModel) {
                     Spacer(Modifier.height(32.dp))
                 }
             }
+        }
+        if (uiState.isEditMode) {
+            noteContent()
+        } else {
+            SelectionContainer { noteContent() }
         }
     }
 }

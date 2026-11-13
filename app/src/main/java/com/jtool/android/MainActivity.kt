@@ -52,6 +52,7 @@ import com.jtool.android.core.sync.DataManager
 import com.jtool.android.core.sync.SyncStatusOverlay
 import com.jtool.android.core.models.common.enums.AppScreenEnum
 import com.jtool.android.core.utils.AppUtils
+import com.jtool.android.core.utils.MainIntentHelper
 import com.jtool.android.features.auth.SignInHandler
 import com.jtool.android.features.cleaning.CleaningManager
 import com.jtool.android.features.notes.NotesManager
@@ -130,11 +131,11 @@ class MainActivity : ComponentActivity() {
         AppUtils.requestNotificationPermission(this)
         connectivityObserver.start()
 
-        initializeLanguage()
+        MainIntentHelper.initializeLanguage(this, settingsManager, dataManager, lifecycleScope)
 
         Loc.load(this, settingsManager.getLanguage())
 
-        handleIntent(intent)
+        MainIntentHelper.handleIntent(intent, settingsManager) { pendingScreen = it }
 
         appUpdateManager = AppUpdateManagerFactory.create(this)
         checkForUpdates()
@@ -193,19 +194,62 @@ class MainActivity : ComponentActivity() {
                 signInHandler.onError = { authError = it }
             }
 
+            DisposableEffect(settingsManager) {
+                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    when (key) {
+                        "dark_mode", "light_primary", "light_bg", "dark_primary", "dark_bg" -> {
+                            isDark = settingsManager.isDarkMode()
+                            lightPrimary = settingsManager.getLightPrimaryColor()
+                            lightBg = settingsManager.getLightBgColor()
+                            darkPrimary = settingsManager.getDarkPrimaryColor()
+                            darkBg = settingsManager.getDarkBgColor()
+                        }
+                        "language" -> {
+                            val newLang = settingsManager.getLanguage()
+                            if (newLang != currentLang) {
+                                currentLang = newLang
+                                Loc.load(this@MainActivity, newLang)
+                            }
+                        }
+                        "remembered_groups" -> {
+                            groups = settingsManager.getGroups()
+                        }
+                        "current_group_id" -> {
+                            currentGroupId = settingsManager.getCurrentGroupId()
+                        }
+                    }
+                }
+                settingsManager.registerListener(listener)
+                onDispose {
+                    settingsManager.unregisterListener(listener)
+                }
+            }
+
             LaunchedEffect(currentUserState) {
                 if (currentUserState != null) {
+                    settingsManager.checkAndPurgeIfUserChanged(currentUserState?.uid)
+                    if (settingsManager.getUserName().isEmpty() && !currentUserState?.displayName.isNullOrEmpty()) {
+                        settingsManager.saveUserName(currentUserState!!.displayName!!)
+                    }
                     dataManager.fetchUserSettings(force = true)
                     groups = settingsManager.getGroups()
+                    currentGroupId = settingsManager.getCurrentGroupId()
                     initialLoadDone = true
                     
-                    Loc.load(this@MainActivity, settingsManager.getLanguage())
+                    val loadedLang = settingsManager.getLanguage()
+                    Loc.load(this@MainActivity, loadedLang)
                     isDark = settingsManager.isDarkMode()
-                    currentLang = settingsManager.getLanguage()
+                    lightPrimary = settingsManager.getLightPrimaryColor()
+                    lightBg = settingsManager.getLightBgColor()
+                    darkPrimary = settingsManager.getDarkPrimaryColor()
+                    darkBg = settingsManager.getDarkBgColor()
+                    currentLang = loadedLang
 
                     if (settingsManager.getUserName().isEmpty()) {
                         showNameSetupSheet = true
                     }
+                } else {
+                    initialLoadDone = false
                 }
             }
 
@@ -216,7 +260,6 @@ class MainActivity : ComponentActivity() {
                         currentGroupId = settingsManager.getCurrentGroupId()
                         groups = settingsManager.getGroups()
                     } else if (currentGroupId == null && groups.isNotEmpty()) {
-                        // Auto-select first available group if none is selected
                         val privateGroupId = groups.values.find { it.isPrivate }?.id
                         val targetGroupId = privateGroupId ?: groups.keys.first()
                         lifecycleScope.launch {
@@ -248,42 +291,13 @@ class MainActivity : ComponentActivity() {
             }.collectAsState(initial = emptyList())
 
             LaunchedEffect(invites, joinRequests, personalNotifications, groupNotifications) {
-                val list = mutableListOf<UserNotification>()
-                
-                invites.forEach { invite -> 
-                    list.add(UserNotification(
-                        id = invite.inviteId,
-                        groupId = invite.groupId,
-                        timestamp = invite.timestamp,
-                        type = NotificationTypeEnum.INVITE,
-                        targetName = invite.groupName,
-                        fromEmail = invite.fromEmail,
-                        titleKey = "settings_groupInvitation",
-                        messageKey = "settings_invitedToJoin",
-                        messageArgs = listOf(invite.groupName)
-                    ))
-                }
-                
-                val uid = auth.currentUser?.uid
-                joinRequests.filter { it.userId != uid }.forEach { req -> 
-                    list.add(UserNotification(
-                        id = req.userId,
-                        groupId = req.groupId,
-                        timestamp = req.timestamp,
-                        type = NotificationTypeEnum.JOIN_REQUEST,
-                        targetUid = req.userId,
-                        targetName = req.userName,
-                        targetEmail = req.userEmail,
-                        titleKey = "settings_joinRequests",
-                        messageKey = "settings_wantsToJoin",
-                        messageArgs = listOf(req.userName)
-                    ))
-                }
-                
-                list.addAll(personalNotifications)
-                list.addAll(groupNotifications)
-                
-                allNotifications = list.sortedByDescending { it.timestamp }
+                allNotifications = MainIntentHelper.buildUserNotifications(
+                    invites = invites,
+                    joinRequests = joinRequests,
+                    personalNotifications = personalNotifications,
+                    groupNotifications = groupNotifications,
+                    currentUid = auth.currentUser?.uid
+                )
             }
 
             LaunchedEffect(allNotifications) {
@@ -373,7 +387,7 @@ class MainActivity : ComponentActivity() {
 
                             if (showNameSetupSheet) {
                                 com.jtool.android.features.settings.general.components.name_setup_sheet.NameSetupSheet(
-                                    onDismiss = { /* Forced entry, no dismiss */ },
+                                    onDismiss = {},
                                     onConfirm = { newName ->
                                         settingsManager.saveUserName(newName)
                                         lifecycleScope.launch {
@@ -421,25 +435,12 @@ class MainActivity : ComponentActivity() {
                                         lifecycleScope.launch { dataManager.markNotificationAsRead(notif) }
                                     },
                                     onLinkClick = { link ->
-                                        val uri = Uri.parse(link)
-                                        if (uri.host == BuildConfig.DEEP_LINK_HOST) {
-                                            val path = uri.path ?: ""
-                                            if (path.startsWith("/event/")) {
-                                                val eventId = path.removePrefix("/event/")
-                                                if (eventId.isNotEmpty()) {
-                                                    settingsManager.setSelectedCalendarEventId(eventId)
-                                                    pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
-                                                    showNotificationsSheet = false
-                                                }
-                                            } else if (path.startsWith("/support/")) {
-                                                val requestId = path.removePrefix("/support/")
-                                                if (requestId.isNotEmpty()) {
-                                                    settingsManager.setSelectedSupportRequestId(requestId)
-                                                    pendingScreen = AppScreenEnum.SUPPORT_HUB
-                                                    showNotificationsSheet = false
-                                                }
-                                            }
-                                        }
+                                        MainIntentHelper.handleDeepLink(
+                                            link = link,
+                                            settingsManager = settingsManager,
+                                            onPendingScreen = { pendingScreen = it },
+                                            onCloseNotifications = { showNotificationsSheet = false }
+                                        )
                                     },
                                     onShowError = { authError = it },
                                     onDismiss = { showNotificationsSheet = false }
@@ -471,70 +472,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        if (intent == null) return
-
-        if (intent.action == Intent.ACTION_SEND) {
-            val uri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-            }
-            if (uri != null) {
-                com.jtool.android.core.sync.ImportManager.setPendingSharedUris(listOf(uri))
-            } else {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                val sharedSubject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
-                if (!sharedText.isNullOrBlank()) {
-                    com.jtool.android.core.sync.ImportManager.setPendingSharedText(sharedText, sharedSubject)
-                } else {
-                    val mimeType = intent.type ?: "unknown"
-                    com.jtool.android.core.sync.ImportManager.setPendingUnsupportedShare(
-                        mimeType = mimeType,
-                        details = "Shared intent action: ACTION_SEND"
-                    )
-                }
-            }
-        } else if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
-            val uris = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
-            }
-            if (!uris.isNullOrEmpty()) {
-                com.jtool.android.core.sync.ImportManager.setPendingSharedUris(uris)
-            } else {
-                val mimeType = intent.type ?: "unknown"
-                com.jtool.android.core.sync.ImportManager.setPendingUnsupportedShare(
-                    mimeType = mimeType,
-                    details = "Shared intent action: ACTION_SEND_MULTIPLE"
-                )
-            }
-        } else {
-            intent.data?.let { uri ->
-                if ((uri.scheme == "https" || uri.scheme == "http") && uri.host == BuildConfig.DEEP_LINK_HOST) {
-                    val path = uri.path ?: ""
-                    if (path.startsWith("/event/")) {
-                        val eventId = path.removePrefix("/event/")
-                        if (eventId.isNotEmpty()) {
-                            settingsManager.setSelectedCalendarEventId(eventId)
-                            pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
-                        }
-                    }
-                } else if (uri.scheme == "jtool" && uri.host == "event") {
-                    val eventId = uri.lastPathSegment
-                    if (!eventId.isNullOrEmpty()) {
-                        settingsManager.setSelectedCalendarEventId(eventId)
-                        pendingScreen = AppScreenEnum.CALENDAR_EVENT_DETAIL
-                    }
-                }
-            }
-        }
+        MainIntentHelper.handleIntent(intent, settingsManager) { pendingScreen = it }
     }
 
     private fun checkForUpdates() {
@@ -552,32 +490,6 @@ class MainActivity : ComponentActivity() {
                 } catch (e: Exception) {
                     Log.e("AppUpdate", "Failed to start update flow", e)
                 }
-            }
-        }
-    }
-
-    private fun initializeLanguage() {
-        if (!settingsManager.hasLanguageBeenSet()) {
-            val systemLocale = Locale.getDefault()
-            val systemLangCode = systemLocale.language
-            
-            val normalizedCode = when(systemLangCode) {
-                "iw" -> "he"
-                else -> systemLangCode
-            }
-
-            val supportedLanguages = Loc.getAvailableLanguages(this).map { it.locale }
-            
-            if (supportedLanguages.contains(normalizedCode)) {
-                settingsManager.setLanguage(normalizedCode)
-            } else {
-                lifecycleScope.launch {
-                    dataManager.logRequestedLanguage(
-                        name = systemLocale.displayLanguage,
-                        code = systemLangCode
-                    )
-                }
-                settingsManager.setLanguage("en")
             }
         }
     }

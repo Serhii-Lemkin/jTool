@@ -59,10 +59,17 @@ fun WorkdayTrackerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val datePickerState = rememberCustomDatePickerState()
     val timePickerState = rememberTimePickerState(is24Hour = true)
-    val scaffoldState = rememberBottomSheetScaffoldState()
 
     LaunchedEffect(Unit) {
         viewModel.onEvent(WorkdayTrackerEvent.Refresh)
+    }
+
+    if (uiState.showQuickStartConfigError) {
+        com.jtool.android.ui.components.common.MessageSheet(
+            message = Loc.Calendar.selectCalendarSubtitle,
+            type = com.jtool.android.ui.components.common.MessageType.ERROR,
+            onDismiss = { viewModel.onEvent(WorkdayTrackerEvent.ToggleQuickStartError(false)) }
+        )
     }
 
     if (uiState.showDatePicker) {
@@ -184,45 +191,8 @@ fun WorkdayTrackerScreen(
             }
         }
     ) { _ ->
-        BottomSheetScaffold(
-            scaffoldState = scaffoldState,
-            sheetPeekHeight = if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp,
-            sheetContainerColor = MaterialTheme.colorScheme.surface,
-            sheetContentColor = MaterialTheme.colorScheme.onSurface,
-            sheetTonalElevation = 0.dp,
-            sheetShadowElevation = 8.dp,
-            sheetDragHandle = { if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) BottomSheetDefaults.DragHandle() else null },
-            sheetContent = {
-            if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 32.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Text(
-                        text = Loc.Workday.shiftOptions,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-                    
-                    QuickStartContent(uiState = uiState, viewModel = viewModel)
-                    
-                    Spacer(Modifier.height(16.dp))
-                    CommonSessionControls(uiState = uiState, viewModel = viewModel)
-                }
-            } else {
-                Box(Modifier.height(1.dp))
-            }
-        }
-    ) { padding ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
                 .navigationBarsPadding()
         ) {
@@ -265,7 +235,6 @@ fun WorkdayTrackerScreen(
                 }
             }
 
-            // Container 1: Top container right under the tabs (holds dropdown with selection of event for today)
             if (uiState.mode == WorkModeEnum.CALENDAR_EVENT) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
@@ -291,22 +260,101 @@ fun WorkdayTrackerScreen(
                         }
                     }
                 }
-            }
 
-            // Container 2: Takes all available vertical space and holds the centered clock
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                RealTimeStatus(uiState, viewModel, 240.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    RealTimeStatus(uiState, viewModel, 240.dp)
+                }
+            } else {
+                val plannedEnd = remember(
+                    uiState.freehandStart,
+                    uiState.freehandEnd,
+                    uiState.freehandDurationHours,
+                    uiState.freehandDurationMinutes,
+                    uiState.isUsingDuration
+                ) {
+                    val startDt = uiState.freehandStart ?: LocalDateTime.now()
+                    if (uiState.isUsingDuration) {
+                        startDt.plusHours(uiState.freehandDurationHours.toLong())
+                            .plusMinutes(uiState.freehandDurationMinutes.toLong())
+                    } else {
+                        uiState.freehandEnd ?: startDt.plusHours(8)
+                    }
+                }
+                val timeFmt = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .imePadding()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = Loc.Workday.shiftOptions,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${Loc.Workday.finishAt}: ${plannedEnd.format(timeFmt)}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            QuickStartContent(uiState = uiState, viewModel = viewModel)
+                        }
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    Button(
+                        onClick = { viewModel.onEvent(WorkdayTrackerEvent.StartSession) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        enabled = !uiState.isLoading
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.Default.PlayArrow, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(Loc.Workday.start, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
-            Spacer(Modifier.height(if (uiState.mode == WorkModeEnum.QUICK_START && !uiState.isSessionActive) 110.dp else 0.dp))
         }
     }
-}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -406,80 +454,4 @@ fun EventPickerSection(
             workShiftColorKey = settingsManager.getWorkShiftColorKey()
         )
     }
-}
-
-@Composable
-fun RealTimeStatus(uiState: WorkdayTrackerUiState, viewModel: WorkdayTrackerViewModel, size: Dp = 200.dp) {
-    val currentTimer = if (uiState.mode == WorkModeEnum.QUICK_START) uiState.quickStartTimer else uiState.eventTimer
-    
-    val color = if (currentTimer.isFinished) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val label = if (currentTimer.isFinished) Loc.Workday.eventEnded else (currentTimer.label ?: Loc.Workday.timeLeft)
-    val time = if (currentTimer.isFinished) currentTimer.overtimeMillis else currentTimer.timeLeftMillis
-    
-    val showTimer = uiState.isSessionActive
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
-            CircularProgressIndicator(
-                progress = { if (currentTimer.isFinished) 1f else currentTimer.progress },
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = (size / 16),
-                color = if (showTimer) color else color.copy(alpha = 0.2f),
-                trackColor = color.copy(alpha = 0.1f)
-            )
-            
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                if (!showTimer) {
-                    if (uiState.mode == WorkModeEnum.QUICK_START || (uiState.mode == WorkModeEnum.CALENDAR_EVENT && uiState.selectedEventId != null)) {
-                        Surface(
-                            onClick = { viewModel.onEvent(WorkdayTrackerEvent.StartSession) },
-                            shape = MaterialTheme.shapes.extraLarge,
-                            modifier = Modifier.size(size * 0.6f),
-                            color = Color.Transparent
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(size * 0.24f), tint = color)
-                                Text(Loc.Workday.start, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.08f).sp, color = color)
-                            }
-                        }
-                    }
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = label, style = MaterialTheme.typography.labelMedium)
-                        Text(
-                            text = formatMillis(time),
-                            style = if (size > 200.dp) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = color
-                        )
-
-                        if (!currentTimer.isNotStarted) {
-                            Spacer(Modifier.height(8.dp))
-                            Button(
-                                onClick = { viewModel.onEvent(WorkdayTrackerEvent.FinishSession) },
-                                shape = RoundedCornerShape(24.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = color)
-                            ) {
-                                Icon(Icons.Default.Done, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(Loc.Workday.finish, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fun formatMillis(millis: Long): String {
-    val h = millis / 3600000
-    val m = (millis % 3600000) / 60000
-    val s = (millis % 60000) / 1000
-    return String.format(Locale.ENGLISH, "%02d:%02d:%02d", h, m, s)
 }

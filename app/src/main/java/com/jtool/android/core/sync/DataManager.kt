@@ -48,6 +48,11 @@ class DataManager(val context: Context) {
         _optimisticDeletedIds.value = current + eventId
     }
 
+    fun clearOptimisticDelete(eventId: String) {
+        val current = _optimisticDeletedIds.value
+        _optimisticDeletedIds.value = current - eventId
+    }
+
     fun reconcileOptimisticDeletions(currentGoogleIds: Set<String>) {
         val pending = _optimisticDeletedIds.value
         _optimisticDeletedIds.value = pending.intersect(currentGoogleIds)

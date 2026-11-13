@@ -1,6 +1,6 @@
-# Task Instructions: Background Transfers & Red Container Architecture
+# Task Instructions: Background Transfers & Actions Container Architecture
 
-Use this guide when implementing file uploads, downloads, public exports, notifications, or managing floating action buttons (FABs) and progress indicators inside the Red Container or Launcher header.
+Use this guide when implementing file uploads, downloads, public exports, notifications, or managing floating action buttons (FABs) and progress indicators inside the Actions Container or Launcher header.
 
 ---
 
@@ -14,7 +14,7 @@ All file operations across the application MUST run through dedicated background
 ---
 
 ## 2. Color Coding Rules for Floating Action Buttons & Indicators
-Every FAB and status indicator inside the Red Container has a strictly enforced, distinct color scheme:
+Every FAB and status indicator inside the Actions Container has a strictly enforced, distinct color scheme:
 * **Blue (`Color(0xFF2563EB)`)**: Active File Uploads (`FloatingUploadProgressIndicator`)
 * **Green (`Color(0xFF16A34A)`)**: Active Offline Cache Downloads (`FloatingDownloadProgressIndicator`)
 * **Orange (`Color(0xFFEA580C)`)**: Active Public Exports (`FloatingExportProgressIndicator`)
@@ -29,8 +29,8 @@ Every FAB and status indicator inside the Red Container has a strictly enforced,
 
 ---
 
-## 4. Red Container Gestures & Side Persistence
-* **Deliberate Side-Switching**: Dragging the Red Container horizontally across **more than 50% of the screen width** (`screenWidth / 2`) flips the container side between Right and Left, persisting the choice locally in `SettingsManager`. Dragging less than 50% springs back without changing sides.
+## 4. Actions Container Gestures & Side Persistence
+* **Deliberate Side-Switching**: Dragging the Actions Container horizontally across **more than 50% of the screen width** (`screenWidth / 2`) flips the container side between Right and Left, persisting the choice locally in `SettingsManager`. Dragging less than 50% springs back without changing sides.
 * **Edge Collapsing**: Dragging the container towards the screen edge collapses it into a vertical stack of small, color-coded edge pills.
 * **Persistent Collapsed State**: The collapsed or expanded state is saved in `SettingsManager` and remains preserved across screen changes and app launches until the user expands it again via tap or drag.
 

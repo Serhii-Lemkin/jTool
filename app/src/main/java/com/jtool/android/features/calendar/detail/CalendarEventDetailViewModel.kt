@@ -99,31 +99,45 @@ class CalendarEventDetailViewModel(
                 ?: dataManager.getCalendarExtension(eventId)
 
             if (event == null) {
-                val dateTimestamp = extension?.dateTimestamp ?: 0L
-                val dateStr = if (dateTimestamp != 0L) {
-                    Instant.ofEpochMilli(dateTimestamp).atZone(ZoneId.systemDefault()).toLocalDate().toString()
-                } else {
-                    try { settingsManager.getSelectedCalendarDate() } catch (_: Exception) { null }
+                val anchorMs = extension?.dateTimestamp?.takeIf { it > 0L } ?: run {
+                    try {
+                        LocalDate.parse(settingsManager.getSelectedCalendarDate())
+                            .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    } catch (_: Exception) {
+                        System.currentTimeMillis()
+                    }
                 }
+                val startMs = anchorMs - 90L * 24 * 60 * 60 * 1000
+                val endMs = anchorMs + 180L * 24 * 60 * 60 * 1000
 
-                if (dateStr != null) {
-                    val date = LocalDate.parse(dateStr)
-                    val startMs = date.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    val endMs = date.plusDays(1).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    
-                    val calendarId = settingsManager.getGoogleCalendarId()
-                    val sharedCalendarId = settingsManager.getGoogleCalendarSharedId()
-                    
-                    val mainEvents = if (calendarId.isNotEmpty()) {
-                        GoogleCalendarSyncHelper.pullFromGoogleCalendar(dataManager.context, calendarId, startMs, endMs, userEmail) ?: emptyList()
-                    } else emptyList()
-                    
-                    val sharedEvents = if (sharedCalendarId.isNotEmpty() && sharedCalendarId != calendarId) {
-                        GoogleCalendarSyncHelper.pullFromGoogleCalendar(dataManager.context, sharedCalendarId, startMs, endMs, userEmail) ?: emptyList()
-                    } else emptyList()
-                    
-                    val allEvents = (mainEvents + sharedEvents)
-                    event = allEvents.find { it.id == eventId || it.id == rawId || it.iCalUID == eventId || it.iCalUID == rawId }
+                val calIds = (settingsManager.getDisplayedCalendarIds() +
+                    settingsManager.getGoogleCalendarId() +
+                    settingsManager.getGoogleCalendarSharedId() +
+                    GoogleCalendarSyncHelper.getAvailableCalendars(dataManager.context).map { it.first })
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+
+                val allEvents = if (calIds.isNotEmpty()) {
+                    GoogleCalendarSyncHelper.pullFromMultipleGoogleCalendars(
+                        dataManager.context,
+                        calIds,
+                        startMs,
+                        endMs,
+                        userEmail
+                    )
+                } else emptyList()
+
+                event = allEvents.find {
+                    it.id == eventId ||
+                    it.id == rawId ||
+                    it.iCalUID == eventId ||
+                    it.iCalUID == rawId ||
+                    (extension != null && (
+                        it.id == extension.googleEventId ||
+                        it.iCalUID == extension.googleEventId ||
+                        (extension.localEventId.isNotEmpty() && it.id == extension.localEventId)
+                    )) ||
+                    it.note.contains("/event/$rawId")
                 }
             }
 
@@ -158,7 +172,7 @@ class CalendarEventDetailViewModel(
                     id = extension.googleEventId.ifEmpty { rawId },
                     title = extension.title?.takeIf { it.isNotEmpty() } ?: "Shared Event",
                     dtStart = startMs,
-                    dtEnd = startMs + 3600_000L,
+                    dtEnd = if (extension.endTimestamp > startMs) extension.endTimestamp else startMs + 3600_000L,
                     attendees = fullAttendees,
                     currentUserStatus = CalendarContract.Attendees.ATTENDEE_STATUS_INVITED,
                     iCalUID = extension.googleEventId,
@@ -360,18 +374,46 @@ class CalendarEventDetailViewModel(
         val ext = uiState.value.extension
         val searchId = event.iCalUID ?: event.id
 
+        _uiState.update { it.copy(isDeleting = true, deleteError = null) }
         dataManager.recordOptimisticDelete(event.id)
         viewModelScope.launch {
-            val success = GoogleCalendarSyncHelper.deleteFromGoogleCalendar(dataManager.context, event.id)
-            if (success || event.id.startsWith("ext_") || event.id.startsWith("virtual_")) {
-                ext?.sharedGroupIds?.forEach { gid ->
-                    dataManager.sendEventDeletedNotification(gid, event.title)
+            try {
+                var success = GoogleCalendarSyncHelper.deleteFromGoogleCalendar(dataManager.context, event.id)
+                if (!success && !event.iCalUID.isNullOrEmpty()) {
+                    success = GoogleCalendarSyncHelper.deleteFromGoogleCalendar(dataManager.context, event.iCalUID)
                 }
-                dataManager.deleteCalendarExtension(searchId)
-                ext?.googleEventId?.let { dataManager.deleteCalendarExtension(it) }
-                dataManager.markEventNotificationsAsRead(event.id)
-                event.iCalUID?.let { dataManager.markEventNotificationsAsRead(it) }
-                ext?.googleEventId?.let { dataManager.markEventNotificationsAsRead(it) }
+                if (!success && !ext?.localEventId.isNullOrEmpty()) {
+                    success = GoogleCalendarSyncHelper.deleteFromGoogleCalendar(dataManager.context, ext!!.localEventId)
+                }
+                if (!success && !ext?.googleEventId.isNullOrEmpty()) {
+                    success = GoogleCalendarSyncHelper.deleteFromGoogleCalendar(dataManager.context, ext!!.googleEventId)
+                }
+
+                val isVirtual = event.id.startsWith("ext_") || event.id.startsWith("virtual_")
+                val verifiedDeleted = isVirtual || (
+                    GoogleCalendarSyncHelper.isEventDeleted(dataManager.context, event.id, ext?.localEventId ?: "") &&
+                    (event.iCalUID.isNullOrEmpty() || GoogleCalendarSyncHelper.isEventDeleted(dataManager.context, event.iCalUID))
+                )
+
+                if (verifiedDeleted) {
+                    ext?.sharedGroupIds?.forEach { gid ->
+                        dataManager.sendEventDeletedNotification(gid, event.title)
+                    }
+                    dataManager.deleteCalendarExtension(searchId)
+                    dataManager.deleteCalendarExtension(event.id)
+                    ext?.googleEventId?.takeIf { it.isNotEmpty() }?.let { dataManager.deleteCalendarExtension(it) }
+                    ext?.localEventId?.takeIf { it.isNotEmpty() }?.let { dataManager.deleteCalendarExtension(it) }
+                    dataManager.markEventNotificationsAsRead(event.id)
+                    event.iCalUID?.let { dataManager.markEventNotificationsAsRead(it) }
+                    ext?.googleEventId?.let { dataManager.markEventNotificationsAsRead(it) }
+                    _uiState.update { it.copy(isDeleting = false, isDeleted = true) }
+                } else {
+                    dataManager.clearOptimisticDelete(event.id)
+                    _uiState.update { it.copy(isDeleting = false, deleteError = Loc.General.unknown) }
+                }
+            } catch (e: Exception) {
+                dataManager.clearOptimisticDelete(event.id)
+                _uiState.update { it.copy(isDeleting = false, deleteError = e.message ?: Loc.General.unknown) }
             }
         }
     }

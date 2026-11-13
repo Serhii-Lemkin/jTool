@@ -46,6 +46,11 @@ async function loadTranslations(lang) {
         updateUrlParams('lang', lang);
         updateLinksWithParams();
 
+        const mailtoBtn = document.getElementById('alpha-mailto-btn');
+        if (mailtoBtn && translations[lang].modal_tester_mailto_subject && translations[lang].modal_tester_mailto_body) {
+            mailtoBtn.href = `mailto:jtools.app@yahoo.com?subject=${encodeURIComponent(translations[lang].modal_tester_mailto_subject)}&body=${encodeURIComponent(translations[lang].modal_tester_mailto_body)}`;
+        }
+
     } catch (e) {
         console.error('Failed to load translations', e);
     }

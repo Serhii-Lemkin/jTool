@@ -26,14 +26,14 @@
                     <!-- Overview & Mechanics -->
                     <h2 class="h5 text-info mb-3 fw-bold" data-i18n="page_how">How it works</h2>
                     <p class="text-secondary mb-4" data-i18n="vaults_desc">
-                        JTools Vaults acts as a central hub for your group's most important documents. Instead of moving your files around or uploading them to unknown servers, Vaults seamlessly integrates with Google Drive. You can link important files (like leases, manuals, or shared budgets) directly into JTools, allowing your entire group to access them instantly.
+                        JTools Vaults acts as a central hub for your group's most important documents. Instead of uploading files to unknown custom servers, Vaults integrates directly with your Google Drive. You can upload local documents, photos, or camera captures into a dedicated Google Drive folder and share access with your group, while JTools stores only metadata and secure references in Firestore.
                     </p>
 
                     <ul class="feature-list mb-5">
-                        <li data-i18n="vaults_l1"><strong class="strong-text">Google Drive Powered:</strong> Attach documents directly from your personal or group Google Drive folders without duplicating files.</li>
-                        <li data-i18n="vaults_l2"><strong class="strong-text">Tag-Based Organization:</strong> Filter documents instantly by custom categories (e.g., "Contracts", "Receipts", "Warranties").</li>
-                        <li data-i18n="vaults_l3"><strong class="strong-text">Effortless Group Sharing:</strong> Safely share important household or project files with your group so everyone has the latest version.</li>
-                        <li data-i18n="vaults_l4"><strong class="strong-text">Rich Metadata & Details:</strong> Track file sizes, modified dates, custom notes, and author information for every document.</li>
+                        <li data-i18n="vaults_l1"><strong class="strong-text">Google Drive Powered:</strong> Upload documents, photos, and camera captures directly to a dedicated Google Drive folder shared with your group.</li>
+                        <li data-i18n="vaults_l2"><strong class="strong-text">Tag-Based Organization:</strong> Filter documents instantly by standard or custom categories (e.g., "Contract", "Receipt", "Warranty").</li>
+                        <li data-i18n="vaults_l3"><strong class="strong-text">Effortless Group Sharing:</strong> Safely share important household or project files with your group via Google Drive permissions so everyone has the latest version.</li>
+                        <li data-i18n="vaults_l4"><strong class="strong-text">Rich Metadata & Details:</strong> Track tags, custom descriptions, document dates, upload dates, and offline download status for every file.</li>
                     </ul>
 
                     <!-- App Screen Visualization: Vaults Screen -->
@@ -275,10 +275,11 @@
                     <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">settings</span> Vaults Settings Options</h2>
                     <div class="p-4 rounded-3 mb-5" style="background: var(--surface); border: 1px solid var(--border);">
                         <ul class="feature-list mb-0">
-                            <li class="mb-3"><strong class="strong-text">Default Google Drive Destination:</strong> Select the default Google Drive folder where new group document links and attachments are stored.</li>
-                            <li class="mb-3"><strong class="strong-text">Tag Manager:</strong> Create and color-code custom document tags shared across your group. Includes 10+ standard tags out-of-the-box: License, Contract, Insurance, Medical, Tax, Vehicle, Property, Financial, Certificate, and Education.</li>
-                            <li class="mb-3"><strong class="strong-text" data-i18n="vaults_pinVaultTitle">Local Vault Pinning:</strong> <span data-i18n="vaults_pinVaultDesc">Pin important vaults to the top of your list for instant access.</span></li>
-                            <li class="mb-0"><strong class="strong-text">Offline Cache Settings:</strong> Configure local cache size limits for downloaded Google Drive documents for offline viewing.</li>
+                            <li class="mb-3"><strong class="strong-text">Warn on Large Files & Max File Size (MB):</strong> Toggle confirmation warnings when uploading or caching large files and configure your preferred MB threshold.</li>
+                            <li class="mb-3"><strong class="strong-text">Show 'Open in Drive' Buttons:</strong> Choose whether quick-open Google Drive buttons are displayed on document rows and details.</li>
+                            <li class="mb-3"><strong class="strong-text">Reapply Permissions:</strong> Re-sync Google Drive sharing permissions across all group members for your vaults.</li>
+                            <li class="mb-3"><strong class="strong-text">Validate Cached Data & Clear Local Vault Cache:</strong> Verify local offline document copies or clear cached files from your device storage.</li>
+                            <li class="mb-0"><strong class="strong-text" data-i18n="vaults_pinVaultTitle">Local Vault Pinning (Vault Action Menu):</strong> <span data-i18n="vaults_pinVaultDesc">Pin important vaults to the top of your list for instant access via each vault's action menu.</span></li>
                         </ul>
                     </div>
 
@@ -330,11 +331,11 @@
                         </div>
                     </div>
 
-                    <!-- Red Container Link Banner -->
+                    <!-- Actions Container Link Banner -->
                     <div class="p-4 rounded-4 text-center shadow-sm" style="background: radial-gradient(circle at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%); border: 1px solid var(--border);">
-                        <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title">🔴 Red Container: Primary Actions & Background Hub</h3>
-                        <p class="text-secondary small mb-3" data-i18n="vaults_rc_banner_desc">Primary Action: Houses the Plus FAB to instantly create new vaults and attach Google Drive documents. Secondary: Tracks active Google Drive background uploads via FileUploadWorker, popping up a progress FAB during document edits.</p>
-                        <a href="/red-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Red Container & Gestures ➜</a>
+                        <h3 class="h6 fw-bold text-info mb-2" data-i18n="work_rc_banner_title">Actions Container: Primary Actions & Background Hub</h3>
+                        <p class="text-secondary small mb-3" data-i18n="vaults_rc_banner_desc">Primary Action: Houses the Plus FAB to instantly create new vaults or upload documents. Secondary: Tracks active Google Drive background uploads, offline downloads, public exports, and notifications.</p>
+                        <a href="/action-container" class="btn gradient-btn px-4 py-2 fs-6" data-i18n="work_rc_banner_btn">Learn about Actions Container & Gestures ➜</a>
                     </div>
                 </div>
             </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title data-i18n="red_container_title">Red Container & Gestures - JTools Guide</title>
+    <title data-i18n="red_container_title">Actions Container & Gestures - JTools Guide</title>
     <link rel="icon" type="image/png" href="/512.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -71,20 +71,12 @@
         <div class="row justify-content-center">
             <div class="col-lg-9 col-md-11">
                 <div class="custom-card p-4 p-md-5">
-                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-danger me-2 fs-3">layers</span><span data-i18n="rc_page_title">Red Container Architecture & Floating Actions</span></h1>
-                    <p class="lead text-secondary mb-4 fs-6" data-i18n="rc_page_tag">
-                        The Red Container is JTools's unified floating action and progress hub. Present across app screens, it tracks background transfers, alerts, and quick actions with bouncy spring physics and side gestures.
+                    <h1 class="fw-bold text-info mb-3 fs-2"><span class="material-icons align-middle text-info me-2 fs-3">layers</span><span data-i18n="rc_page_title">Actions Container Architecture & Floating Actions</span></h1>
+                    <p class="lead text-secondary mb-5 fs-6" data-i18n="rc_page_tag">
+                        The Actions Container is JTools's unified floating action and progress hub. Present across app screens, it tracks background transfers, alerts, and quick actions with smooth spring physics and side gestures.
                     </p>
 
-                    <!-- Development Codename Note -->
-                    <div class="p-3 rounded-3 mb-5" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25);">
-                        <strong class="strong-text d-block mb-1 text-danger"><span class="material-icons align-middle text-danger me-2 fs-5">info</span><span data-i18n="rc_nickname_title">What's in a Name?</span></strong>
-                        <p class="text-secondary small mb-0" data-i18n="rc_nickname_desc">
-                            Note: The name "Red Container" has nothing to do with its UI color! It is simply an internal development codename / nickname from early building that stuck with the architecture.
-                        </p>
-                    </div>
-
-                    <!-- Interactive HTML/CSS Visualization: Draggable Red Container Widget -->
+                    <!-- Interactive HTML/CSS Visualization: Draggable Actions Container Widget -->
                     <div class="my-5">
                         <h3 class="h6 text-info mb-3 fw-bold d-flex align-items-center justify-content-between">
                             <span class="d-flex align-items-center gap-2">
@@ -149,7 +141,7 @@
                             <div class="p-3 rounded-3 h-100" style="background: rgba(56, 189, 248, 0.05); border: 1px solid var(--border);">
                                 <div class="fw-bold text-info mb-2 d-flex align-items-center gap-2"><span class="material-icons text-info fs-5">swap_horiz</span> Side Switching</div>
                                 <p class="text-secondary small mb-0" data-i18n="rc_gesture_side_desc">
-                                    Drag the container horizontally across <strong>more than 50% of screen width</strong> to flip it between Right and Left sides. Your side choice is saved and persists across app launches.
+                                    When expanded, drag the container horizontally across <strong>more than 50% of screen width</strong> to flip it between Right and Left sides. Your side choice is saved and persists across app launches. (When collapsed, a horizontal drag expands it.)
                                 </p>
                             </div>
                         </div>
@@ -165,7 +157,7 @@
                             <div class="p-3 rounded-3 h-100" style="background: rgba(56, 189, 248, 0.05); border: 1px solid var(--border);">
                                 <div class="fw-bold text-info mb-2 d-flex align-items-center gap-2"><span class="material-icons text-info fs-5">save</span> State Persistence</div>
                                 <p class="text-secondary small mb-0" data-i18n="rc_gesture_persist_desc">
-                                    Whether expanded or collapsed, the Red Container remembers its active state as you navigate between app modules.
+                                    Whether expanded or collapsed, the Actions Container remembers its active state as you navigate between app modules.
                                 </p>
                             </div>
                         </div>
@@ -174,7 +166,7 @@
                     <!-- Color Coding & FAB Icons Section -->
                     <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">palette</span><span data-i18n="rc_colors_title">Color Coding & Floating Action Indicators</span></h2>
                     <p class="text-secondary mb-4" data-i18n="rc_colors_desc">
-                        Every floating button inside the Red Container represents a live background service or action queue:
+                        Every floating button inside the Actions Container represents a live background service or action queue:
                     </p>
 
                     <div class="d-flex flex-column gap-3 mb-5">
@@ -195,7 +187,7 @@
                         </div>
 
                         <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background: rgba(234, 88, 12, 0.1); border: 1px solid rgba(234, 88, 12, 0.3);">
-                            <span class="material-icons text-warning fs-3">file_download</span>
+                            <span class="material-icons text-warning fs-3">folder</span>
                             <div>
                                 <strong class="strong-text fs-6 d-block" data-i18n="rc_orange_title">Orange Progress Ring: Public File Exports</strong>
                                 <span class="text-secondary small" data-i18n="rc_orange_desc">Tracks file exports to public Downloads storage while the app is open for non-obstructive phone usage. Tap to manage Export tasks.</span>
@@ -214,7 +206,7 @@
                             <span class="material-icons text-info fs-3">add_circle</span>
                             <div>
                                 <strong class="strong-text fs-6 d-block" data-i18n="rc_purple_title">Primary Action FAB</strong>
-                                <span class="text-secondary small" data-i18n="rc_purple_desc">Triggers primary screen actions (e.g. creating a vault, adding a shopping item, or starting a timer).</span>
+                                <span class="text-secondary small" data-i18n="rc_purple_desc">Triggers primary screen actions (e.g. creating a vault, adding a note, or creating a calendar event).</span>
                             </div>
                         </div>
                     </div>
@@ -222,7 +214,7 @@
                     <!-- Header Sync -->
                     <h2 class="h5 text-info mb-3 fw-bold"><span class="material-icons align-middle text-info me-2 fs-5">notifications</span><span data-i18n="rc_header_title">Launcher Header Synchronization</span></h2>
                     <p class="text-secondary mb-0" data-i18n="rc_header_desc">
-                        Whenever active background tasks or unread notifications exist, smaller color-coded status icons appear in the Main Menu / Launcher top bar header next to the notification bell, keeping you informed at a glance.
+                        Whenever active or failed background tasks or unread notifications exist, smaller status icons appear in the Main Menu / Launcher top bar header next to the notification bell, keeping you informed at a glance.
                     </p>
                 </div>
             </div>
@@ -238,7 +230,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/scripts/i18n.js?v=3"></script>
     <script>
-        // Interactive Red Container Replica Script - Exact App Gesture Matching
+        // Interactive Actions Container Replica Script - Exact App Gesture Matching
         document.addEventListener('DOMContentLoaded', () => {
             const stack = document.getElementById('draggableStack');
             const screen = document.getElementById('screenBox');

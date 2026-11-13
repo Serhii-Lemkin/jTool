@@ -1,9 +1,15 @@
 package com.jtool.android.features.calendar.common
 
+import android.content.Context
+import android.provider.CalendarContract
+import com.google.firebase.auth.FirebaseAuth
 import com.jtool.android.core.models.calendar.CalendarEvent
+import com.jtool.android.core.models.calendar.CalendarEventExtension
 import com.jtool.android.core.models.workday.WorktimeOptions
 import com.jtool.android.core.models.workday.enums.WorkTrackingPreferenceEnum
 import com.jtool.android.core.localization.Loc
+import com.jtool.android.core.settings.SettingsManager
+import com.jtool.android.core.sync.DataManager
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
@@ -11,6 +17,59 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 object CalendarEventHelper {
+    var pendingPresetEvent: CalendarEvent? = null
+
+    suspend fun pushAndShareShiftOrEvent(
+        context: Context,
+        settingsManager: SettingsManager,
+        dataManager: DataManager,
+        event: CalendarEvent,
+        calendarId: String,
+        sharedGroupIds: List<String>,
+        sendNotification: Boolean = false
+    ): String? {
+        val attendees = mutableSetOf<String>()
+        attendees.addAll(event.attendees)
+        sharedGroupIds.forEach { gid ->
+            attendees.addAll(dataManager.getGroupMemberEmails(gid))
+        }
+        val eventToSave = event.copy(attendees = attendees.toList())
+        val googleEventId = GoogleCalendarSyncHelper.pushToGoogleCalendar(
+            context,
+            eventToSave,
+            calendarId,
+            settingsManager.getGoogleCalendarEmail()
+        )
+        if (googleEventId != null) {
+            val userEmail = settingsManager.getGoogleCalendarEmail()
+                .ifEmpty { FirebaseAuth.getInstance().currentUser?.email ?: "" }
+                .lowercase().trim()
+            val statuses = event.attendeeStatuses.toMutableMap()
+            if (userEmail.isNotEmpty()) {
+                statuses[userEmail] = CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED
+            }
+            val localId = if (googleEventId.all { it.isDigit() }) googleEventId else ""
+            dataManager.saveCalendarExtension(
+                CalendarEventExtension(
+                    googleEventId = googleEventId,
+                    sharedGroupIds = sharedGroupIds,
+                    dateTimestamp = event.dtStart ?: 0L,
+                    endTimestamp = event.dtEnd ?: 0L,
+                    localEventId = localId,
+                    ownerUid = settingsManager.getUserId(),
+                    attendeeStatuses = statuses,
+                    colorKey = event.colorKey,
+                    title = event.title
+                )
+            )
+            if (sendNotification) {
+                sharedGroupIds.forEach { gid ->
+                    dataManager.sendEventNotification(gid, event.title, googleEventId)
+                }
+            }
+        }
+        return googleEventId
+    }
     fun generateVirtualShifts(options: WorktimeOptions, start: LocalDate, end: LocalDate): List<CalendarEvent> {
         val virtualEvents = mutableListOf<CalendarEvent>()
         val now = LocalDate.now()
@@ -159,12 +218,65 @@ object CalendarEventHelper {
     }
 
     fun mergeEventLists(firestoreEvents: List<CalendarEvent>, googleEvents: List<CalendarEvent>): List<CalendarEvent> {
-        return googleEvents // For pure Google integration, we only care about Google events
+        return googleEvents
     }
 
     fun isWorkShift(event: CalendarEvent, workShiftColorKey: String): Boolean {
         if (event.allDay) return false
         val target = workShiftColorKey.ifEmpty { "7" }
         return event.colorKey == target || (event.colorKey == null && (target == "7" || target == "1"))
+    }
+
+    fun findExtensionForEvent(
+        event: CalendarEvent,
+        extensions: Map<String, CalendarEventExtension>
+    ): CalendarEventExtension? {
+        if (extensions.isEmpty()) return null
+        val baseId = event.id.substringBefore("_cont_")
+        val cleanId = baseId.removePrefix("ext_")
+
+        extensions[event.id]?.let { return it }
+        if (baseId != event.id) extensions[baseId]?.let { return it }
+        extensions[cleanId]?.let { return it }
+        extensions["ext_$cleanId"]?.let { return it }
+
+        val iCal = event.iCalUID
+        if (!iCal.isNullOrEmpty()) {
+            extensions[iCal]?.let { return it }
+            extensions["ext_$iCal"]?.let { return it }
+        }
+
+        val noteText = event.note ?: ""
+        val deepLinkId = Regex("[?&]id=([^&\\s]+)").find(noteText)?.groupValues?.getOrNull(1)
+            ?: Regex("/event/([^\\s&?/#]+)").find(noteText)?.groupValues?.getOrNull(1)
+        if (!deepLinkId.isNullOrEmpty()) {
+            extensions[deepLinkId]?.let { return it }
+            extensions[deepLinkId.removePrefix("ext_")]?.let { return it }
+        }
+
+        val dtStart = event.dtStart
+        return extensions.values.find { ext ->
+            val extClean = ext.googleEventId.removePrefix("ext_")
+            val matchesId = ext.googleEventId == event.id ||
+                ext.googleEventId == baseId ||
+                extClean == cleanId ||
+                (ext.localEventId.isNotEmpty() && (ext.localEventId == event.id || ext.localEventId == baseId || ext.localEventId == cleanId)) ||
+                (!iCal.isNullOrEmpty() && (ext.googleEventId == iCal || extClean == iCal)) ||
+                (!deepLinkId.isNullOrEmpty() && (ext.googleEventId == deepLinkId || extClean == deepLinkId.removePrefix("ext_") || ext.localEventId == deepLinkId.removePrefix("ext_")))
+            if (matchesId) return@find true
+
+            val titleMatch = !ext.title.isNullOrBlank() && ext.title.trim().equals(event.title.trim(), ignoreCase = true)
+            if (!titleMatch || ext.dateTimestamp == 0L || dtStart == null) return@find false
+            if (kotlin.math.abs(ext.dateTimestamp - dtStart) < 300_000L) return@find true
+
+            if (event.allDay) {
+                val zone = ZoneId.systemDefault()
+                val extDate = java.time.Instant.ofEpochMilli(ext.dateTimestamp).atZone(zone).toLocalDate()
+                val eventDate = java.time.Instant.ofEpochMilli(dtStart).atZone(zone).toLocalDate()
+                extDate == eventDate
+            } else {
+                false
+            }
+        }
     }
 }

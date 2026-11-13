@@ -31,16 +31,27 @@ object CalendarAddEdit : AppProperties(AppScreenEnum.CALENDAR_ADD_EDIT) {
         val uiState by viewModel.uiState.collectAsState()
         
         LaunchedEffect(Unit) {
-            if (uiState.editingEvent == null) {
-                deps.settingsManager.getSelectedCalendarEventId()?.let { id ->
+            val preset = com.jtool.android.features.calendar.common.CalendarEventHelper.pendingPresetEvent
+            if (preset != null) {
+                viewModel.toggleAddEditDialog(false, preset)
+            } else if (uiState.editingEvent == null) {
+                deps.settingsManager.getSelectedCalendarEventId()?.takeIf { it.isNotEmpty() }?.let { id ->
                     viewModel.prepareEdit(id)
                 }
             }
         }
 
-        val editingEvent = uiState.editingEvent
+        val selectedDate = remember(uiState.selectedDate) {
+            try {
+                LocalDate.parse(deps.settingsManager.getSelectedCalendarDate())
+            } catch (_: Exception) {
+                uiState.selectedDate
+            }
+        }
+
+        val editingEvent = uiState.editingEvent ?: com.jtool.android.features.calendar.common.CalendarEventHelper.pendingPresetEvent
         val extension = remember(editingEvent, uiState.extensions) {
-            if (editingEvent == null) null
+            if (editingEvent == null || editingEvent.id.isEmpty()) null
             else {
                 uiState.extensions[editingEvent.id] 
                     ?: uiState.extensions[editingEvent.iCalUID] 
@@ -53,7 +64,7 @@ object CalendarAddEdit : AppProperties(AppScreenEnum.CALENDAR_ADD_EDIT) {
         if (isReminder) {
             com.jtool.android.features.calendar.edit.CalendarReminderAddEditScreen(
                 event = editingEvent,
-                selectedDate = uiState.selectedDate,
+                selectedDate = selectedDate,
                 onBack = {
                     viewModel.clearEditingEvent()
                     deps.onBack()
@@ -69,7 +80,7 @@ object CalendarAddEdit : AppProperties(AppScreenEnum.CALENDAR_ADD_EDIT) {
             CalendarAddEditScreen(
                 event = editingEvent,
                 extension = extension,
-                selectedDate = uiState.selectedDate,
+                selectedDate = selectedDate,
                 onBack = {
                     viewModel.clearEditingEvent()
                     deps.onBack()

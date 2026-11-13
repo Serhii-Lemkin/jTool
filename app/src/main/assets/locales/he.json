@@ -5,7 +5,7 @@
   "direction": "rtl",
   "strings": {
     "settings_releaseNotes": "הערות שחרור",
-    "settings_releaseNotesDesc": "צפה בכל התכונות, השינויים ותיקוני הבאגים האחרונים עבור גרסה 2.8.0 (גרסה 59)",
+    "settings_releaseNotesDesc": "כל התכונות, השינויים ותיקוני הבאגים האחרונים עבור גרסה %1$s (בנייה %2$s)",
     "settings_viewChangelog": "הצג יומן שינויים",
     "general_learnMore": "למידע נוסף",
     "launcher_hello": "שלום",
@@ -374,6 +374,13 @@
     "notes_deleteNoteTitle": "למחוק הערה?",
     "notes_noteTitlePlaceholder": "כותרת",
     "notes_untitledNote": "ללא כותרת",
+    "notes_previewLength": "אורך תצוגה מקדימה",
+    "notes_previewLengthDesc": "מספר שורות הטקסט של הפתק שיוצגו ברשימה",
+    "notes_previewLines": "%d שורות",
+    "notes_previewOneLine": "שורה אחת",
+    "notes_previewNoLimit": "טקסט מלא",
+    "notes_editNoteDesc": "פתיחת הפתק לעריכה",
+    "notes_deleteNoteDesc": "מחיקת הפתק לצמיתות",
     "notes_addTitleQuestion": "להוסיף כותרת?",
     "notes_addTitleExpl": "הוספת כותרת מקלה על מציאת ההערה הזו מאוחר יותר. אם אינך רוצה כותרת, פשוט לחץ על שמור.",
     "comments_comments": "תגובות",
@@ -893,6 +900,12 @@
     "worktime_hoursConfig": "הגדרת שעות",
     "worktime_setByDay": "הגדרה לפי יום",
     "worktime_stableHours": "שעות קבועות",
-    "worktime_timeLeft": "זמן שנשאר"
+    "worktime_timeLeft": "זמן שנשאר",
+    "vaults_openFileError": "לא ניתן לפתוח את הקובץ. לא נמצאה אפליקציה מתאימה או שהקישור אינו זמין.",
+    "vaults_shareError": "לא ניתן לשתף את קישור הקובץ.",
+    "vaults_openErrorMissingDriveLink": "לא מצורף קישור Google Drive לפריט זה. ניתן להוריד את הקובץ למכשיר או לבדוק ב-Google Drive.",
+    "vaults_openErrorLocalMissing": "הקובץ השמור לא נמצא במכשיר. יש להוריד אותו מחדש לפני פתיחה מקומית.",
+    "vaults_openErrorInvalidUrl": "הקישור המצורף אינו בפורמט תקין ולא ניתן לפתוח אותו.",
+    "vaults_openErrorNoApp": "לא נמצאה במכשיר אפליקציה מתאימה לפתיחת הקובץ או הקישור."
   }
 }

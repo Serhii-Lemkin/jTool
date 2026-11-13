@@ -1,7 +1,5 @@
 package com.jtool.android.features.vaults.components.doc_files_sheet
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,23 +22,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtool.android.core.models.vaults.VaultDocument
+import com.jtool.android.core.models.vaults.enums.FileOpenErrorReasonEnum
 import com.jtool.android.core.services.FileDownloadQueueManager
 import com.jtool.android.features.vaults.common.DocIconWithBadge
 import com.jtool.android.features.vaults.common.VaultDocUtils
+import com.jtool.android.features.vaults.components.file_open_error_sheet.FileOpenErrorSheet
 import com.jtool.android.ui.components.common.GenericSheet
 
 @Composable
 fun DocFilesSheet(
     doc: VaultDocument,
     offlineVersion: Long = 0L,
+    onOpenError: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    var openErrorReason by remember { mutableStateOf<FileOpenErrorReasonEnum?>(null) }
     val filesList = remember(doc, offlineVersion) {
         if (doc.fileNames.isNotEmpty()) {
             doc.fileNames.indices.map { i ->
                 val name = doc.fileNames[i]
-                val driveUrl = doc.driveUrls.getOrElse(i) { doc.effectiveDriveUrl }
+                val driveUrl = doc.getFileDriveUrl(i)
                 val isDownloaded = VaultDocUtils.isDownloadedLocally(context, doc, i)
                 Triple(name, driveUrl, isDownloaded)
             }
@@ -88,11 +92,14 @@ fun DocFilesSheet(
                         modifier = Modifier.weight(1f)
                     )
 
-                    // Eye Icon (Show ONLY if downloaded locally)
                     if (isDownloaded) {
                         IconButton(
                             onClick = {
-                                VaultDocUtils.openLocalFile(context, doc, index)
+                                val reason = VaultDocUtils.openLocalFileWithReason(context, doc, index)
+                                if (reason != null) {
+                                    openErrorReason = reason
+                                    onOpenError()
+                                }
                             }
                         ) {
                             Icon(
@@ -103,11 +110,13 @@ fun DocFilesSheet(
                         }
                     }
 
-                    // Drive Icon
                     IconButton(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(driveUrl))
-                            context.startActivity(intent)
+                            val reason = VaultDocUtils.openExternalUrlWithReason(context, driveUrl)
+                            if (reason != null) {
+                                openErrorReason = reason
+                                onOpenError()
+                            }
                         }
                     ) {
                         Icon(
@@ -121,5 +130,12 @@ fun DocFilesSheet(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (openErrorReason != null) {
+        FileOpenErrorSheet(
+            reason = openErrorReason!!,
+            onDismiss = { openErrorReason = null }
+        )
     }
 }

@@ -20,6 +20,7 @@ object Calendar : AppProperties(
     override fun Content(deps: NavigationDependencies) {
         val context = androidx.compose.ui.platform.LocalContext.current
         val calendarViewModel: CalendarGridViewModel = viewModel(
+            viewModelStoreOwner = context as androidx.activity.ComponentActivity,
             factory = viewModelFactory {
                 initializer {
                     CalendarGridViewModel(context, deps.settingsManager, deps.dataManager)

@@ -147,9 +147,8 @@ object SettingsLoc {
     val groupsInfoStep3Title get() = Loc.s("settings_groupsInfoStep3Title", "3. Joining Others")
     val groupsInfoStep3Desc get() = Loc.s("settings_groupsInfoStep3Desc", "To join an existing group, you'll need its unique Group ID or an email invitation.")
 
-    // Legacy settings keys
     val releaseNotes get() = Loc.s("settings_releaseNotes", "Release Notes")
-    val releaseNotesDesc get() = Loc.s("settings_releaseNotesDesc", "See all recent features, changes, and bug fixes for version 2.8.4 (Build 65)")
+    val releaseNotesDesc get() = Loc.s("settings_releaseNotesDesc", "See all recent features, changes, and bug fixes for version %1\$s (Build %2\$s)")
     val viewChangelog get() = Loc.s("settings_viewChangelog", "View Release Notes")
     val notSignedIn get() = Loc.s("settings_notSignedIn", "You are not signed in.")
     val noneSelected get() = Loc.s("settings_noneSelected", "None selected")

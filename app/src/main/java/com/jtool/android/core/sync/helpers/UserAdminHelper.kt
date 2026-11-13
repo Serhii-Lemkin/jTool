@@ -13,7 +13,10 @@ import com.jtool.android.core.models.user.User
 import com.jtool.android.core.models.user.UserData
 import com.jtool.android.core.models.user.PublicProfile
 import com.jtool.android.core.settings.SettingsManager
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
@@ -65,7 +68,8 @@ class UserAdminHelper(
                 "seenVaultsInfo" to settings.getSeenVaultsInfo(),
                 "jtoolsFolderId" to settings.getJtoolsFolderId(),
                 "vaultsFolderId" to settings.getVaultsFolderId(),
-                "launcherConfig" to settings.getLauncherConfig()
+                "launcherConfig" to settings.getLauncherConfig(),
+                UserData::notesConfig.name to settings.getNotesConfig()
             )
             getUserDataColl().document(uid).set(statsData, SetOptions.merge()).await()
             
@@ -85,7 +89,6 @@ class UserAdminHelper(
             
             profileDoc.set(profile).await()
             
-            // Update global metadata to trigger others to refresh
             firestore.collection("metadata").document("public_profiles")
                 .set(mapOf("lastUpdated" to now), SetOptions.merge()).await()
             
@@ -106,61 +109,104 @@ class UserAdminHelper(
     }
 
     suspend fun fetchUserSettings(force: Boolean = false): Boolean {
-        val uid = auth.currentUser?.uid ?: return false
+        val currentUser = auth.currentUser ?: return false
+        val uid = currentUser.uid
         return try {
-            try {
-                val pSnap = getPublicProfilesColl().document(uid).get().await()
-                val serverName = pSnap.getString(PublicProfile::displayName.name)
+            coroutineScope {
+                val profileDeferred = async {
+                    try { getPublicProfilesColl().document(uid).get().await() } catch (_: Exception) { null }
+                }
+                val userDeferred = async {
+                    try { getUsersColl().document(uid).get().await() } catch (_: Exception) { null }
+                }
+                val statsDeferred = async {
+                    try { getUserDataColl().document(uid).get().await() } catch (_: Exception) { null }
+                }
+
+                val pSnap = profileDeferred.await()
+                val serverName = pSnap?.getString(PublicProfile::displayName.name)
                 if (!serverName.isNullOrEmpty()) {
                     settings.saveUserName(serverName)
+                } else if (settings.getUserName().isEmpty() && !currentUser.displayName.isNullOrEmpty()) {
+                    settings.saveUserName(currentUser.displayName!!)
                 }
-                pSnap.getString(PublicProfile::calendarEmail.name)?.let { settings.setGoogleCalendarEmail(it) }
-            } catch (_: Exception) {}
+                pSnap?.getString(PublicProfile::calendarEmail.name)?.let { settings.setGoogleCalendarEmail(it) }
 
-            val userRef = getUsersColl().document(uid)
-            val snapshot = userRef.get().await()
-            val user = snapshot.toObject(User::class.java) ?: return false
-            
-            val localLastSync = settings.getLastSyncTimestamp()
-            if (!force && user.lastModified != 0L && user.lastModified <= localLastSync) {
-                return true
-            }
+                val userRef = getUsersColl().document(uid)
+                val snapshot = userDeferred.await()
+                val user = snapshot?.toObject(User::class.java) ?: return@coroutineScope false
 
-            val statsSnap = getUserDataColl().document(uid).get().await()
-            val stats = statsSnap.toObject(UserData::class.java) ?: UserData()
-            settings.setSeenVaultsInfo(stats.seenVaultsInfo)
-            settings.setJtoolsFolderId(stats.jtoolsFolderId)
-            settings.setVaultsFolderId(stats.vaultsFolderId)
-            
-            val groupIds = user.groupIds.toMutableList()
-            val finalGroupsMap = mutableMapOf<String, GroupInfo>()
-            val validIds = mutableListOf<String>()
-            var listChanged = false
-            
-            if (force || localLastSync == 0L) {
-                val ownedGroups = getGroupsColl().whereEqualTo(GroupInfo::ownerUid.name, uid).get().await()
-                ownedGroups.documents.forEach { doc ->
-                    if (!groupIds.contains(doc.id)) {
-                        groupIds.add(doc.id)
-                        listChanged = true
+                val localLastSync = settings.getLastSyncTimestamp()
+                if (!force && user.lastModified != 0L && user.lastModified <= localLastSync) {
+                    return@coroutineScope true
+                }
+
+                val statsSnap = statsDeferred.await()
+                val stats = statsSnap?.toObject(UserData::class.java) ?: UserData()
+                if (statsSnap != null && statsSnap.exists()) {
+                    settings.setDarkMode(stats.isDarkMode)
+                    settings.setLanguage(stats.language)
+                    settings.setLightPrimaryColor(stats.lightPrimary)
+                    settings.setLightBgColor(stats.lightBg)
+                    settings.setDarkPrimaryColor(stats.darkPrimary)
+                    settings.setDarkBgColor(stats.darkBg)
+                    settings.saveLauncherConfig(stats.launcherConfig)
+                    settings.saveNotesConfig(stats.notesConfig)
+                    settings.saveWorktimeOptions(stats.worktimeOptions)
+                    settings.saveCalendarConfig(stats.calendarConfig)
+                }
+                settings.setSeenVaultsInfo(stats.seenVaultsInfo)
+                settings.setJtoolsFolderId(stats.jtoolsFolderId)
+                settings.setVaultsFolderId(stats.vaultsFolderId)
+                if (stats.appUserId.isNotEmpty()) settings.saveAppUserId(stats.appUserId)
+
+                val groupIds = user.groupIds.toMutableList()
+                val finalGroupsMap = mutableMapOf<String, GroupInfo>()
+                val validIds = mutableListOf<String>()
+                var listChanged = false
+
+                if (force || localLastSync == 0L) {
+                    val ownedGroups = try {
+                        getGroupsColl().whereEqualTo(GroupInfo::ownerUid.name, uid).get().await()
+                    } catch (_: Exception) { null }
+                    ownedGroups?.documents?.forEach { doc ->
+                        if (!groupIds.contains(doc.id)) {
+                            groupIds.add(doc.id)
+                            listChanged = true
+                        }
                     }
                 }
-            }
 
-            if (groupIds.isNotEmpty()) {
-                for (gid in groupIds) {
-                    try {
-                        val gSnap = getGroupsColl().document(gid).get().await()
-                        if (gSnap.exists()) {
-                            val memberSnap = getGroupsColl().document(gid).collection("members").document(uid).get().await()
+                if (groupIds.isNotEmpty()) {
+                    val fetchedGroups = groupIds.map { gid ->
+                        async {
+                            try {
+                                val gDeferred = async { getGroupsColl().document(gid).get().await() }
+                                val mDeferred = async { getGroupsColl().document(gid).collection("members").document(uid).get().await() }
+                                val gSnap = gDeferred.await()
+                                val memberSnap = mDeferred.await()
+                                Triple(gid, gSnap, memberSnap)
+                            } catch (_: Exception) {
+                                Triple(gid, null, null)
+                            }
+                        }
+                    }.awaitAll()
+
+                    for ((gid, gSnap, memberSnap) in fetchedGroups) {
+                        if (gSnap == null) {
+                            validIds.add(gid)
+                        } else if (gSnap.exists()) {
                             val group = gSnap.toObject(GroupInfo::class.java)
-                            if (memberSnap.exists() || group?.ownerUid == uid) {
+                            val isMember = memberSnap?.exists() == true || group?.ownerUid == uid
+                            if (isMember) {
                                 if (group != null) {
                                     finalGroupsMap[gid] = group.copy(id = gid)
                                     validIds.add(gid)
-                                    if (!memberSnap.exists() && group.ownerUid == uid) {
-                                        getGroupsColl().document(gid).collection("members").document(uid)
-                                            .set(MemberInfo(joinedAt = System.currentTimeMillis())).await()
+                                    if (memberSnap?.exists() == false && group.ownerUid == uid) {
+                                        try {
+                                            getGroupsColl().document(gid).collection("members").document(uid)
+                                                .set(MemberInfo(joinedAt = System.currentTimeMillis())).await()
+                                        } catch (_: Exception) {}
                                     }
                                 } else {
                                     validIds.add(gid)
@@ -171,50 +217,33 @@ class UserAdminHelper(
                         } else {
                             listChanged = true
                         }
-                    } catch (e: Exception) {
-                        validIds.add(gid)
                     }
                 }
+
+                settings.saveGroups(finalGroupsMap)
+
+                val localCurrentGroupId = settings.getCurrentGroupId()
+                val remoteCurrentGroupId = stats.currentGroupId
+                val targetGroupId = if (localCurrentGroupId != null && validIds.contains(localCurrentGroupId)) {
+                    localCurrentGroupId
+                } else if (remoteCurrentGroupId != null && validIds.contains(remoteCurrentGroupId)) {
+                    remoteCurrentGroupId
+                } else {
+                    validIds.firstOrNull()
+                }
+
+                if (targetGroupId != localCurrentGroupId) settings.setCurrentGroupId(targetGroupId)
+
+                if (listChanged || validIds.size != user.groupIds.size) {
+                    try { userRef.update(User::groupIds.name, validIds).await() } catch (_: Exception) {}
+                }
+                if (remoteCurrentGroupId != targetGroupId) {
+                    try { getUserDataColl().document(uid).update(UserData::currentGroupId.name, targetGroupId).await() } catch (_: Exception) {}
+                }
+
+                settings.setLastSyncTimestamp(user.lastModified)
+                true
             }
-            
-            if (listChanged || validIds.size != user.groupIds.size) {
-                userRef.update(User::groupIds.name, validIds).await()
-            }
-            
-            settings.saveGroups(finalGroupsMap)
-            
-            val localCurrentGroupId = settings.getCurrentGroupId()
-            val remoteCurrentGroupId = stats.currentGroupId
-            val targetGroupId = if (localCurrentGroupId != null && validIds.contains(localCurrentGroupId)) {
-                localCurrentGroupId
-            } else if (remoteCurrentGroupId != null && validIds.contains(remoteCurrentGroupId)) {
-                remoteCurrentGroupId
-            } else {
-                validIds.firstOrNull()
-            }
-            
-            if (targetGroupId != localCurrentGroupId) settings.setCurrentGroupId(targetGroupId)
-            if (remoteCurrentGroupId != targetGroupId) {
-                getUserDataColl().document(uid).update(UserData::currentGroupId.name, targetGroupId).await()
-            }
-            
-            val pSnap = getPublicProfilesColl().document(uid).get().await()
-            pSnap.getString(PublicProfile::displayName.name)?.let { settings.saveUserName(it) }
-            pSnap.getString(PublicProfile::calendarEmail.name)?.let { settings.setGoogleCalendarEmail(it) }
-            
-            if (stats.appUserId.isNotEmpty()) settings.saveAppUserId(stats.appUserId)
-            settings.saveLauncherConfig(stats.launcherConfig)
-            settings.setDarkMode(stats.isDarkMode)
-            settings.setLanguage(stats.language)
-            settings.saveWorktimeOptions(stats.worktimeOptions)
-            settings.saveCalendarConfig(stats.calendarConfig)
-            settings.setLightPrimaryColor(stats.lightPrimary)
-            settings.setLightBgColor(stats.lightBg)
-            settings.setDarkPrimaryColor(stats.darkPrimary)
-            settings.setDarkBgColor(stats.darkBg)
-            settings.setLastSyncTimestamp(user.lastModified)
-            
-            true
         } catch (e: Exception) {
             false
         }

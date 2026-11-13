@@ -2,6 +2,13 @@
   "hosting": {
     "public": "y",
     "cleanUrls": true,
+    "redirects": [
+      {
+        "source": "/red-container",
+        "destination": "/action-container",
+        "type": 301
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

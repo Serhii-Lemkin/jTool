@@ -5,7 +5,7 @@
   "direction": "ltr",
   "strings": {
     "settings_releaseNotes": "Release Notes",
-    "settings_releaseNotesDesc": "See all recent features, changes, and bug fixes for version 2.8.4 (Build 65)",
+    "settings_releaseNotesDesc": "See all recent features, changes, and bug fixes for version %1$s (Build %2$s)",
     "settings_viewChangelog": "View Release Notes",
     "general_learnMore": "Learn More",
     "launcher_hello": "Hello",
@@ -292,6 +292,13 @@
     "notes_deleteNoteTitle": "Delete Note?",
     "notes_noteTitlePlaceholder": "Title",
     "notes_untitledNote": "Untitled",
+    "notes_previewLength": "Preview Length",
+    "notes_previewLengthDesc": "Choose how many lines of note text to show in the list",
+    "notes_previewLines": "%d lines",
+    "notes_previewOneLine": "1 line",
+    "notes_previewNoLimit": "Full text",
+    "notes_editNoteDesc": "Open the note in edit mode",
+    "notes_deleteNoteDesc": "Permanently delete this note",
     "notes_addTitleQuestion": "Add a Title?",
     "notes_addTitleExpl": "Adding a title makes it easier to find this note later. If you don't want one, just press Save.",
     "comments_comments": "Comments",
@@ -893,6 +900,12 @@
     "worktime_setByDay": "Set By Day",
     "worktime_shiftOptions": "Shift Options",
     "worktime_stableHours": "Stable Hours",
-    "worktime_withDuration": "With duration"
+    "worktime_withDuration": "With duration",
+    "vaults_openFileError": "Unable to open file. No compatible application found or link is unavailable.",
+    "vaults_shareError": "Unable to share file link.",
+    "vaults_openErrorMissingDriveLink": "No Google Drive link is attached to this item. Download the file or check its details on Google Drive.",
+    "vaults_openErrorLocalMissing": "The offline cached file could not be found on the device. Download it again before opening locally.",
+    "vaults_openErrorInvalidUrl": "The attached link has an invalid format and cannot be opened.",
+    "vaults_openErrorNoApp": "No compatible application was found on this device to open this file or link."
   }
 }

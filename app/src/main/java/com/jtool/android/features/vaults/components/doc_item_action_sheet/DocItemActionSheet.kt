@@ -45,7 +45,6 @@ fun DocItemActionSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 1. Open Connected Folder in Drive (Only if showDriveButtons == true)
             if (showDriveButtons) {
                 Row(
                     modifier = Modifier
@@ -67,7 +66,6 @@ fun DocItemActionSheet(
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             }
 
-            // 2. Offline Cache option
             if (isDownloaded) {
                 Row(
                     modifier = Modifier
@@ -108,7 +106,6 @@ fun DocItemActionSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
-            // 3. Save to Downloads (Always available!)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,7 +126,6 @@ fun DocItemActionSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
 
-            // 4. Share
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -148,7 +144,6 @@ fun DocItemActionSheet(
                 }
             }
 
-            // 4. Edit & Delete
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
             Row(
                 modifier = Modifier
@@ -164,7 +159,11 @@ fun DocItemActionSheet(
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text(Loc.General.edit, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                    Text("Edit document name, tag, date, and files", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        if (isDocOwner) "Edit document name, tag, date, and files" else "Edit document name, tag, date, and description",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 

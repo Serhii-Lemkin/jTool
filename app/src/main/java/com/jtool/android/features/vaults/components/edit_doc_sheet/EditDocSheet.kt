@@ -4,31 +4,21 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.jtool.android.core.localization.Loc
 import com.jtool.android.core.utils.rememberCustomDatePickerState
@@ -86,6 +76,7 @@ fun EditDocSheet(
     vault: Vault,
     doc: VaultDocument,
     isUploading: Boolean = false,
+    canEditFiles: Boolean = true,
     onDismiss: () -> Unit,
     onConfirm: (VaultDocument, List<AttachedFile>, List<String>) -> Unit
 ) {
@@ -242,211 +233,45 @@ fun EditDocSheet(
                     singleLine = true
                 )
 
-                // Existing + New Attached Files
-                if (existingFiles.isNotEmpty() || newFiles.isNotEmpty()) {
-                    Text(
-                        text = Loc.Vaults.document,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    // Existing files
-                    existingFiles.forEachIndexed { index, file ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val isImage = file.extension.lowercase() in listOf(".jpg", ".jpeg", ".png", ".webp")
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(end = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isImage) Icons.Default.Image else Icons.Default.Description,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Text(
-                                    text = file.extension.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            OutlinedTextField(
-                                value = file.fileName.removeSuffix(file.extension),
-                                onValueChange = { newName ->
-                                    val sanitized = sanitizeFileName(newName).removeSuffix(file.extension)
-                                    val newList = existingFiles.toMutableList()
-                                    newList[index] = file.copy(fileName = sanitized)
-                                    existingFiles = newList
-                                },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                trailingIcon = {
-                                    Text(
-                                        text = file.extension.lowercase(),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(end = 12.dp)
-                                    )
-                                },
-                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
-                            )
-
-                            IconButton(
-                                onClick = {
-                                    removedDriveIds = removedDriveIds + file.driveFileId
-                                    val newList = existingFiles.toMutableList()
-                                    newList.removeAt(index)
-                                    existingFiles = newList
-                                },
-                                modifier = Modifier.padding(start = 4.dp)
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                    }
-
-                    // New files
-                    newFiles.forEachIndexed { index, file ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val isImage = file.extension.lowercase() in listOf(".jpg", ".jpeg", ".png", ".webp")
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(end = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isImage) Icons.Default.Image else Icons.Default.Description,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Text(
-                                    text = file.extension.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            OutlinedTextField(
-                                value = file.fileName.removeSuffix(file.extension),
-                                onValueChange = { newName ->
-                                    val sanitized = sanitizeFileName(newName).removeSuffix(file.extension)
-                                    val newList = newFiles.toMutableList()
-                                    newList[index] = file.copy(fileName = sanitized)
-                                    newFiles = newList
-                                },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                trailingIcon = {
-                                    Text(
-                                        text = file.extension.lowercase(),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(end = 12.dp)
-                                    )
-                                },
-                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
-                            )
-
-                            IconButton(
-                                onClick = {
-                                    val newList = newFiles.toMutableList()
-                                    newList.removeAt(index)
-                                    newFiles = newList
-                                },
-                                modifier = Modifier.padding(start = 4.dp)
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                    }
-                }
-
-                // Add File Buttons
-                Text(
-                    text = VaultsLoc.addAnother,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { docLauncher.launch(documentMimeTypes) },
-                        modifier = Modifier.weight(1f).aspectRatio(1f),
-                        contentPadding = PaddingValues(4.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(Icons.Default.Add, null, modifier = Modifier.size(28.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(Loc.Vaults.selectDocument, fontSize = 12.sp, maxLines = 1, fontWeight = FontWeight.Medium)
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = { galleryLauncher.launch("image/*") },
-                        modifier = Modifier.weight(1f).aspectRatio(1f),
-                        contentPadding = PaddingValues(4.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(28.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(Loc.Vaults.selectPhoto, fontSize = 12.sp, maxLines = 1, fontWeight = FontWeight.Medium)
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = {
+                if (canEditFiles) {
+                    EditDocFilesSection(
+                        existingFiles = existingFiles,
+                        newFiles = newFiles,
+                        sanitizeFileName = ::sanitizeFileName,
+                        onExistingFileNameChange = { index, sanitized ->
+                            val newList = existingFiles.toMutableList()
+                            newList[index] = existingFiles[index].copy(fileName = sanitized)
+                            existingFiles = newList
+                        },
+                        onRemoveExistingFile = { index ->
+                            removedDriveIds = removedDriveIds + existingFiles[index].driveFileId
+                            val newList = existingFiles.toMutableList()
+                            newList.removeAt(index)
+                            existingFiles = newList
+                        },
+                        onNewFileNameChange = { index, sanitized ->
+                            val newList = newFiles.toMutableList()
+                            newList[index] = newFiles[index].copy(fileName = sanitized)
+                            newFiles = newList
+                        },
+                        onRemoveNewFile = { index ->
+                            val newList = newFiles.toMutableList()
+                            newList.removeAt(index)
+                            newFiles = newList
+                        },
+                        onPickDocuments = { docLauncher.launch(documentMimeTypes) },
+                        onPickPhotos = { galleryLauncher.launch("image/*") },
+                        onTakePhoto = {
                             val tempFile = File(context.externalCacheDir, "temp_camera_${System.currentTimeMillis()}.jpg")
                             val tempUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", tempFile)
                             cameraImageUri = tempUri
                             cameraLauncher.launch(tempUri)
-                        },
-                        modifier = Modifier.weight(1f).aspectRatio(1f),
-                        contentPadding = PaddingValues(4.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(28.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(Loc.Vaults.takePhoto, fontSize = 12.sp, maxLines = 1, fontWeight = FontWeight.Medium)
                         }
-                    }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
-
-                // Tag Selector
                 var isTagFocused by remember { mutableStateOf(false) }
 
                 val filteredTags = remember(tagInput, tagsMap) {
@@ -522,25 +347,39 @@ fun EditDocSheet(
 
                 Button(
                     onClick = {
-                        if (docName.isNotBlank() && (existingFiles.isNotEmpty() || newFiles.isNotEmpty())) {
-                            val updatedDoc = doc.copy(
-                                name = docName.trim(),
-                                tag = tag.trim(),
-                                documentTimestamp = docDateMs,
-                                description = description.trim(),
-                                driveFileIds = existingFiles.map { it.driveFileId },
-                                driveUrls = existingFiles.map { it.driveUrl },
-                                fileNames = existingFiles.map {
-                                    val clean = it.fileName.removeSuffix(it.extension)
-                                    "$clean${it.extension}"
-                                },
-                                fileTypes = existingFiles.map { it.fileType }
+                        val hasValidFiles = !canEditFiles || existingFiles.isNotEmpty() || newFiles.isNotEmpty()
+                        if (docName.isNotBlank() && hasValidFiles) {
+                            val updatedDoc = if (canEditFiles) {
+                                doc.copy(
+                                    name = docName.trim(),
+                                    tag = tag.trim(),
+                                    documentTimestamp = docDateMs,
+                                    description = description.trim(),
+                                    driveFileIds = existingFiles.map { it.driveFileId },
+                                    driveUrls = existingFiles.map { it.driveUrl },
+                                    fileNames = existingFiles.map {
+                                        val clean = it.fileName.removeSuffix(it.extension)
+                                        "$clean${it.extension}"
+                                    },
+                                    fileTypes = existingFiles.map { it.fileType }
+                                )
+                            } else {
+                                doc.copy(
+                                    name = docName.trim(),
+                                    tag = tag.trim(),
+                                    documentTimestamp = docDateMs,
+                                    description = description.trim()
+                                )
+                            }
+                            onConfirm(
+                                updatedDoc,
+                                if (canEditFiles) newFiles else emptyList(),
+                                if (canEditFiles) removedDriveIds else emptyList()
                             )
-                            onConfirm(updatedDoc, newFiles, removedDriveIds)
                             onDismiss()
                         }
                     },
-                    enabled = docName.isNotBlank() && (existingFiles.isNotEmpty() || newFiles.isNotEmpty()) && tag.isNotBlank(),
+                    enabled = docName.isNotBlank() && (!canEditFiles || existingFiles.isNotEmpty() || newFiles.isNotEmpty()) && tag.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().height(50.dp)
                 ) {
                     Text(Loc.General.save, fontWeight = FontWeight.Bold)

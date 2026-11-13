@@ -26,5 +26,6 @@ data class UserData(
     val seenVaultsInfo: Boolean = false,
     val jtoolsFolderId: String = "",
     val vaultsFolderId: String = "",
-    val launcherConfig: LauncherConfig = LauncherConfig()
+    val launcherConfig: LauncherConfig = LauncherConfig(),
+    val notesConfig: NotesConfig = NotesConfig()
 )

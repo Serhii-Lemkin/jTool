@@ -1,11 +1,13 @@
 package com.jtool.android.features.vaults.common
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import android.webkit.MimeTypeMap
+import com.jtool.android.core.models.vaults.enums.FileOpenErrorReasonEnum
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -243,24 +245,20 @@ object VaultDocUtils {
         val type = doc.fileTypes.getOrNull(index) ?: doc.fileType
         val fileName = ensureExtension(rawName, type)
 
-        // 1. Check doc-specific directory with extension
         val docDirFile = File(context.filesDir, "vaults/${doc.vaultId}/${doc.id}/$fileName")
         if (docDirFile.exists() && docDirFile.length() > 0) return docDirFile
 
-        // 2. Check localPaths or localPath if populated
         val customPath = doc.localPaths.getOrNull(index) ?: if (index == 0) doc.localPath else ""
         if (customPath.isNotEmpty()) {
             val customFile = File(customPath)
             if (customFile.exists() && customFile.length() > 0) return customFile
         }
 
-        // 3. Check doc-specific directory with rawName
         if (rawName != fileName) {
             val rawDocDirFile = File(context.filesDir, "vaults/${doc.vaultId}/${doc.id}/$rawName")
             if (rawDocDirFile.exists() && rawDocDirFile.length() > 0) return rawDocDirFile
         }
 
-        // 4. Check legacy prefixed file name
         val legacyFile = File(context.filesDir, "vaults/${doc.vaultId}/${doc.id}_${doc.name}")
         if (legacyFile.exists() && legacyFile.length() > 0) return legacyFile
 
@@ -339,9 +337,13 @@ object VaultDocUtils {
     }
 
     fun openLocalFile(context: Context, doc: VaultDocument, index: Int = 0): Boolean {
+        return openLocalFileWithReason(context, doc, index) == null
+    }
+
+    fun openLocalFileWithReason(context: Context, doc: VaultDocument, index: Int = 0): FileOpenErrorReasonEnum? {
         return try {
             val file = getOfflineLocalFile(context, doc, index)
-            if (!file.exists() || file.length() == 0L) return false
+            if (!file.exists() || file.length() == 0L) return FileOpenErrorReasonEnum.LOCAL_FILE_MISSING
 
             var fileName = doc.fileNames.getOrNull(index) ?: doc.name
             val type = doc.fileTypes.getOrNull(index) ?: doc.fileType
@@ -358,14 +360,62 @@ object VaultDocUtils {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
-            try {
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                context.startActivity(Intent.createChooser(intent, fileName))
-            }
-            true
+            context.startActivity(intent)
+            null
+        } catch (e: ActivityNotFoundException) {
+            Log.e("VaultDocUtils", "No app found to open local file: ${doc.name}", e)
+            FileOpenErrorReasonEnum.NO_APP_FOUND
         } catch (e: Exception) {
             Log.e("VaultDocUtils", "Failed to open local file: ${doc.name}", e)
+            FileOpenErrorReasonEnum.NO_APP_FOUND
+        }
+    }
+
+    fun openExternalUrl(context: Context, url: String): Boolean {
+        return openExternalUrlWithReason(context, url) == null
+    }
+
+    fun openExternalUrlWithReason(context: Context, url: String): FileOpenErrorReasonEnum? {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return FileOpenErrorReasonEnum.MISSING_DRIVE_LINK
+        val parsed = try {
+            Uri.parse(trimmed)
+        } catch (_: Exception) {
+            return FileOpenErrorReasonEnum.INVALID_URL
+        }
+        val scheme = parsed.scheme?.lowercase()
+        if (scheme.isNullOrBlank() || (scheme != "http" && scheme != "https") || parsed.host.isNullOrBlank()) {
+            return FileOpenErrorReasonEnum.INVALID_URL
+        }
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, parsed).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            null
+        } catch (e: ActivityNotFoundException) {
+            Log.e("VaultDocUtils", "No app found for URL: $trimmed", e)
+            FileOpenErrorReasonEnum.NO_APP_FOUND
+        } catch (e: Exception) {
+            Log.e("VaultDocUtils", "Failed to open external URL: $trimmed", e)
+            FileOpenErrorReasonEnum.NO_APP_FOUND
+        }
+    }
+
+    fun shareText(context: Context, text: String, chooserTitle: String): Boolean {
+        if (text.isBlank()) return false
+        return try {
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                putExtra(Intent.EXTRA_TEXT, text)
+                type = "text/plain"
+            }
+            val chooser = Intent.createChooser(sendIntent, chooserTitle).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            true
+        } catch (e: Exception) {
+            Log.e("VaultDocUtils", "Failed to share text", e)
             false
         }
     }

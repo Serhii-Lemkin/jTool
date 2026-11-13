@@ -10,6 +10,9 @@ import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
 import com.jtool.android.features.vaults.common.GoogleDriveVaultHelper
 import com.jtool.android.features.vaults.common.VaultDocUtils
+import com.jtool.android.features.vaults.common.VaultsOperationsHelper
+import com.jtool.android.core.services.FileDownloadQueueManager
+import com.google.firebase.auth.FirebaseAuth
 import com.jtool.android.core.localization.domains.VaultsLoc
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +54,10 @@ class VaultsViewModel(
     init {
         dataManager.userNamesFlow()
             .onEach { names -> _uiState.update { it.copy(userNames = names) } }
+            .launchIn(viewModelScope)
+
+        FileDownloadQueueManager.downloadState
+            .onEach { _uiState.update { state -> state.copy(offlineVersion = System.currentTimeMillis()) } }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
@@ -227,124 +234,35 @@ class VaultsViewModel(
                 viewModelScope.launch {
                     _uiState.update { it.copy(isUploading = true) }
                     try {
-                        val memberEmails = dataManager.getGroupMemberEmails(gid)
-                        
-                        val uploadedFileIds = mutableListOf<String>()
-                        val uploadedDriveUrls = mutableListOf<String>()
-                        val fileNames = mutableListOf<String>()
-                        val fileTypes = mutableListOf<String>()
-                        
-                        // Map localized string back to key if standard tag selected, otherwise it's custom.
-                        val standardTagsMap = mapOf(
-                            VaultsLoc.tagWarranty to "#WARRANTY#",
-                            VaultsLoc.tagDocument to "#DOCUMENT#",
-                            VaultsLoc.tagReceipt to "#RECEIPT#",
-                            VaultsLoc.tagInvoice to "#INVOICE#",
-                            VaultsLoc.tagAgreement to "#AGREEMENT#",
-                            VaultsLoc.tagId to "#IDENTIFICATION#",
-                            VaultsLoc.tagSlip to "#SLIP#",
-                            VaultsLoc.tagLicense to "#LICENSE#",
-                            VaultsLoc.tagContract to "#CONTRACT#",
-                            VaultsLoc.tagInsurance to "#INSURANCE#",
-                            VaultsLoc.tagMedical to "#MEDICAL#",
-                            VaultsLoc.tagTax to "#TAX#",
-                            VaultsLoc.tagVehicle to "#VEHICLE#",
-                            VaultsLoc.tagProperty to "#PROPERTY#",
-                            VaultsLoc.tagFinancial to "#FINANCIAL#",
-                            VaultsLoc.tagCertificate to "#CERTIFICATE#",
-                            VaultsLoc.tagEducation to "#EDUCATION#"
+                        val (success, errorMsg) = VaultsOperationsHelper.performUploadDoc(
+                            context = context,
+                            dataManager = dataManager,
+                            gid = gid,
+                            currentUserId = settingsManager.getAppUserId(),
+                            event = event
                         )
-                        val storedTag = standardTagsMap[event.tag.trim()] ?: event.tag.trim()
-                        
-                        var docFolderId = ""
-                        var docFolderUrl = ""
-                        val targetFolderId = if (event.files.size > 1) {
-                            val (fId, fUrl) = GoogleDriveVaultHelper.createSubFolder(context, event.vault.driveFolderId, event.docName, memberEmails)
-                            docFolderId = fId ?: ""
-                            docFolderUrl = fUrl ?: ""
-                            fId ?: event.vault.driveFolderId
-                        } else {
-                            event.vault.driveFolderId
-                        }
-
-                        for (attachedFile in event.files) {
-                            val fullFileName = "${attachedFile.fileName}${attachedFile.extension}"
-                            val (uploadResult, errorMsg) = GoogleDriveVaultHelper.uploadDocumentToDrive(
-                                context, targetFolderId, attachedFile.uri, fullFileName, "document", memberEmails, event.vault.id
-                            )
-                            
-                            if (uploadResult == null) {
-                                // Save pending state and abort
-                                _uiState.update {
-                                    it.copy(
-                                        pendingDoc = PendingDocUpload(
-                                            vault = event.vault,
-                                            files = event.files,
-                                            docName = event.docName,
-                                            tag = event.tag,
-                                            docDate = event.docDate,
-                                            description = event.description
-                                        )
+                        if (!success) {
+                            _uiState.update {
+                                it.copy(
+                                    pendingDoc = PendingDocUpload(
+                                        vault = event.vault,
+                                        files = event.files,
+                                        docName = event.docName,
+                                        tag = event.tag,
+                                        docDate = event.docDate,
+                                        description = event.description
                                     )
-                                }
-                                event.onComplete(false, errorMsg ?: "Failed to upload document to Google Drive.")
-                                return@launch
+                                )
                             }
-                            
-                            uploadedFileIds.add(uploadResult.first)
-                            uploadedDriveUrls.add(uploadResult.second)
-                            fileNames.add(fullFileName)
-                            fileTypes.add(attachedFile.extension.removePrefix("."))
+                            event.onComplete(false, errorMsg)
+                        } else {
+                            _uiState.update { it.copy(pendingDoc = null, offlineVersion = System.currentTimeMillis()) }
+                            event.onComplete(true, null)
                         }
-
-                        val newDoc = VaultDocument(
-                            vaultId = event.vault.id,
-                            name = event.docName,
-                            tag = storedTag,
-                            uploadTimestamp = System.currentTimeMillis(),
-                            documentTimestamp = event.docDate,
-                            description = event.description,
-                            driveFileId = uploadedFileIds.firstOrNull() ?: "",
-                            driveUrl = uploadedDriveUrls.firstOrNull() ?: "",
-                            fileType = fileTypes.firstOrNull() ?: "",
-                            driveFileIds = uploadedFileIds,
-                            driveUrls = uploadedDriveUrls,
-                            fileNames = fileNames,
-                            fileTypes = fileTypes,
-                            folderId = docFolderId,
-                            folderUrl = docFolderUrl,
-                            lastUpdatedBy = settingsManager.getAppUserId()
-                        )
-                        
-                        val docId = dataManager.addVaultDoc(gid, event.vault.id, newDoc)
-
-                        if (event.saveOffline) {
-                            try {
-                                val docDir = File(context.filesDir, "vaults/${event.vault.id}/$docId")
-                                if (!docDir.exists()) docDir.mkdirs()
-                                fileNames.forEach { fileName ->
-                                    val srcFile = File(context.filesDir, "vaults/${event.vault.id}/$fileName")
-                                    if (srcFile.exists()) {
-                                        srcFile.copyTo(File(docDir, fileName), overwrite = true)
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e("VaultsViewModel", "Failed to cache files locally", e)
-                            }
-                        }
-
-                        // Clean up temporary un-cached files in vault root
-                        fileNames.forEach { fileName ->
-                            val srcFile = File(context.filesDir, "vaults/${event.vault.id}/$fileName")
-                            if (srcFile.exists()) {
-                                srcFile.delete()
-                            }
-                        }
-
-                        _uiState.update { it.copy(pendingDoc = null, offlineVersion = System.currentTimeMillis()) }
-                        event.onComplete(true, null)
                     } catch (e: Exception) {
                         event.onComplete(false, e.message ?: "Failed to upload document.")
+                    } finally {
+                        _uiState.update { it.copy(isUploading = false) }
                     }
                 }
             }
@@ -352,108 +270,31 @@ class VaultsViewModel(
                 viewModelScope.launch {
                     _uiState.update { it.copy(updatingDocIds = it.updatingDocIds + event.doc.id) }
                     try {
-                        val memberEmails = dataManager.getGroupMemberEmails(gid)
-
                         val oldDoc = _uiState.value.docs.find { it.id == event.doc.id }
-                        if (oldDoc != null && oldDoc.name != event.doc.name && event.doc.folderId.isNotEmpty()) {
-                            try {
-                                GoogleDriveVaultHelper.renameRemoteDriveItem(context, event.doc.folderId, event.doc.name)
-                            } catch (e: Exception) {
-                                Log.e("VaultsViewModel", "Failed to rename folder on Drive", e)
-                            }
-                        }
-
-                        // 1. Delete removed Drive files and local cached files
-                        event.removedDriveFileIds.filter { it.isNotEmpty() }.forEach { id ->
-                            val index = oldDoc?.driveFileIds?.indexOf(id) ?: -1
-                            if (index != -1 && oldDoc != null) {
-                                VaultDocUtils.deleteLocalOfflineFile(context, oldDoc, index)
-                            }
-                            GoogleDriveVaultHelper.deleteRemoteDriveItem(context, id)
-                        }
-
-                        // 2. Upload new files
-                        val newDriveFileIds = mutableListOf<String>()
-                        val newDriveUrls = mutableListOf<String>()
-                        val newFileNames = mutableListOf<String>()
-                        val newFileTypes = mutableListOf<String>()
-
-                        var docFolderId = event.doc.folderId
-                        var docFolderUrl = event.doc.folderUrl
-                        
-                        if (docFolderId.isEmpty()) {
-                            val (fId, fUrl) = GoogleDriveVaultHelper.createSubFolder(context, event.vault.driveFolderId, event.doc.name, memberEmails)
-                            docFolderId = fId ?: ""
-                            docFolderUrl = fUrl ?: ""
-                        }
-                        
-                        val targetFolderId = if (docFolderId.isNotEmpty()) docFolderId else event.vault.driveFolderId
-
-                        for (attachedFile in event.newFilesToUpload) {
-                            val fullFileName = "${attachedFile.fileName}${attachedFile.extension}"
-                            val (uploadResult, errorMsg) = GoogleDriveVaultHelper.uploadDocumentToDrive(
-                                context, targetFolderId, attachedFile.uri, fullFileName, "document", memberEmails, event.vault.id
-                            )
-                            if (uploadResult != null) {
-                                newDriveFileIds.add(uploadResult.first)
-                                newDriveUrls.add(uploadResult.second)
-                                newFileNames.add(fullFileName)
-                                newFileTypes.add(attachedFile.extension.removePrefix("."))
+                        val currentUserId = settingsManager.getAppUserId()
+                        val authUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        val (updatedDoc, errorMsg) = VaultsOperationsHelper.performUpdateDoc(
+                            context = context,
+                            dataManager = dataManager,
+                            gid = gid,
+                            currentUserId = currentUserId,
+                            authUid = authUid,
+                            vault = event.vault,
+                            eventDoc = event.doc,
+                            oldDoc = oldDoc,
+                            newFilesToUpload = event.newFilesToUpload,
+                            removedDriveFileIds = event.removedDriveFileIds
+                        )
+                        if (updatedDoc != null) {
+                            if (_uiState.value.selectedDoc?.id == updatedDoc.id) {
+                                _uiState.update { it.copy(selectedDoc = updatedDoc, offlineVersion = System.currentTimeMillis()) }
                             } else {
-                                event.onComplete(false, errorMsg ?: "Failed to upload file to Google Drive.")
-                                return@launch
+                                _uiState.update { it.copy(offlineVersion = System.currentTimeMillis()) }
                             }
-                        }
-
-                        // 3. Map localized tag back to key if standard tag selected
-                        val standardTagsMap = mapOf(
-                            VaultsLoc.tagWarranty to "#WARRANTY#",
-                            VaultsLoc.tagDocument to "#DOCUMENT#",
-                            VaultsLoc.tagReceipt to "#RECEIPT#",
-                            VaultsLoc.tagInvoice to "#INVOICE#",
-                            VaultsLoc.tagAgreement to "#AGREEMENT#",
-                            VaultsLoc.tagId to "#IDENTIFICATION#",
-                            VaultsLoc.tagSlip to "#SLIP#",
-                            VaultsLoc.tagLicense to "#LICENSE#",
-                            VaultsLoc.tagContract to "#CONTRACT#",
-                            VaultsLoc.tagInsurance to "#INSURANCE#",
-                            VaultsLoc.tagMedical to "#MEDICAL#",
-                            VaultsLoc.tagTax to "#TAX#",
-                            VaultsLoc.tagVehicle to "#VEHICLE#",
-                            VaultsLoc.tagProperty to "#PROPERTY#",
-                            VaultsLoc.tagFinancial to "#FINANCIAL#",
-                            VaultsLoc.tagCertificate to "#CERTIFICATE#",
-                            VaultsLoc.tagEducation to "#EDUCATION#"
-                        )
-                        val storedTag = standardTagsMap[event.doc.tag.trim()] ?: event.doc.tag.trim()
-
-                        // 4. Combine existing kept files + new files
-                        val finalDriveFileIds = event.doc.driveFileIds + newDriveFileIds
-                        val finalDriveUrls = event.doc.driveUrls + newDriveUrls
-                        val finalFileNames = event.doc.fileNames + newFileNames
-                        val finalFileTypes = event.doc.fileTypes + newFileTypes
-
-                        val updatedDoc = event.doc.copy(
-                            tag = storedTag,
-                            driveFileId = finalDriveFileIds.firstOrNull() ?: "",
-                            driveUrl = finalDriveUrls.firstOrNull() ?: "",
-                            fileType = finalFileTypes.firstOrNull() ?: "",
-                            driveFileIds = finalDriveFileIds,
-                            driveUrls = finalDriveUrls,
-                            fileNames = finalFileNames,
-                            fileTypes = finalFileTypes,
-                            folderId = docFolderId,
-                            folderUrl = docFolderUrl,
-                            lastUpdatedBy = settingsManager.getAppUserId()
-                        )
-
-                        dataManager.updateVaultDoc(gid, event.doc.vaultId, updatedDoc)
-                        if (_uiState.value.selectedDoc?.id == updatedDoc.id) {
-                            _uiState.update { it.copy(selectedDoc = updatedDoc, offlineVersion = System.currentTimeMillis()) }
+                            event.onComplete(true, null)
                         } else {
-                            _uiState.update { it.copy(offlineVersion = System.currentTimeMillis()) }
+                            event.onComplete(false, errorMsg ?: "Failed to update document.")
                         }
-                        event.onComplete(true, null)
                     } catch (e: Exception) {
                         event.onComplete(false, e.message ?: "Failed to update document.")
                     } finally {
@@ -466,17 +307,14 @@ class VaultsViewModel(
                     _uiState.update { it.copy(deletingDocIds = it.deletingDocIds + event.docId) }
                     try {
                         val doc = _uiState.value.docs.find { it.id == event.docId }
-                        if (doc != null) {
-                            if (doc.folderId.isNotEmpty()) {
-                                GoogleDriveVaultHelper.deleteRemoteDriveItem(context, doc.folderId)
-                            }
-                            val driveIds = (doc.driveFileIds + doc.driveFileId + doc.effectiveDriveFileId).filter { it.isNotEmpty() && it != doc.folderId }.distinct()
-                            driveIds.forEach { id ->
-                                GoogleDriveVaultHelper.deleteRemoteDriveItem(context, id)
-                            }
-                            VaultDocUtils.deleteAllOfflineFiles(context, doc)
+                        val vault = _uiState.value.vaults.find { it.id == event.vaultId } ?: _uiState.value.selectedVault
+                        val currentUserId = settingsManager.getAppUserId()
+                        val authUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        if (doc != null && !VaultsOperationsHelper.isDocOrVaultOwner(doc, vault, currentUserId, authUid)) {
+                            event.onComplete(false)
+                            return@launch
                         }
-                        dataManager.deleteVaultDoc(gid, event.vaultId, event.docId)
+                        VaultsOperationsHelper.performDeleteDoc(context, dataManager, gid, event.vaultId, event.docId, doc)
                         event.onComplete(true)
                     } catch (e: Exception) {
                         Log.e("VaultsViewModel", "Failed to delete doc", e)
@@ -489,7 +327,7 @@ class VaultsViewModel(
             is VaultsEvent.DownloadDocForOffline -> {
                 viewModelScope.launch {
                     try {
-                        com.jtool.android.core.services.FileDownloadQueueManager.enqueue(context, event.doc)
+                        FileDownloadQueueManager.enqueue(context, event.doc)
                     } catch (e: Exception) {
                         Log.e("VaultsViewModel", "Failed offline download enqueue", e)
                     }
@@ -515,30 +353,20 @@ class VaultsViewModel(
             is VaultsEvent.DeleteSpecificFile -> {
                 viewModelScope.launch {
                     try {
-                        val fileId = event.doc.driveFileIds.getOrNull(event.fileIndex)
-                        if (fileId != null && fileId.isNotEmpty()) {
-                            GoogleDriveVaultHelper.deleteRemoteDriveItem(context, fileId)
+                        val currentUserId = settingsManager.getAppUserId()
+                        val authUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        val vault = _uiState.value.vaults.find { it.id == event.doc.vaultId } ?: _uiState.value.selectedVault
+                        if (!VaultsOperationsHelper.isDocOrVaultOwner(event.doc, vault, currentUserId, authUid)) {
+                            return@launch
                         }
-                        
-                        VaultDocUtils.deleteLocalOfflineFile(context, event.doc, event.fileIndex)
-                        
-                        val newFileIds = event.doc.driveFileIds.toMutableList().apply { if (size > event.fileIndex) removeAt(event.fileIndex) }
-                        val newUrls = event.doc.driveUrls.toMutableList().apply { if (size > event.fileIndex) removeAt(event.fileIndex) }
-                        val newNames = event.doc.fileNames.toMutableList().apply { if (size > event.fileIndex) removeAt(event.fileIndex) }
-                        val newTypes = event.doc.fileTypes.toMutableList().apply { if (size > event.fileIndex) removeAt(event.fileIndex) }
-                        
-                        val updatedDoc = event.doc.copy(
-                            driveFileIds = newFileIds,
-                            driveUrls = newUrls,
-                            fileNames = newNames,
-                            fileTypes = newTypes,
-                            driveFileId = newFileIds.firstOrNull() ?: "",
-                            driveUrl = newUrls.firstOrNull() ?: "",
-                            fileType = newTypes.firstOrNull() ?: "",
-                            lastUpdatedBy = settingsManager.getAppUserId()
+                        val updatedDoc = VaultsOperationsHelper.performDeleteSpecificFile(
+                            context = context,
+                            dataManager = dataManager,
+                            gid = gid,
+                            doc = event.doc,
+                            fileIndex = event.fileIndex,
+                            currentUserId = currentUserId
                         )
-                        
-                        dataManager.updateVaultDoc(gid, event.doc.vaultId, updatedDoc)
                         if (_uiState.value.selectedDoc?.id == updatedDoc.id) {
                             _uiState.update { it.copy(selectedDoc = updatedDoc, offlineVersion = System.currentTimeMillis()) }
                         } else {
@@ -651,59 +479,9 @@ class VaultsViewModel(
         }
     }
 
-    private suspend fun validateCachedData(gid: String, specificVaultId: String? = null): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        var removedCount = 0
-        try {
-            val vaultsDir = File(context.filesDir, "vaults")
-            if (!vaultsDir.exists()) return@withContext 0
-
-            val serverVaults = dataManager.getVaultsDirect(gid)
-            val validVaultIds = serverVaults.map { it.id }.toSet()
-
-            val localVaultFolders = vaultsDir.listFiles() ?: emptyArray()
-            for (vFolder in localVaultFolders) {
-                if (!vFolder.isDirectory) continue
-                val vId = vFolder.name
-
-                if (!validVaultIds.contains(vId)) {
-                    vFolder.deleteRecursively()
-                    removedCount++
-                    continue
-                }
-
-                if (specificVaultId != null && vId != specificVaultId) continue
-
-                val serverDocs = dataManager.getVaultDocsDirect(gid, vId)
-                val validDocMap = serverDocs.associateBy { it.id }
-
-                val docEntries = vFolder.listFiles() ?: emptyArray()
-                for (docEntry in docEntries) {
-                    if (docEntry.isDirectory) {
-                        val docId = docEntry.name
-                        val serverDoc = validDocMap[docId]
-                        if (serverDoc == null) {
-                            docEntry.deleteRecursively()
-                            removedCount++
-                        } else {
-                            val validFileNames = serverDoc.fileNames.toSet()
-                            val docFiles = docEntry.listFiles() ?: emptyArray()
-                            for (dFile in docFiles) {
-                                if (validFileNames.isNotEmpty() && !validFileNames.contains(dFile.name)) {
-                                    dFile.delete()
-                                    removedCount++
-                                }
-                            }
-                        }
-                    } else {
-                        docEntry.delete()
-                        removedCount++
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("VaultsViewModel", "Failed to validate cached data", e)
-        }
+    private suspend fun validateCachedData(gid: String, specificVaultId: String? = null): Int {
+        val removedCount = VaultsOperationsHelper.validateCachedData(context, dataManager, gid, specificVaultId)
         _uiState.update { it.copy(offlineVersion = System.currentTimeMillis()) }
-        return@withContext removedCount
+        return removedCount
     }
 }

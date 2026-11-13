@@ -27,13 +27,13 @@ Depending on the task being performed, you MUST consult and follow the correspon
 * **When to use**: Defining data models, updating Firestore schema/rules, creating enums, managing `UserData` encapsulation, handling timestamps/IDs, or handling user change cache purges.
 * **Key Topics**: Strong typing (no `Any`/`Object`), default property values, `String` IDs, `Long` UTC timestamps, `Enum` suffix, Firestore `Property::name.name` keys, `core/firestore.rules` security, `SettingsManager.checkAndPurgeIfUserChanged`.
 
-### ⚡ [Background File Transfers & Red Container](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/background_transfers.md)
-* **When to use**: Handling background file uploads, downloads, public exports, notifications, floating progress indicators, or Red Container gestures.
-* **Key Topics**: Queue managers & background services (`FileUploadService`, `FileDownloadService`, `FileExportService`), FAB color coding (Blue Upload, Green Download, Orange Export, Red Notif), `FloatingProgressIndicator` delegation, Red Container >50% drag side persistence, `LauncherScreen` header icons sync.
+### ⚡ [Background File Transfers & Actions Container](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/background_transfers.md)
+* **When to use**: Handling background file uploads, downloads, public exports, notifications, floating progress indicators, or Actions Container gestures.
+* **Key Topics**: Queue managers & background services (`FileUploadService`, `FileDownloadService`, `FileExportService`), FAB color coding (Blue Upload, Green Download, Orange Export, Red Notif), `FloatingProgressIndicator` delegation, Actions Container >50% drag side persistence, `LauncherScreen` header icons sync.
 
 ### 📱 [UI Design: Screens, Sheets & Components](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/ui_sheets_screens_components.md)
 * **When to use**: Creating or updating UI screens, slide-up bottom sheets, input controls, pickers, filters, pull-to-refresh, or paging.
-* **Key Topics**: Mandatory `BaseScreen` layout wrapper, centralized loader, `RedContainer` delegation, slide-up `ModalBottomSheet` naming & subfolder placement (no Cancel buttons inside sheets), `Switch` inputs over `Checkbox`, `PullToRefreshBox`, `pagingLimit` paging pattern, `Modifier.imePadding()`.
+* **Key Topics**: Mandatory `BaseScreen` layout wrapper, centralized loader, Actions Container delegation, slide-up `ModalBottomSheet` naming & subfolder placement (no Cancel buttons inside sheets), `Switch` inputs over `Checkbox`, `PullToRefreshBox`, `pagingLimit` paging pattern, `Modifier.imePadding()`.
 
 ### 🚀 [Creating New Apps & Feature Modules](file:///var/home/serhii/AndroidStudioProjects/jTool/app/src/main/java/com/jtool/android/core/ai/new_app_or_feature_creation.md)
 * **When to use**: Adding a new app module, creating a new feature directory, or registering screens in the launcher.
@@ -61,7 +61,7 @@ Follow the architectural guidelines in 'app/src/main/java/com/jtool/android/core
 - All UI strings must use Localization Service (Loc) with gender-neutral phrasing.
 - All screens must use BaseScreen wrapper; slide-up sheets use 'Sheet' suffix in dedicated folder (no Cancel buttons).
 - Use Switch over Checkbox.
-- Route file transfers via background services & queue managers with Red Container color rules.
+- Route file transfers via background services & queue managers with Actions Container color rules.
 - Maintain single official changelog at 'website/y/changelogs/changelog.txt' with version header.
 - Keep website/ source files updated when app features or descriptions are updated.
 - Route all web links via WebUtils.openAppPage with dynamic db fetching and local caching.

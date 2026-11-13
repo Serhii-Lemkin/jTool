@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -39,6 +40,8 @@ import com.jtool.android.core.models.feature.shopping.ShoppingItem
 import com.jtool.android.core.models.feature.shopping.enums.ShoppingAisleEnum
 import com.jtool.android.core.settings.SettingsManager
 import com.jtool.android.core.sync.DataManager
+import com.jtool.android.features.shopping.components.AisleIcons
+import com.jtool.android.features.shopping.components.ShoppingItemRow
 import com.jtool.android.features.shopping.components.aisle_selection_sheet.AisleSelectionSheet
 import com.jtool.android.features.shopping.components.filter_selection_sheet.FilterSelectionSheet
 import com.jtool.android.features.shopping.components.item_delete_confirm_sheet.ItemDeleteConfirmSheet
@@ -46,22 +49,6 @@ import com.jtool.android.features.shopping.components.item_edit_sheet.ItemEditSh
 import com.jtool.android.features.shopping.components.shopping_item_action_sheet.ShoppingItemActionSheet
 import com.jtool.android.ui.components.common.MessageSheet
 import com.jtool.android.ui.components.common.MessageType
-
-val AisleIcons = mapOf(
-    ShoppingAisleEnum.COMMON to Icons.AutoMirrored.Filled.Label,
-    ShoppingAisleEnum.VEGGIES to Icons.Default.Eco,
-    ShoppingAisleEnum.MEAT to Icons.Default.KebabDining,
-    ShoppingAisleEnum.FISH to Icons.Default.SetMeal,
-    ShoppingAisleEnum.DAIRY to Icons.Default.Egg,
-    ShoppingAisleEnum.BAKERY to Icons.Default.BakeryDining,
-    ShoppingAisleEnum.DRINKS to Icons.Default.LocalDrink,
-    ShoppingAisleEnum.FROZEN to Icons.Default.AcUnit,
-    ShoppingAisleEnum.SNACKS to Icons.Default.Cookie,
-    ShoppingAisleEnum.HOUSEHOLD to Icons.Default.CleaningServices,
-    ShoppingAisleEnum.PERSONAL to Icons.Default.Spa,
-    ShoppingAisleEnum.PETS to Icons.Default.Pets,
-    ShoppingAisleEnum.PANTRY to Icons.Default.BreakfastDining
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -188,14 +175,16 @@ fun ShoppingListScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
+            val listState = rememberLazyListState()
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                        items(uiState.displayItems, key = { it.id }) { item ->
+                        items(uiState.displayItems, key = { "active_${it.id}" }) { item ->
                             ShoppingItemRow(
                                 item = item,
                                 measurementManager = measurementManager,
@@ -223,7 +212,7 @@ fun ShoppingListScreen(
                                 )
                             }
 
-                            items(uiState.checkedItems, key = { it.id }) { item ->
+                            items(uiState.checkedItems, key = { "checked_${it.id}" }) { item ->
                                 ShoppingItemRow(
                                     item = item,
                                     measurementManager = measurementManager,
@@ -488,90 +477,3 @@ fun ShoppingListScreen(
                 }
             }
         }
-
-@Composable
-fun ShoppingItemRow(
-    item: ShoppingItem,
-    measurementManager: MeasurementManager,
-    onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit,
-    onEdit: () -> Unit,
-    userName: String
-) {
-    var showActionSheet by remember { mutableStateOf(false) }
-
-    val formattedAmount = remember(item.amount, item.unit) {
-        if (item.amount != null && item.amount > 0) {
-            val amtStr = if (item.amount % 1.0 == 0.0) item.amount.toLong().toString() else item.amount.toString()
-            val unitStr = measurementManager.getLocalizedUnitName(item.unit)
-            if (unitStr.isNotBlank()) "$amtStr $unitStr" else amtStr
-        } else if (item.unit.isNotBlank()) {
-            measurementManager.getLocalizedUnitName(item.unit)
-        } else {
-            ""
-        }
-    }
-
-    if (showActionSheet) {
-        ShoppingItemActionSheet(
-            onEdit = onEdit,
-            onDelete = onDelete,
-            onDismiss = { showActionSheet = false }
-        )
-    }
-
-    CompactActionListItem(
-        onClick = null,
-        headline = item.text,
-        isStrikethrough = item.isChecked,
-        metadataText = "${Loc.General.by} $userName",
-        leadingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Checkbox(
-                        checked = item.isChecked,
-                        onCheckedChange = { onToggle(it) },
-                        modifier = Modifier.scale(0.85f).offset(x = (-4).dp)
-                    )
-                }
-                Icon(
-                    imageVector = AisleIcons[item.aisle] ?: Icons.AutoMirrored.Filled.Label,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                )
-            }
-        },
-        trailingContent = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (formattedAmount.isNotBlank()) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
-                        Text(
-                            text = formattedAmount,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    IconButton(
-                        onClick = { showActionSheet = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(Icons.Default.MoreVert, null, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
-        }
-    )
-}

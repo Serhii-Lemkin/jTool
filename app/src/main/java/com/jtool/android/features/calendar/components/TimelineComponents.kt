@@ -62,7 +62,7 @@ fun TimelineEventCard(
     onClick: () -> Unit
 ) {
     val isVirtual = event.id.startsWith("virtual_")
-    val isContinuation = event.id.endsWith("_cont")
+    val isContinuation = event.id.contains("_cont")
     val isInvited = event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_INVITED
     
     val start = CalendarEventHelper.parseTime(event.startTime)
@@ -127,7 +127,7 @@ fun TimelineEventCard(
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = groupNames.joinToString(", "),
+                                text = "${Loc.Calendar.belongsTo}: ${groupNames.joinToString(", ")}",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -140,6 +140,15 @@ fun TimelineEventCard(
                 }
             }
         } else {
+            val badgeText = if (sharedGroupIds.isNotEmpty()) {
+                val groupNames = sharedGroupIds.map { gid ->
+                    val group = groups[gid]
+                    if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
+                }
+                "${Loc.Calendar.belongsTo}: ${groupNames.joinToString(", ")}"
+            } else {
+                null
+            }
             Column(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = if (isSmall) 0.dp else 4.dp),
                 verticalArrangement = if (isSmall) Arrangement.Center else Arrangement.Top
@@ -165,6 +174,22 @@ fun TimelineEventCard(
                             textDecoration = if (event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) TextDecoration.LineThrough else null,
                             modifier = Modifier.weight(1f)
                         )
+                        if (badgeText != null) {
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.25f),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 } else {
                     Text(
@@ -180,27 +205,22 @@ fun TimelineEventCard(
                         overflow = TextOverflow.Ellipsis,
                         textDecoration = if (event.currentUserStatus == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) TextDecoration.LineThrough else null
                     )
-                }
-
-                if (sharedGroupIds.isNotEmpty()) {
-                    val groupNames = sharedGroupIds.map { gid ->
-                        val group = groups[gid]
-                        if (group?.isPrivate == true) Loc.Calendar.private else group?.name ?: gid
-                    }
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.25f),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp),
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
-                        Text(
-                            text = groupNames.joinToString(", "),
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    if (badgeText != null) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.25f),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp),
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }

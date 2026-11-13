@@ -11,6 +11,9 @@ data class CalendarEventDetailUiState(
     val comments: List<Comment> = emptyList(),
     val isLoading: Boolean = false,
     val isResponding: Boolean = false,
+    val isDeleting: Boolean = false,
+    val isDeleted: Boolean = false,
+    val deleteError: String? = null,
     val isPermissionDenied: Boolean = false,
     val showEditDialog: Boolean = false,
     val isSyncEnabled: Boolean = true

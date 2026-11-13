@@ -12,7 +12,7 @@ fun BaseScreen(
     title: String,
     isLoading: Boolean = false,
     onBack: (() -> Unit)? = null,
-    onRefresh: (() -> Unit)? = null, // Shared reload function: deletes/clears local data cache and re-fetches from source of truth (Firestore)
+    onRefresh: (() -> Unit)? = null,
     isSearchVisible: Boolean = false,
     searchQuery: String = "",
     onSearchQueryChange: (String) -> Unit = {},
@@ -25,6 +25,9 @@ fun BaseScreen(
     onNotificationsClick: (() -> Unit)? = null,
     floatingActionButton: @Composable ColumnScope.() -> Unit = {},
     modifier: Modifier = Modifier,
+    isTitleEditable: Boolean = false,
+    onTitleChange: (String) -> Unit = {},
+    titlePlaceholder: String = "",
     content: @Composable (PaddingValues) -> Unit
 ) {
     Scaffold(
@@ -39,7 +42,10 @@ fun BaseScreen(
                 onSearchClose = onSearchClose,
                 onSearchTriggered = onSearchTriggered,
                 searchPlaceholder = searchPlaceholder,
-                actions = actions
+                actions = actions,
+                isTitleEditable = isTitleEditable,
+                onTitleChange = onTitleChange,
+                titlePlaceholder = titlePlaceholder
             )
         },
         modifier = modifier.fillMaxSize()

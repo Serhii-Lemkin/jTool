@@ -28,4 +28,5 @@ sealed interface NotesEvent {
     object ToggleSearch : NotesEvent
     data class UpdateSearchQuery(val query: String) : NotesEvent
     data class SetFilterType(val type: NoteTypeEnum?) : NotesEvent
+    data class SetPreviewMaxLines(val lines: Int) : NotesEvent
 }

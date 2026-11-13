@@ -6,7 +6,7 @@ Use this guide when building or modifying screens, slide-up bottom sheets, float
 
 ## 1. Page Consistency & Screen Architecture
 * **`BaseScreen` Requirement**: All screens MUST implement `BaseScreen` (`core/components/layout/BaseScreen.kt`) as their root layout wrapper. Loading states (`isLoading`) must be delegated to `BaseScreen`'s centralized loader rather than instantiating local loading boxes or progress indicators within individual screens.
-* **Red Container Delegation**: `BaseScreen` automatically embeds `RedContainer` (`core/components/layout/RedContainer.kt`), which manages all floating action buttons, status indicators, and side-switching gestures. Never instantiate separate floating containers on individual screens.
+* **Actions Container Delegation**: `BaseScreen` automatically embeds the Actions Container (currently `core/components/layout/RedContainer.kt`), which manages all floating action buttons, status indicators, and side-switching gestures. Never instantiate separate floating containers on individual screens.
 * **Structural Consistency**: New pages must conform strictly to existing project layouts, structural patterns, and implementation styles.
 
 ---
